@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # required — repo-intel reads full git history
-      - uses: tyom/repo-intel@v1
+      - uses: tyom/repo-intel@main # pin to @v1.0.0 once a release is tagged
         with:
           contributors: '10' # optional, top N
           output: public # optional, dir for index.html

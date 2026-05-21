@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: tyom/repo-intel@v1
+      - uses: tyom/repo-intel@main # pin to @v1.0.0 once a release is tagged
         with:
           contributors: "10" # top N contributors (optional)
           output: public # dir to write index.html into (optional)
