@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create releases and upload assets
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build artifact
+        run: make build
+
+      - name: Create release and attach the single-file artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/repo-intel \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
+          echo "sha256 (for the Homebrew formula):"
+          shasum -a 256 dist/repo-intel

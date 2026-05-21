@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # repo-intel reads full git history (local mode)
+
+      - name: Build artifact
+        run: make build
+
+      - name: Verify the committed artifact matches a fresh build
+        run: |
+          git diff --exit-code -- dist/repo-intel || {
+            echo "::error::dist/repo-intel is stale — run 'make build' and commit the result."
+            exit 1
+          }
+
+      - name: Smoke test — generate dashboard against this repo
+        run: |
+          set -euo pipefail
+          python3 dist/repo-intel 10 --no-open -o public/index.html
+          test -s public/index.html
+          grep -q "window.__DATA__" public/index.html
+          echo "Dashboard generated: $(wc -c < public/index.html) bytes"
+
+      - name: Smoke test the composite action end-to-end
+        uses: ./
+        with:
+          contributors: "5"
+          output: action-out
+      - run: grep -q "window.__DATA__" action-out/index.html

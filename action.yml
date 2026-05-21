@@ -1,0 +1,47 @@
+name: repo-intel
+description: Generate a contributor-stats dashboard (single HTML file) for the checked-out repository.
+author: tyom
+branding:
+  icon: bar-chart-2
+  color: purple
+
+inputs:
+  contributors:
+    description: Number of top contributors to include (N).
+    required: false
+    default: "10"
+  output:
+    description: Directory to write the dashboard into. index.html is created inside it.
+    required: false
+    default: public
+  args:
+    description: Extra flags forwarded verbatim to repo-intel (e.g. "--since 2024-01-01").
+    required: false
+    default: ""
+
+outputs:
+  html:
+    description: Path to the generated dashboard HTML file.
+    value: ${{ steps.generate.outputs.html }}
+
+runs:
+  using: composite
+  steps:
+    - id: generate
+      shell: bash
+      env:
+        # repo-intel reads the GitHub token only to enrich author hovercards;
+        # local mode does not require it. Passed through when available.
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        out_dir="${{ inputs.output }}"
+        out_file="${out_dir}/index.html"
+        echo "::group::repo-intel"
+        python3 "${{ github.action_path }}/dist/repo-intel" \
+          "${{ inputs.contributors }}" \
+          --no-open \
+          -o "${out_file}" \
+          ${{ inputs.args }}
+        echo "::endgroup::"
+        echo "html=${out_file}" >> "$GITHUB_OUTPUT"

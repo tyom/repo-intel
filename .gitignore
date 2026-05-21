@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Local dashboard output / scratch (template.html is a tracked source file)
+/public/
+/action-out/

@@ -1,0 +1,50 @@
+# Publish a repo-intel contributor-stats dashboard to GitHub Pages.
+#
+# Copy this file to .github/workflows/repo-intel.yml in your repository.
+# Then enable Pages: Settings → Pages → Build and deployment → Source: GitHub Actions.
+#
+# IMPORTANT: fetch-depth: 0 is required — repo-intel reads the full git
+# history. With the default shallow checkout it would see only one commit.
+
+name: Repo Intel
+
+on:
+  push:
+    branches: [main] # change to your default branch if different
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: tyom/repo-intel@v1
+        with:
+          contributors: "10" # top N contributors (optional)
+          output: public # dir to write index.html into (optional)
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

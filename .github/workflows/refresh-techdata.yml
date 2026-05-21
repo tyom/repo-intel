@@ -1,0 +1,47 @@
+name: Refresh techdata
+
+# Regenerates language/framework detection data from GitHub Linguist, rebuilds
+# the artifact, and opens a PR if anything changed. Keeps detection current
+# without manual maintenance.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Regenerate techdata.json and rebuild artifact
+        run: |
+          make techdata
+          make build
+
+      - name: Open a PR if detection data changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- techdata.json dist/repo-intel; then
+            echo "No changes from Linguist this week."
+            exit 0
+          fi
+          branch="chore/refresh-techdata-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add techdata.json dist/repo-intel
+          git commit -m "chore: refresh techdata.json from Linguist"
+          git push -u origin "$branch"
+          gh pr create \
+            --title "chore: refresh techdata.json from Linguist" \
+            --body "Automated weekly regeneration of language/framework detection data and rebuilt artifact." \
+            --base main \
+            --head "$branch"

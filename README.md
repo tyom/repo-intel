@@ -1,53 +1,113 @@
 # repo-intel
 
-Source for the `repo-intel` contributor-stats dashboard. The shipped
-executable at `stow/bin/repo-intel` is built from the files here — the
-HTML template is embedded into the script so the artifact is
-single-file and depends only on Python 3 + `git`.
+Generate a self-contained HTML **contributor-stats dashboard** for any git
+repo — top contributors, weekly/daily activity, time-of-day patterns,
+per-author commit feeds, plus a **language** breakdown and **framework**
+detection from dependency manifests.
 
-`repo-intel` reads commit history from either the current git repo or
-a remote GitHub repo and writes a self-contained HTML dashboard
-showing top contributors, weekly/daily activity, time-of-day patterns,
-and per-author commit feeds. It also breaks down work by **language**
-(per-commit file types in the timeline tooltip, a per-author language
-bar in the contributor popover, and a repo-wide "Technologies" section)
-and detects **frameworks** from dependency manifests grouped by language.
+The shipped tool is a single file (`dist/repo-intel`) with the HTML template
+and detection data embedded, so it depends only on **Python 3 + `git`**
+(optional [`gh`](https://cli.github.com/) for remote repos and author
+hovercards). No install step, no third-party packages.
 
-The per-file **language** breakdown needs file-level line stats that only
-the local and bare-clone paths produce — the token-authenticated GraphQL
-remote path omits it, so the Technologies section's language column shows a
-short placeholder there instead. **Framework** detection works on every path
-(on the remote path the dependency manifests are fetched over the API).
+Use it three ways:
 
-The [GitHub CLI (`gh`)](https://cli.github.com/) is optional but
-recommended: when authenticated (`gh auth login`), `repo-intel` uses
-its token to fetch remote repos via the GitHub GraphQL API and to
-enrich author cards with GitHub profile data (avatar, bio, follower
-counts, etc.). Without `gh`, the script falls back to `$GITHUB_TOKEN`
-or a bare-clone of the remote, and author cards show git data only.
+- **[GitHub Action](#github-action--publish-to-github-pages)** — publish a
+  dashboard for your repo to GitHub Pages.
+- **[Homebrew](#homebrew)** — `brew install tyom/tap/repo-intel`.
+- **[curl-pipe](#run-without-installing)** — run the script straight from a URL.
+
+## GitHub Action — publish to GitHub Pages
+
+Add a workflow (copy [`examples/pages.yml`](examples/pages.yml) to
+`.github/workflows/repo-intel.yml`):
+
+```yaml
+name: Repo Intel
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required — repo-intel reads full git history
+      - uses: tyom/repo-intel@v1
+        with:
+          contributors: '10' # optional, top N
+          output: public # optional, dir for index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+Then enable Pages: **Settings → Pages → Build and deployment → Source: GitHub
+Actions**.
+
+> **`fetch-depth: 0` is required.** `repo-intel` reads the full commit history
+> in local mode; the default shallow checkout would show only one commit.
+
+### Action inputs
+
+| Input          | Default  | Description                                                        |
+| -------------- | -------- | ------------------------------------------------------------------ |
+| `contributors` | `10`     | Number of top contributors to include.                             |
+| `output`       | `public` | Directory to write the dashboard into (`index.html` inside).       |
+| `args`         | `""`     | Extra flags forwarded to `repo-intel` (e.g. `--since 2024-01-01`). |
+
+The action generates the dashboard only — you keep control of the Pages
+deploy via `upload-pages-artifact` + `deploy-pages` (above), so the workflow's
+permissions and concurrency stay yours.
+
+## Homebrew
+
+```bash
+brew install tyom/tap/repo-intel
+```
+
+(Resolves to the [`tyom/homebrew-tap`](https://github.com/tyom/homebrew-tap)
+tap.)
 
 ## Run without installing
 
-Pipe the shipped artifact straight into Python — no clone, no install:
+Pipe the artifact straight into Python — no clone, no install:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/tyom/dotfiles/master/stow/bin/repo-intel \
+curl -sSL https://raw.githubusercontent.com/tyom/repo-intel/main/dist/repo-intel \
   | python3 - <owner/repo>
 ```
 
 Everything after `python3 -` is forwarded to the script. Replace
-`<owner/repo>` with the GitHub repo you want stats for (e.g. `tyom/dotfiles`),
+`<owner/repo>` with the GitHub repo you want stats for (e.g. `tyom/repo-intel`),
 or drop it to run against the current directory's git repo. Append `--help`
-(or `-h`) for the full flag reference:
+for the full flag reference:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/tyom/dotfiles/master/stow/bin/repo-intel \
+curl -sSL https://raw.githubusercontent.com/tyom/repo-intel/main/dist/repo-intel \
   | python3 - --help
 ```
 
-The script is self-contained (Python 3 + `git`, optional `gh`). In this mode
-stdin is the script body, so the interactive subset prompt for large remote
-repos is auto-skipped and the script fetches all commits — pass
+In this mode stdin is the script body, so the interactive subset prompt for
+large remote repos is auto-skipped and the script fetches all commits — pass
 `--commits N` (or `--since` / `--until`) to trim the fetch on big repos.
 
 ## Usage
@@ -66,82 +126,91 @@ Run `repo-intel --help` for the full flag reference.
 
 - **Local** — no `REPO`. Reads `git log` from the current working directory.
 - **Remote (GraphQL)** — `REPO` plus a GitHub token from
-  `gh auth token -h github.com` or `$GITHUB_TOKEN`. Fetches via the
-  GitHub GraphQL API.
+  `gh auth token -h github.com` or `$GITHUB_TOKEN`. Fetches via the GitHub
+  GraphQL API.
 - **Remote (bare-clone fallback)** — `REPO` with no token. Clones to
-  `/tmp/repo-intel-<owner>-<repo>.git` and reads locally. Subsequent
-  runs `git fetch` the cached bare clone.
+  `/tmp/repo-intel-<owner>-<repo>.git` and reads locally. Subsequent runs
+  `git fetch` the cached bare clone. Force it with `--clone` even when a token
+  is present (unlocks per-author language churn the GraphQL path can't give).
+
+The [GitHub CLI (`gh`)](https://cli.github.com/) is optional but recommended:
+when authenticated (`gh auth login`), `repo-intel` uses its token to fetch
+remote repos and to enrich author cards with GitHub profile data. Without it,
+the script falls back to `$GITHUB_TOKEN` or a bare clone.
 
 ### Filtering commits
 
-| Flag                  | Meaning                                                                  |
-| --------------------- | ------------------------------------------------------------------------ |
-| `--commits N`         | Last `N` commits (newest)                                                |
-| `--commits A-B`       | Positions `[A, B)` counted from the oldest commit (0-indexed, half-open) |
-| `--since YYYY-MM-DD`  | Commits on or after the date (inclusive)                                 |
-| `--until YYYY-MM-DD`  | Commits on or before the date (inclusive)                                |
+| Flag                 | Meaning                                                                  |
+| -------------------- | ------------------------------------------------------------------------ |
+| `--commits N`        | Last `N` commits (newest)                                                |
+| `--commits A-B`      | Positions `[A, B)` counted from the oldest commit (0-indexed, half-open) |
+| `--since YYYY-MM-DD` | Commits on or after the date (inclusive)                                 |
+| `--until YYYY-MM-DD` | Commits on or before the date (inclusive)                                |
 
-Filters compose: date bounds apply first, then the position slice. The
-run prints `filtered: X/total commits` so you can see what was kept.
+Filters compose: date bounds apply first, then the position slice. The run
+prints `filtered: X/total commits` so you can see what was kept.
 
-When a remote repo has more than 1000 commits and no filter flag was
-passed, `repo-intel` prompts interactively for a subset (Last 500, Last
-1000, Past year, or All). The prompt requires the GraphQL path
-(token-authenticated), because that's where picking a subset actually
-saves network — the bare-clone fallback downloads everything regardless,
-so it skips the prompt and you can pass `--commits` / `--since` to trim
-the display instead. Also skipped when stdin/stderr is not a TTY or when
-any of `--commits` / `--since` / `--until` is given.
+When a remote repo has more than 1000 commits and no filter flag was passed,
+`repo-intel` prompts interactively for a subset (Last 500, Last 1000, Past
+year, or All) on the GraphQL path. The prompt is skipped on the bare-clone
+fallback, when stdin/stderr is not a TTY, or when any filter flag is given.
 
 ### Output
 
-| Flag                  | Default                                                                                  |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| `-o, --output PATH`   | `/tmp/<owner>--<repo>.html` (or `/tmp/<repo>.html` for a local repo without a GitHub origin) |
-| `--no-open`           | Opens the result in your default browser                                                 |
+| Flag                | Default                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `-o, --output PATH` | `/tmp/<owner>--<repo>.html` (or `/tmp/<repo>.html` for a local repo without a GitHub origin) |
+| `--no-open`         | Opens the result in your default browser unless given                                        |
 
 `--output` creates parent directories if they don't exist.
 
 ### Cache
 
-Remote runs cache commit nodes per repo under
-`$XDG_CACHE_HOME/repo-intel` (default `~/.cache/repo-intel`), one JSON
-file per repo. The next run paginates from HEAD and stops at the first
-already-cached SHA, so only new commits since the last fetch hit the
-network.
+Remote runs cache commit nodes per repo under `$XDG_CACHE_HOME/repo-intel`
+(default `~/.cache/repo-intel`), one JSON file per repo. The next run
+paginates from HEAD and stops at the first already-cached SHA, so only new
+commits hit the network.
 
-- `--no-cache` — ignore the cache and re-fetch everything (also skips
-  `git fetch` on the bare-clone fallback).
-- Delete the relevant `<owner>-<repo>.json` to force a fresh fetch for
-  one repo.
-
-The cache assumes linear history extension; force-pushes that rewrite
-history may leave orphan SHAs in the cache. Pass `--no-cache` after a
-known force-push if precision matters.
+- `--no-cache` — ignore the cache and re-fetch everything.
+- Delete the relevant `<owner>-<repo>.json` to force a fresh fetch for one repo.
 
 ### Examples
 
 ```bash
 repo-intel                                            # cwd, top 10
 repo-intel 20                                         # cwd, top 20
-repo-intel tyom/dotfiles                              # remote, top 10
-repo-intel --commits 100 tyom/dotfiles                # last 100 commits
-repo-intel --commits 0-100 tyom/dotfiles              # first 100 commits
-repo-intel --commits 400-800 facebook/react           # 400 commits at positions 400..799
+repo-intel tyom/repo-intel                            # remote, top 10
+repo-intel --commits 100 facebook/react               # last 100 commits
+repo-intel --commits 0-100 facebook/react             # first 100 commits
 repo-intel --since 2024-01-01 --until 2024-12-31 .    # all of 2024 in cwd
-repo-intel --no-open -o ./stats.html tyom/dotfiles    # save without opening
-repo-intel --no-cache tyom/dotfiles                   # bypass cache
+repo-intel --no-open -o ./stats.html tyom/repo-intel  # save without opening
+repo-intel facebook/react --clone                     # analyse via bare clone
 ```
 
-## Files
+## Development
 
-| File              | Purpose                                                                      |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled         |
-| `template.html`   | Dashboard HTML, with `/*__DATA_INJECTION__*/` for runtime data               |
-| `techdata.json`   | Generated language + framework detection data (committed; embedded at build) |
-| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map   |
-| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`   |
+| File              | Purpose                                                                           |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled              |
+| `template.html`   | Dashboard HTML, with `/*__DATA_INJECTION__*/` for runtime data                    |
+| `techdata.json`   | Generated language + framework detection data (committed; embedded at build)      |
+| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map        |
+| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`       |
+| `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use) |
+
+```bash
+make build       # rebuild dist/repo-intel after editing source or template
+make techdata    # regenerate techdata.json from Linguist (needs network)
+make dev ARGS="3 facebook/react"   # run from source, reading template/techdata live
+```
+
+`make dev` runs the unbundled script: it detects that `TEMPLATE` is still the
+placeholder and reads `template.html` / `techdata.json` from disk, so you can
+iterate without rebuilding. The built artifact carries both embedded.
+
+> Commit `dist/repo-intel` alongside source changes — CI fails if it's stale.
+> The weekly `refresh-techdata` workflow rebuilds it automatically when
+> Linguist changes.
 
 ### Detection data (`techdata.json`)
 
@@ -149,44 +218,11 @@ Language detection (extension/filename → language, colors, vendored-path noise
 filter) is generated from [GitHub Linguist](https://github.com/github-linguist/linguist)
 — `languages.yml` (with fine-grained languages folded into their `group`, e.g.
 `TSX`→`TypeScript`) and `vendor.yml`. Frameworks are a small curated
-dependency → framework map maintained in `gen_techdata.py` (Vercel/Netlify's
-lists target deploy presets, not the libraries a repo uses, so they're a poor
-fit). `techdata.json` is committed and embedded into the artifact, so the
-shipped tool stays offline and single-file.
+dependency → framework map maintained in `gen_techdata.py`. `techdata.json` is
+committed and embedded into the artifact, so the shipped tool stays offline and
+single-file.
 
-## Workflows
-
-**Build the shipped artifact** (run after editing source or template):
-
-```bash
-make repo-intel-build
-```
-
-Writes `stow/bin/repo-intel` (chmod 0755). Commit both source and
-artifact — the artifact is checked in so a fresh clone + `make install`
-works without a build step. `repo-intel-build` reads the committed
-`techdata.json`; it is **not** regenerated on every build (that would need
-network), so builds stay offline and reproducible.
-
-**Refresh detection data** (only when bumping Linguist or editing the
-framework map — needs network):
-
-```bash
-make repo-intel-techdata   # rewrites techdata.json; then commit it + rebuild
-```
-
-**Develop against the source live** (no rebuild needed between edits):
-
-```bash
-make repo-intel-dev                          # uses cwd, top 10
-make repo-intel-dev ARGS="3 facebook/react"  # top 3 of a remote repo
-```
-
-The source script auto-detects that `TEMPLATE` is still the placeholder
-and falls back to reading `template.html` (and `techdata.json`) from disk.
-The built artifact never hits that branch — it carries both embedded.
-
-## How the embedding works
+### How the embedding works
 
 `build.py` looks for exactly one occurrence each of:
 
@@ -196,9 +232,10 @@ TECHDATA = "__TECHDATA_PLACEHOLDER__"
 ```
 
 and replaces them with `TEMPLATE = <repr(template_html)>` and
-`TECHDATA = <repr(techdata_json)>`. The result is a valid Python file
-carrying both as string literals. Templating happens at build time; the
-runtime substitution of `/*__DATA_INJECTION__*/` with
-`window.__DATA__ = {...}` still happens inside `main()` as before. When
-unbuilt, the script detects the placeholders and reads `template.html`
-and `techdata.json` from disk instead.
+`TECHDATA = <repr(techdata_json)>`, producing a valid Python file carrying
+both as string literals. The runtime substitution of `/*__DATA_INJECTION__*/`
+with `window.__DATA__ = {...}` still happens inside `main()`.
+
+## License
+
+[MIT](LICENSE)
