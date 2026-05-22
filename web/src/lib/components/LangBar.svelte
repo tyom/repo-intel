@@ -33,3 +33,53 @@
     </div>
   {/if}
 {/if}
+
+<style>
+  .langbar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-badge);
+    margin-top: 10px;
+
+    > span {
+      display: block;
+      height: 100%;
+      min-width: 2px;
+    }
+  }
+  .lang-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: 8px;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+
+    .lang-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    a.lang-item {
+      color: inherit;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    .lang-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .lang-pct {
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+</style>

@@ -5,18 +5,19 @@
   // is a single body-portaled node positioned with the shared portal/position
   // actions, like the popovers.
   import type { Mode, RepoData } from "$types";
-  import { colorHeatmap, bgEmptyCell } from "$lib/theme";
+  import { colorHeatmap, bgEmptyCell, bgCard } from "$lib/theme";
   import { encodeBranch } from "$lib/format";
   import { portal, position } from "$lib/actions";
 
   let { data, mode = "current" }: { data: RepoData; mode?: Mode } = $props();
 
-  // Interpolate from the empty-cell background toward the heatmap color.
+  // Interpolate from the card background (--bg-card) toward the heatmap color.
+  const hex = (c: string, i: number) => parseInt(c.slice(i, i + 2), 16);
   function shade(opacity: number): string {
-    const r = parseInt(colorHeatmap.slice(1, 3), 16),
-      g = parseInt(colorHeatmap.slice(3, 5), 16),
-      b = parseInt(colorHeatmap.slice(5, 7), 16);
-    const bg = { r: 22, g: 27, b: 34 };
+    const r = hex(colorHeatmap, 1),
+      g = hex(colorHeatmap, 3),
+      b = hex(colorHeatmap, 5);
+    const bg = { r: hex(bgCard, 1), g: hex(bgCard, 3), b: hex(bgCard, 5) };
     return `rgb(${Math.round(bg.r + (r - bg.r) * opacity)},${Math.round(bg.g + (g - bg.g) * opacity)},${Math.round(bg.b + (b - bg.b) * opacity)})`;
   }
 
@@ -111,7 +112,7 @@
         const bg = cellColor(day.count);
         const cellBg =
           day.dow >= 5
-            ? `linear-gradient(rgba(240,170,90,0.05),rgba(240,170,90,0.05)),${bg}`
+            ? `linear-gradient(rgba(var(--accent-weekend),0.05),rgba(var(--accent-weekend),0.05)),${bg}`
             : bg;
         const href = baseUrl
           ? `${baseUrl}/commits/${branchPath}?after=&since=${day.key}&until=${day.key}`
@@ -227,3 +228,134 @@
     <span class="tt-count">on {tipDate}</span>
   {/if}
 </div>
+
+<style>
+  .heatmap-wrap {
+    padding: 4px 0;
+    width: 100%;
+  }
+  .heatmap-grid {
+    display: flex;
+    gap: 0;
+    width: 100%;
+  }
+  .heatmap-day-labels {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-right: 4px;
+    flex-shrink: 0;
+
+    span {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+  }
+  .heatmap {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+  .heatmap-week {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+  .heatmap-cell {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 2px;
+    background: var(--bg-empty-cell);
+    outline: 2px solid transparent;
+    outline-offset: -1px;
+    transition: outline-color 0.1s;
+  }
+  /* The real day cells are <a>; filler/legend cells are <div>. */
+  a.heatmap-cell {
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+
+    &:hover {
+      outline-color: rgba(255, 255, 255, 0.3);
+    }
+  }
+  .heatmap-months {
+    display: flex;
+    margin-bottom: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding-left: 28px;
+    width: calc(100% - 28px);
+  }
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    justify-content: flex-end;
+
+    .heatmap-cell {
+      width: 12px;
+      height: 12px;
+      flex: none;
+      aspect-ratio: auto;
+    }
+  }
+  .heatmap-tooltip {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    background: var(--bg-tooltip);
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: var(--arrow-left, 50%);
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+    }
+    /* .visible and data-side are applied at runtime by the position action and
+       place(), so they're invisible to the compiler — :global keeps them. */
+    &:global([data-side="above"])::after {
+      top: 100%;
+      border-top-color: var(--bg-tooltip);
+    }
+    &:global([data-side="below"])::after {
+      bottom: 100%;
+      border-bottom-color: var(--bg-tooltip);
+    }
+    &:global(.visible) {
+      opacity: 1;
+    }
+    .tt-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .tt-date {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .tt-count {
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+  }
+</style>

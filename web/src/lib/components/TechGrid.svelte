@@ -45,3 +45,64 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* The #tech id (App.svelte's section wrapper) was only a global namespace;
+     Svelte scoping isolates these, so the prefix is dropped. */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  .tech-bar-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+  }
+  .frameworks {
+    display: flex;
+    flex-direction: column;
+  }
+  .fw-group {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 9px 0;
+    border-top: 1px solid var(--border-default);
+
+    &:first-child {
+      border-top: none;
+    }
+  }
+  .fw-lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+
+    .lang-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+  }
+  .fw-items {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .tech-empty {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+  }
+</style>

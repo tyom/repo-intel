@@ -100,3 +100,145 @@
     <LangBar langs={c.languages} legend />
   {/if}
 </div>
+
+<style>
+  .lane-popover {
+    position: fixed;
+    z-index: 110;
+    pointer-events: none;
+    background: var(--bg-popover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    min-width: 260px;
+    max-width: 340px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.12s;
+
+    /* .visible is toggled at runtime by the position action. */
+    &:global(.visible) {
+      opacity: 1;
+    }
+    .lp-header {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .lp-avatar,
+    .lp-avatar-fallback {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .lp-avatar {
+      background: var(--bg-badge);
+      object-fit: cover;
+    }
+    .lp-avatar-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #fff;
+    }
+    .lp-id {
+      min-width: 0;
+      padding-top: 4px;
+    }
+    .lp-name {
+      font-weight: 600;
+      font-size: 0.98rem;
+      color: var(--text-primary);
+      line-height: 1.25;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+    .lp-handle {
+      display: block;
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.82rem;
+      margin-top: 1px;
+      word-break: break-all;
+    }
+    .lp-bio {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      margin-top: 10px;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+    .lp-counts {
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      margin-top: 10px;
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+    .lp-meta {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .lp-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      min-width: 0;
+
+      /* Icons are injected via {@html}, so the <svg> gets no scope class. */
+      :global(svg) {
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
+    }
+    .lp-meta-text {
+      word-break: break-all;
+      min-width: 0;
+    }
+    .lp-divider {
+      height: 1px;
+      background: var(--border-default);
+      margin: 12px 0 10px;
+    }
+    .lp-stats {
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+
+      .add {
+        color: var(--color-added);
+      }
+      .del {
+        color: var(--color-deleted);
+      }
+    }
+    .lp-period {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      margin-top: 4px;
+    }
+    /* Tweak the embedded LangBar child; :global reaches its scoped markup. */
+    :global(.langbar) {
+      margin-top: 12px;
+    }
+    :global(.lang-legend) {
+      font-size: 0.72rem;
+      gap: 3px 10px;
+    }
+  }
+</style>

@@ -69,3 +69,82 @@
     {#if moreCount > 0}<div class="cp-more">+{fmt(moreCount)} more</div>{/if}
   {/if}
 </div>
+
+<style>
+  .commit-popover {
+    position: fixed;
+    z-index: 120;
+    pointer-events: auto;
+    background: var(--bg-popover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 12px 14px;
+    min-width: 280px;
+    max-width: 380px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.12s;
+    visibility: hidden;
+
+    /* .visible is toggled at runtime by the position action. */
+    &:global(.visible) {
+      opacity: 1;
+      visibility: visible;
+    }
+    .cp-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      line-height: 1.2;
+    }
+    .cp-sub {
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      margin: 2px 0 10px;
+    }
+    .cp-list {
+      max-height: 280px;
+      overflow-y: auto;
+      margin: 0 -14px;
+      padding: 0;
+    }
+    .cp-row {
+      display: flex;
+      gap: 9px;
+      align-items: baseline;
+      padding: 5px 14px;
+      text-decoration: none;
+      color: var(--text-secondary);
+
+      &:hover {
+        background: var(--bg-badge);
+      }
+    }
+    .cp-hash {
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .cp-msg {
+      font-size: 0.78rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .cp-date {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .cp-more {
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      margin-top: 8px;
+      text-align: center;
+    }
+  }
+</style>

@@ -61,3 +61,45 @@
   </div>
   <canvas bind:this={canvas}></canvas>
 </div>
+
+<style>
+  .contributor-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 12px;
+    overflow: hidden;
+    min-width: 0;
+
+    .name {
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-bottom: 2px;
+    }
+    .meta {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      white-space: nowrap;
+
+      span {
+        margin-right: 6px;
+      }
+      .add {
+        color: var(--color-added);
+      }
+      .del {
+        color: var(--color-deleted);
+      }
+    }
+    .rank {
+      float: right;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    canvas {
+      height: 80px !important;
+    }
+  }
+</style>

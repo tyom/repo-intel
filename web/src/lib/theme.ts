@@ -18,6 +18,14 @@ export const bgEmptyCell = readVar("--bg-empty-cell");
 export const textMuted = readVar("--text-muted");
 export const borderSubtle = readVar("--border-subtle");
 
+// Canvas-only decorations (timeline). The grid/selection colours are shared
+// with CSS rules via :root; --accent-weekend is a raw "r,g,b" triplet so each
+// consumer can pick its own alpha.
+export const gridLine = readVar("--grid-line");
+export const selectionFill = readVar("--selection-fill");
+export const selectionStroke = readVar("--selection-stroke");
+export const accentWeekend = readVar("--accent-weekend");
+
 export function configureCharts(): void {
   const cd = Chart.defaults;
   cd.color = textMuted;

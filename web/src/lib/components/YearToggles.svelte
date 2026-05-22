@@ -38,3 +38,33 @@
     {/each}
   {/if}
 </div>
+
+<style>
+  .year-toggles {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .year-toggle {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+    &.active {
+      color: var(--text-primary);
+      background: var(--bg-badge);
+      border-color: var(--border-default);
+    }
+  }
+</style>

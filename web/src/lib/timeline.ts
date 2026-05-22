@@ -3,7 +3,7 @@
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
 import type { Commit, Contributor, RepoData, Tag } from "$types";
-import { clr, colorAdded, colorDeleted } from "./theme";
+import { clr, colorAdded, colorDeleted, gridLine, selectionFill, selectionStroke, accentWeekend } from "./theme";
 import { authorUrl, escapeHtml, fmt } from "./format";
 import { installAvatarFallback } from "./avatar";
 import type { AuthorPopover } from "./popovers";
@@ -477,7 +477,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     const visEndMs = ((sl + canvasViewW) / currentWidth) * totalMs;
     const cursor = new Date(startT + visStartMs);
     cursor.setHours(0, 0, 0, 0);
-    ctx.fillStyle = "rgba(240,170,90,0.045)";
+    ctx.fillStyle = `rgba(${accentWeekend},0.045)`;
     let drawn = 0;
     while (drawn < 5000) {
       const tMs = cursor.getTime() - startT;
@@ -540,14 +540,14 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
           d.setHours(0, 0, 0, 0);
         },
         (d) => d.setMonth(d.getMonth() + 1),
-        "rgba(255,255,255,0.06)",
+        gridLine,
       );
     }
     if (currentPxPerDay > 25) {
       drawGridLines(
         (d) => d.setHours(0, 0, 0, 0),
         (d) => d.setDate(d.getDate() + 1),
-        "rgba(255,255,255,0.06)",
+        gridLine,
       );
     }
     if (currentPxPerDay > 350) {
@@ -643,9 +643,9 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     if (selecting && selMoved) {
       const xa = Math.min(selStartX, selCurX),
         xb = Math.max(selStartX, selCurX);
-      ctx.fillStyle = "rgba(88,166,255,0.22)";
+      ctx.fillStyle = selectionFill;
       ctx.fillRect(xa, 0, xb - xa, height);
-      ctx.strokeStyle = "rgba(88,166,255,0.95)";
+      ctx.strokeStyle = selectionStroke;
       ctx.lineWidth = 1;
       ctx.strokeRect(xa + 0.5, 0.5, Math.max(1, xb - xa - 1), height - 1);
     }
@@ -810,9 +810,9 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     const x1 = Math.max(0, Math.min(mmSelStartX, mmSelCurX));
     const x2 = Math.min(canvasViewW, Math.max(mmSelStartX, mmSelCurX));
     if (x2 <= x1) return;
-    hctx.fillStyle = "rgba(88,166,255,0.22)";
+    hctx.fillStyle = selectionFill;
     hctx.fillRect(x1, 0, x2 - x1, histHeight);
-    hctx.strokeStyle = "rgba(88,166,255,0.95)";
+    hctx.strokeStyle = selectionStroke;
     hctx.lineWidth = 1;
     hctx.strokeRect(x1 + 0.5, 0.5, Math.max(1, x2 - x1 - 1), histHeight - 1);
   }
