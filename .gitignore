@@ -1,5 +1,10 @@
 __pycache__/
 *.pyc
-# Local dashboard output / scratch (template.html is a tracked source file)
+# Local dashboard output / scratch (the frontend source lives in web/)
 /public/
 /action-out/
+# Frontend build products & deps (sources are tracked under web/src etc.)
+web/node_modules/
+web/dist/
+# Repo-root dev tooling deps (Prettier; see package.json)
+/node_modules/

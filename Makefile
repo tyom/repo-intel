@@ -3,17 +3,32 @@
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build the single-file artifact into dist/repo-intel
+web-build: ## Build the frontend bundle (web/dist/index.html) with Bun + Vite
+	cd web && bun install --frozen-lockfile && bun run build
+
+web-dev: ## Run the frontend dev server with HMR (reads web/public/mock-data.json)
+	cd web && bun run dev
+
+web-check: ## Type-check the frontend (svelte-check); does not build
+	cd web && bun install --frozen-lockfile && bun run check
+
+format: ## Format the whole repo with Prettier
+	@bun install --frozen-lockfile >/dev/null && bunx prettier --write .
+
+format-check: ## Check formatting with Prettier (CI); does not write
+	@bun install --frozen-lockfile >/dev/null && bunx prettier --check .
+
+build: web-build ## Build the single-file artifact into dist/repo-intel
 	python3 build.py dist/repo-intel
 
 techdata: ## Regenerate techdata.json from GitHub Linguist (needs network)
 	python3 gen_techdata.py
 
-dev: ## Run from source (reads template.html + techdata.json live; pass args via ARGS=)
+dev: web-build ## Run from source (reads web/dist/index.html + techdata.json live; pass args via ARGS=)
 	python3 repo-intel.py $(ARGS)
 
 install-hooks: ## Point git at the tracked .githooks/ (auto-rebuilds dist on commit)
 	git config core.hooksPath .githooks
 	@echo "core.hooksPath -> .githooks"
 
-.PHONY: help build techdata dev install-hooks
+.PHONY: help web-build web-dev web-check format format-check build techdata dev install-hooks

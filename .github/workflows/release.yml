@@ -13,7 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build artifact
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Build artifact (frontend bundle + single-file)
         run: make build
 
       - name: Create release and attach the single-file artifact

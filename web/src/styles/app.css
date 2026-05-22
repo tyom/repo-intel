@@ -1,0 +1,565 @@
+:root {
+  --bg-primary: #0d1117;
+  --bg-card: #161b22;
+  --bg-badge: #21262d;
+  --bg-empty-cell: rgba(255, 255, 255, 0.05);
+  --border-default: #30363d;
+  --border-subtle: #21262d;
+  --text-primary: #e6edf3;
+  --text-secondary: #c9d1d9;
+  --text-muted: #8b949e;
+  --text-highlight: #a5b4fc;
+  --color-added: #3fb950;
+  --color-deleted: #f85149;
+  --color-heatmap: #39d353;
+  --scrollbar-thumb: #30363d;
+  --scrollbar-thumb-hover: #484f58;
+  /* floating popover/tooltip surface (--bg-primary + alpha) */
+  --bg-popover: rgba(13, 17, 23, 0.97);
+  /* compact heatmap tooltip */
+  --bg-tooltip: rgba(0, 0, 0, 0.8);
+  /* timeline month/day grid + ticks (CSS + canvas) */
+  --grid-line: rgba(255, 255, 255, 0.06);
+  /* timeline drag-to-zoom rectangle */
+  --selection-fill: rgba(88, 166, 255, 0.22);
+  --selection-stroke: rgba(88, 166, 255, 0.95);
+  /* weekend tint, raw r,g,b — alpha applied per use */
+  --accent-weekend: 240, 170, 90;
+  /* Chart series palette (read by theme.ts via --c1..--c10). */
+  --c1: #818cf8;
+  --c2: #fb923c;
+  --c3: #34d399;
+  --c4: #f472b6;
+  --c5: #22d3ee;
+  --c6: #c084fc;
+  --c7: #fbbf24;
+  --c8: #4ade80;
+  --c9: #38bdf8;
+  --c10: #e879f9;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 24px;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 24px 24px 64px;
+  line-height: 1.5;
+}
+
+/* === Layout === */
+.container {
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
+.layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 24px;
+  flex-shrink: 0;
+  width: 168px;
+
+  nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      border-left: 2px solid transparent;
+      transition:
+        color 0.15s,
+        background 0.15s,
+        border-color 0.15s;
+
+      &:hover {
+        color: var(--text-primary);
+      }
+      &.active {
+        color: var(--text-primary);
+        border-left-color: var(--text-highlight);
+        background: var(--bg-badge);
+      }
+    }
+  }
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* === Typography === */
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+canvas {
+  max-height: 300px;
+}
+
+/* === Summary table (Table.svelte) === */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th {
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-default);
+    white-space: nowrap;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tbody tr:not(.totals):not(.subtotal) {
+    transition: background-color 0.1s;
+
+    &:hover td {
+      background: var(--bg-badge);
+    }
+  }
+  tr.totals td {
+    border-top: 2px solid var(--border-default);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  tr.subtotal td {
+    border-top: 1px solid var(--border-default);
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  td a:hover {
+    text-decoration: underline !important;
+  }
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pct {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.highlight {
+  color: var(--text-highlight);
+  font-weight: 600;
+}
+
+/* === Contributions section ===
+   .heatmap-* lives in Heatmap.svelte; .year-toggle* in YearToggles.svelte. */
+.contributions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+/* .contributor-card lives in ContributorCard.svelte;
+   .pattern-card in PatternCard.svelte; .chart-resettable / .chart-reset-btn in
+   OverallCharts.svelte. */
+
+/* === Horizontal scroll rows (dragScroll action; runtime-toggled classes) === */
+.scroll-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &.can-scroll-left.can-scroll-right {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+  }
+  &.can-scroll-left:not(.can-scroll-right) {
+    mask-image: linear-gradient(to right, transparent 0, black 24px);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 24px);
+  }
+  &.can-scroll-right:not(.can-scroll-left) {
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  }
+  &.dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+  }
+  .card {
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+}
+
+/* === Commit timeline (timeline.ts, rendered imperatively) === */
+.timeline-hint {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin: -4px 0 12px;
+}
+
+.timeline-h {
+  margin: 0 0 4px;
+}
+
+.timeline-range {
+  display: block;
+  position: sticky;
+  left: 0;
+  margin-top: 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.timeline-reset-btn {
+  background: var(--bg-badge);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+  &.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.timeline-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.timeline-labels {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-default);
+  padding-right: 10px;
+  margin-right: 10px;
+
+  .lane-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      margin: 0;
+    }
+    &:hover {
+      color: var(--text-primary);
+
+      span:not(.dot) {
+        text-decoration: underline;
+      }
+    }
+  }
+  .histogram-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 10px;
+  }
+}
+
+.timeline-scroll {
+  flex: 1;
+  overflow-x: auto;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  min-width: 0;
+  padding-bottom: 0;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  &.dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+  }
+  &.zoom-mode {
+    cursor: crosshair;
+  }
+}
+
+.timeline-inner {
+  position: relative;
+  overflow-x: clip;
+}
+
+.timeline-axis {
+  position: relative;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+
+  span {
+    position: absolute;
+    transform: translateX(-50%);
+    top: 0;
+    white-space: nowrap;
+
+    &.axis-hour {
+      color: var(--text-muted);
+      opacity: 0.55;
+    }
+  }
+  .timeline-tick {
+    transform: none;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--grid-line);
+    pointer-events: none;
+  }
+}
+
+.timeline-canvas {
+  display: block;
+  position: sticky;
+  left: 0;
+  max-height: none;
+}
+
+.timeline-histogram {
+  margin-top: 10px;
+  opacity: 1;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.timeline-tags {
+  touch-action: none;
+}
+
+.timeline-years {
+  position: relative;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+
+  .year-seg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.035);
+
+    &.odd {
+      background: rgba(255, 255, 255, 0.085);
+    }
+  }
+  .year-label {
+    position: absolute;
+    top: 0;
+    line-height: 18px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
+/* Component-scoped styles now live with their components:
+   .langbar / .lang-* → LangBar.svelte (popover overrides in AuthorPopover.svelte)
+   .commit-popover / .cp-* → CommitPopover.svelte
+   .timeline-tooltip / .tt-* → TimelineTooltip.svelte
+   .tech-* / .fw-* (was #tech) → TechGrid.svelte */
+
+/* === Scrollbars === */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--bg-primary);
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: static;
+    width: 100%;
+
+    nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+
+      a {
+        border-left: none;
+        border-bottom: 2px solid transparent;
+
+        &.active {
+          border-left: none;
+          border-bottom-color: var(--text-highlight);
+        }
+      }
+    }
+  }
+}

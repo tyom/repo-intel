@@ -1932,9 +1932,12 @@ def main():
     payload = f"window.__DATA__ = {json.dumps(data, ensure_ascii=False, separators=(',', ':'))};"
     template = TEMPLATE
     if template == "__TEMPLATE_PLACEHOLDER__":
-        sibling = Path(__file__).resolve().parent / "template.html"
+        sibling = Path(__file__).resolve().parent / "web" / "dist" / "index.html"
         if not sibling.exists():
-            sys.exit(f"error: unbuilt script and template.html not found at {sibling}")
+            sys.exit(
+                f"error: unbuilt script and frontend bundle not found at {sibling} — "
+                "run `bun run build` in web/ first"
+            )
         template = sibling.read_text()
     if PLACEHOLDER not in template:
         sys.exit(f"error: placeholder {PLACEHOLDER!r} not found in template")

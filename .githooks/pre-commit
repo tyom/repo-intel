@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
 # Keep dist/repo-intel in sync with its bundled sources.
 #
-# When any source that build.py embeds is part of this commit, rebuild the
-# single-file artifact and stage it so it always lands in the same commit.
+# build.py embeds web/dist/index.html (the Vite/Svelte frontend bundle) plus
+# techdata.json into repo-intel.py. When any *source* of that artifact is part
+# of this commit, rebuild the frontend + single-file artifact and stage it so it
+# always lands in the same commit. The composite GitHub Action runs the
+# committed dist/repo-intel directly, so a stale artifact is a real bug.
 # Install once with: make install-hooks   (sets core.hooksPath=.githooks)
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# Sources build.py reads into dist/repo-intel.
-sources="repo-intel.py template.html techdata.json"
+# Sources that affect dist/repo-intel. The whole web/ frontend is a source
+# (web/dist is a gitignored build product, so it never appears as staged).
+sources="repo-intel.py build.py techdata.json web"
 
 # Nothing to do unless one of them is staged in this commit.
 staged="$(git diff --cached --name-only -- $sources)"
 [ -z "$staged" ] && exit 0
 
-# build.py reads the working tree, not the index. If a staged source also has
-# unstaged edits, the rebuilt artifact would embed content you're not
+# build.py / vite read the working tree, not the index. If a staged source also
+# has unstaged edits, the rebuilt artifact would embed content you're not
 # committing — refuse rather than bundle the wrong thing.
 for f in $staged; do
   if ! git diff --quiet -- "$f"; then
@@ -27,6 +31,14 @@ for f in $staged; do
   fi
 done
 
-echo "pre-commit: bundled source changed — rebuilding dist/repo-intel ..."
+if ! command -v bun >/dev/null 2>&1; then
+  echo "pre-commit: 'bun' not found, but the frontend bundle needs rebuilding." >&2
+  echo "  Install Bun (https://bun.sh) or build manually: cd web && bun install && bun run build" >&2
+  exit 1
+fi
+
+echo "pre-commit: bundled source changed — rebuilding frontend + dist/repo-intel ..."
+echo "  (this runs 'bun install' + 'bun run build'; first run after a clone is slower)"
+( cd web && bun install --frozen-lockfile && bun run build )
 python3 build.py dist/repo-intel
 git add dist/repo-intel

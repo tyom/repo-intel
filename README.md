@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0 # required — repo-intel reads full git history
       - uses: tyom/repo-intel@v1 # moves with v1.x; pin @v1.0.0 to lock a version
         with:
-          contributors: '10' # optional, top N
+          contributors: "10" # optional, top N
           output: public # optional, dir for index.html
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -206,32 +206,43 @@ repo-intel facebook/react --clone                     # analyse via bare clone
 
 ## Development
 
-| File              | Purpose                                                                           |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled              |
-| `template.html`   | Dashboard HTML, with `/*__DATA_INJECTION__*/` for runtime data                    |
-| `techdata.json`   | Generated language + framework detection data (committed; embedded at build)      |
-| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map        |
-| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`       |
-| `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use) |
+| File              | Purpose                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled                 |
+| `web/`            | Frontend app (Svelte 5 + Vite + TypeScript). `bun run build` → `web/dist/index.html` |
+| `web/src/lib/`    | Dashboard engine: heatmap, timeline, charts, popovers, table (one module each)       |
+| `techdata.json`   | Generated language + framework detection data (committed; embedded at build)         |
+| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map           |
+| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`          |
+| `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use)    |
+
+The frontend is built with [Bun](https://bun.sh). It compiles to a single
+self-contained `web/dist/index.html` (all JS + CSS inlined, Chart.js bundled, no
+CDN) that still carries the `/*__DATA_INJECTION__*/` marker; `build.py` embeds
+that HTML into `repo-intel.py`. Bun/Vite are **build-time only** — the shipped
+tool is still a zero-dependency Python script.
 
 ```bash
 make install-hooks   # one-time per clone: auto-rebuild dist on commit
-make build       # rebuild dist/repo-intel after editing source or template
-make techdata    # regenerate techdata.json from Linguist (needs network)
-make dev ARGS="3 facebook/react"   # run from source, reading template/techdata live
+make web-dev         # frontend dev server with HMR (renders web/public/mock-data.json)
+make build           # rebuild the frontend bundle + dist/repo-intel
+make techdata        # regenerate techdata.json from Linguist (needs network)
+make dev ARGS="3 facebook/react"   # build frontend, then run from source live
 ```
 
-`make dev` runs the unbundled script: it detects that `TEMPLATE` is still the
-placeholder and reads `template.html` / `techdata.json` from disk, so you can
-iterate without rebuilding. The built artifact carries both embedded.
+`make web-dev` runs Vite's dev server with hot-reload against
+`web/public/mock-data.json`, so you can iterate on the UI without the Python
+side. `make dev` builds the frontend then runs the unbundled script (it detects
+`TEMPLATE` is still the placeholder and reads `web/dist/index.html` /
+`techdata.json` from disk).
 
 > Commit `dist/repo-intel` alongside source changes — CI fails if it's stale.
 > Run `make install-hooks` once after cloning: it points `core.hooksPath` at
-> the tracked `.githooks/`, whose `pre-commit` rebuilds and stages
-> `dist/repo-intel` whenever you commit a change to `repo-intel.py`,
-> `template.html`, or `techdata.json`. The weekly `refresh-techdata` workflow
-> rebuilds it automatically when Linguist changes.
+> the tracked `.githooks/`, whose `pre-commit` rebuilds the frontend bundle and
+> stages `dist/repo-intel` whenever you commit a change to `repo-intel.py`,
+> `techdata.json`, or anything under `web/`. (This needs Bun installed; the
+> first rebuild after a clone runs `bun install`.) The weekly `refresh-techdata`
+> workflow rebuilds it automatically when Linguist changes.
 
 ### Detection data (`techdata.json`)
 
