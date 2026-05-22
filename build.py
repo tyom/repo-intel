@@ -21,7 +21,7 @@ def main():
     out_path = Path(sys.argv[1])
 
     src_dir = Path(__file__).resolve().parent
-    script = (src_dir / "repo-intel.py").read_text()
+    script = (src_dir / "repo-intel.py").read_text(encoding="utf-8")
 
     template_path = src_dir / "web" / "dist" / "index.html"
     if not template_path.exists():
@@ -29,7 +29,7 @@ def main():
             f"error: {template_path} not found — run `bun install && bun run build` "
             "in web/ (or `make build`, which does it) to produce the frontend bundle."
         )
-    template = template_path.read_text()
+    template = template_path.read_text(encoding="utf-8")
 
     techdata_path = src_dir / "techdata.json"
     if not techdata_path.exists():
@@ -37,7 +37,7 @@ def main():
             f"error: {techdata_path} not found — run `make repo-intel-techdata` "
             "(needs network) to generate it, then commit it."
         )
-    techdata = techdata_path.read_text()
+    techdata = techdata_path.read_text(encoding="utf-8")
 
     for name, placeholder in (
         ("web/dist/index.html", TEMPLATE_PLACEHOLDER),
@@ -52,7 +52,7 @@ def main():
         .replace(TECHDATA_PLACEHOLDER, f"TECHDATA = {techdata!r}")
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(bundled)
+    out_path.write_text(bundled, encoding="utf-8")
     out_path.chmod(0o755)
     print(f"built {out_path} ({os.path.getsize(out_path):,} bytes)")
 

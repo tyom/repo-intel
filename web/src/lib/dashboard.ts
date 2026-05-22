@@ -16,8 +16,8 @@ export function initDashboard(D: RepoData): void {
   D.totals.net = D.totals.added - D.totals.deleted;
   D.contributors.forEach((c) => {
     c.net = c.added - c.deleted;
-    c.lc = +(c.net / c.commits).toFixed(1);
-    c.avgPerDay = +(c.commits / c.activeDays).toFixed(1);
+    c.lc = c.commits ? +(c.net / c.commits).toFixed(1) : 0;
+    c.avgPerDay = c.activeDays ? +(c.commits / c.activeDays).toFixed(1) : 0;
   });
 
   configureCharts();

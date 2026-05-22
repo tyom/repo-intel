@@ -29,7 +29,7 @@ export function renderTable(D: RepoData, authorPopover: AuthorPopover): void {
     })
     .join("");
   const subtotalHtml = `<tr class="subtotal"><td></td><td>Top ${contributors.length}</td><td class="num">${fmt(subC)}</td><td class="num">${pct(subC, totals.commits)}</td><td class="num">${fmt(subA)}</td><td class="num">${pct(subA, totals.added)}</td><td class="num">${fmt(subD)}</td><td class="num">${pct(subD, totals.deleted)}</td><td class="num">${fmt(subN)}</td><td class="num">${pct(subN, totals.net!)}</td><td class="num"></td><td class="num"></td><td class="num"></td><td></td><td></td></tr>`;
-  const totalsHtml = `<tr class="totals"><td></td><td>All</td><td class="num">${fmt(totals.commits)}</td><td class="num">100%</td><td class="num">${fmt(totals.added)}</td><td class="num">100%</td><td class="num">${fmt(totals.deleted)}</td><td class="num">100%</td><td class="num">${fmt(totals.net!)}</td><td class="num">100%</td><td class="num">${+(totals.net! / totals.commits).toFixed(1)}</td><td class="num"></td><td class="num"></td><td></td><td></td></tr>`;
+  const totalsHtml = `<tr class="totals"><td></td><td>All</td><td class="num">${fmt(totals.commits)}</td><td class="num">100%</td><td class="num">${fmt(totals.added)}</td><td class="num">100%</td><td class="num">${fmt(totals.deleted)}</td><td class="num">100%</td><td class="num">${fmt(totals.net!)}</td><td class="num">100%</td><td class="num">${totals.commits ? +(totals.net! / totals.commits).toFixed(1) : 0}</td><td class="num"></td><td class="num"></td><td></td><td></td></tr>`;
   tbody.innerHTML = rowsHtml + subtotalHtml + totalsHtml;
 
   tbody.addEventListener("mouseover", (e) => {

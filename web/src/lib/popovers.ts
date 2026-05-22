@@ -65,7 +65,7 @@ export function createAuthorPopover(contributors: Contributor[]): AuthorPopover 
       `<div class="lp-divider"></div>` +
       `<div class="lp-stats">${fmt(c.commits)} commits · ${c.activeDays} active day${c.activeDays === 1 ? "" : "s"}</div>` +
       `<div class="lp-stats"><span class="add">+${fmt(c.added)}</span> <span class="del">-${fmt(c.deleted)}</span> (net ${netHtml})</div>` +
-      `<div class="lp-period">${c.first} — ${c.last}</div>` +
+      `<div class="lp-period">${escapeHtml(c.first)} — ${escapeHtml(c.last)}</div>` +
       langBarHtml(c.languages, { legend: true });
     installAvatarFallback(authorPopover.querySelector(".lp-avatar"));
 
