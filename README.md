@@ -254,6 +254,22 @@ side. `make dev` builds the frontend then runs the unbundled script (it detects
 > first rebuild after a clone runs `bun install`.) The weekly `refresh-techdata`
 > workflow rebuilds it automatically when Linguist changes.
 
+### Releasing
+
+Run the **Cut release** workflow (Actions → _Cut release_ → _Run workflow_) and
+enter a version like `1.2.3`. It validates main, re-runs the CI gates and a
+smoke test against that exact commit, and only then tags `vX.Y.Z` — so a tag is
+never created for a red build. The tag drives the rest automatically: the
+`Release` workflow builds and publishes the GitHub release (with generated
+notes) + the single-file asset, smoke-tests the published artifact, moves the
+floating `vX` major tag (skipped for prereleases, and guarded so it can only
+point at a commit on `main`), and bumps the [`tyom/homebrew-tap`](https://github.com/tyom/homebrew-tap)
+formula. Nothing is manual per release beyond entering the number.
+
+Pushing a `vX.Y.Z` tag by hand still works as a fallback and runs the same
+`Release` workflow — but it skips the pre-tag build gate, so prefer _Cut
+release_.
+
 ### Detection data (`techdata.json`)
 
 Language detection (extension/filename → language, colors, vendored-path noise
