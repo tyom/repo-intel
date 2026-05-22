@@ -202,6 +202,13 @@ h3 {
 canvas {
   max-height: 300px;
 }
+/* ECharts charts are sized by their container (.ec / .ec-tree); the generic
+   300px cap above otherwise crushes the 320px treemaps, and a canvas displayed
+   shorter than the size zrender laid out at offsets every hover/click hit-region
+   downward from its tile. Let chart canvases honour their container height. */
+.ec canvas {
+  max-height: none;
+}
 
 /* === Summary table (Table.svelte) === */
 .table-wrap {
