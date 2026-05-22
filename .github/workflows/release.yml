@@ -27,3 +27,22 @@ jobs:
             --generate-notes
           echo "sha256 (for the Homebrew formula):"
           shasum -a 256 dist/repo-intel
+
+      - name: Bump Homebrew tap formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(shasum -a 256 dist/repo-intel | awk '{print $1}')"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/repo-intel"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/tyom/homebrew-tap.git" tap
+          cd tap
+          f=Formula/repo-intel.rb
+          sed -i -E "s|^  url \".*\"|  url \"${url}\"|"               "$f"
+          sed -i -E "s|^  version \".*\"|  version \"${version}\"|"   "$f"
+          sed -i -E "s|^  sha256 \".*\"|  sha256 \"${sha}\"|"         "$f"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || git commit -am "repo-intel ${version}"
+          git push

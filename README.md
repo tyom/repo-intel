@@ -10,12 +10,15 @@ and detection data embedded, so it depends only on **Python 3 + `git`**
 (optional [`gh`](https://cli.github.com/) for remote repos and author
 hovercards). No install step, no third-party packages.
 
-Use it three ways:
+Use it four ways:
 
+- **[Homebrew](#homebrew)** — `brew install tyom/tap/repo-intel`.
+- **[curl installer](#install-with-curl)** — drop `repo-intel` on your PATH with
+  one command.
+- **[curl-pipe](#run-without-installing)** — run the script straight from a URL,
+  no install.
 - **[GitHub Action](#github-action--publish-to-github-pages)** — publish a
   dashboard for your repo to GitHub Pages.
-- **[Homebrew](#homebrew)** — `brew install tyom/tap/repo-intel`.
-- **[curl-pipe](#run-without-installing)** — run the script straight from a URL.
 
 ## GitHub Action — publish to GitHub Pages
 
@@ -42,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # required — repo-intel reads full git history
-      - uses: tyom/repo-intel@main # pin to @v1.0.0 once a release is tagged
+      - uses: tyom/repo-intel@v1.0.0 # or @main for the latest
         with:
           contributors: '10' # optional, top N
           output: public # optional, dir for index.html
@@ -87,12 +90,23 @@ brew install tyom/tap/repo-intel
 (Resolves to the [`tyom/homebrew-tap`](https://github.com/tyom/homebrew-tap)
 tap.)
 
+## Install with curl
+
+No Homebrew? Drop the latest release onto your PATH:
+
+```bash
+curl -fsSL https://tyom.github.io/repo-intel/install.sh | sh
+```
+
+Installs to `~/.local/bin/repo-intel` (override with
+`REPO_INTEL_BIN=/some/dir`). Needs only `sh`, `curl`/`wget`, and Python 3.
+
 ## Run without installing
 
 Pipe the artifact straight into Python — no clone, no install:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/tyom/repo-intel/main/dist/repo-intel \
+curl -sSL https://github.com/tyom/repo-intel/releases/latest/download/repo-intel \
   | python3 - <owner/repo>
 ```
 
@@ -102,9 +116,12 @@ or drop it to run against the current directory's git repo. Append `--help`
 for the full flag reference:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/tyom/repo-intel/main/dist/repo-intel \
+curl -sSL https://github.com/tyom/repo-intel/releases/latest/download/repo-intel \
   | python3 - --help
 ```
+
+The `releases/latest/download/` URL always resolves to the newest release; swap
+`latest/download` for a tag (e.g. `download/v1.0.0`) to pin a version.
 
 In this mode stdin is the script body, so the interactive subset prompt for
 large remote repos is auto-skipped and the script fetches all commits — pass
