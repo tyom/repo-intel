@@ -7,7 +7,16 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
   import { fmtBytes, weekLabel } from "$lib/format";
-  import { bgCard, borderDefault, clr, colorAdded, colorDeleted, contrastText } from "$lib/theme";
+  import {
+    bgCard,
+    bgPrimary,
+    borderDefault,
+    clr,
+    colorAdded,
+    colorDeleted,
+    contrastText,
+    textMuted,
+  } from "$lib/theme";
   import type { FileSizes, RepoData } from "$types";
   import type { EChartsCoreOption, EChartsType } from "echarts/core";
 
@@ -39,8 +48,9 @@
   // Build a one-level-grouped treemap from a file-size payload: files are
   // grouped under their top-level directory (a path with no slash stays a
   // root-level tile), with the capped remainder as a single "N more files"
-  // tile. Each top-level node gets a palette colour its children share, so a
-  // directory reads as one hue; tooltips show the full path + byte size.
+  // tile. Tiles are monochrome: each one's grey shade encodes its byte size
+  // (brighter = larger), so the grey scale reinforces the area cue. Tooltips
+  // show the full path + byte size.
   // `sizeNote` distinguishes the two charts' units in the tooltip: HEAD blob
   // sizes are uncompressed, while the history figures are the compressed on-disk
   // (packed) sizes — so a value in one chart isn't directly comparable to the
@@ -84,32 +94,66 @@
         total: payload.otherBytes,
       });
     }
-    // Biggest-first so the colour cycle tracks the layout (treemap lays out
-    // largest tiles first too) and the dominant path gets clr(0).
+    // Biggest-first, so the largest tiles lay out first (treemap does the same).
     nodes.sort((a, b) => b.total - a.total);
 
-    const styled = nodes.map((node, i) => {
-      const base = clr(i);
+    // One grey scale across every file tile, so a file's shade is comparable
+    // wherever it sits. File sizes are log-skewed, so map on log(bytes), and
+    // brighter = larger. Folder headers are deliberately left off this scale
+    // (see below) — their area already carries the folder's size.
+    const leafTotals: number[] = [];
+    for (const n of nodes) {
+      if (n.children) for (const c of n.children) leafTotals.push(c.total);
+      else leafTotals.push(n.total);
+    }
+    const lo = Math.log(Math.max(Math.min(...leafTotals), 1));
+    const hi = Math.log(Math.max(...leafTotals, 1));
+    const grey = (value: number): string => {
+      const t = hi > lo ? (Math.log(Math.max(value, 1)) - lo) / (hi - lo) : 1;
+      const h = Math.round(58 + t * (210 - 58))
+        .toString(16)
+        .padStart(2, "0");
+      return `#${h}${h}${h}`;
+    };
+
+    // Only folders are zoom targets, so file leaves are made inert (default
+    // cursor) while folders keep the pointer. ECharts' treemap reads a per-node
+    // `cursor` only for leaf nodes (TreemapView applies it to the leaf content),
+    // which is exactly the half we need to override; container nodes ignore it
+    // and fall back to zrender's default pointer — so a declarative `cursor` per
+    // node is enough, no reaching into the display list like the languages chart.
+    const styled = nodes.map((node) => {
       if (node.children) {
         return {
           name: node.name,
-          upperLabel: { color: contrastText(base) },
-          itemStyle: { color: base, borderColor: base, borderWidth: 2 },
-          children: node.children.map((c) => ({
-            name: c.name,
-            value: c.value,
-            fullPath: c.fullPath,
-            itemStyle: { color: base, borderColor: tileInnerBorder, borderWidth: 1 },
-            label: { color: contrastText(base) },
-          })),
+          // The folder header is fixed dark "chrome", not size-keyed: every file
+          // tile is a mid-to-light grey, so a header darker than all of them
+          // (bgPrimary sits below the 58-grey floor) always reads as a header bar
+          // rather than blending into the tiles below it. A visible border frames
+          // the container so the folder reads as one block.
+          upperLabel: { color: textMuted },
+          itemStyle: { color: bgPrimary, borderColor: borderDefault, borderWidth: 2 },
+          children: node.children.map((c) => {
+            const fill = grey(c.total);
+            return {
+              name: c.name,
+              value: c.value,
+              fullPath: c.fullPath,
+              cursor: "default",
+              itemStyle: { color: fill, borderColor: tileInnerBorder, borderWidth: 1 },
+              label: { color: contrastText(fill) },
+            };
+          }),
         };
       }
+      const fill = grey(node.total);
       return {
         name: node.name,
         value: node.value,
         fullPath: node.fullPath,
-        itemStyle: { color: base, borderColor: tileInnerBorder, borderWidth: 1 },
-        label: { color: contrastText(base) },
+        cursor: "default",
+        itemStyle: { color: fill, borderColor: tileInnerBorder, borderWidth: 1 },
+        label: { color: contrastText(fill) },
       };
     });
 
@@ -124,10 +168,9 @@
       series: [
         {
           type: "treemap",
-          // Click a tile to zoom into it; the parent header strip and the
-          // breadcrumb both zoom back out (no custom handlers needed). The
-          // default pointer cursor is the affordance, so this chart skips the
-          // cursor-to-default override the languages treemap uses.
+          // Click a folder to zoom in; clicking a fully-zoomed file (or a
+          // breadcrumb) zooms back out — see onFilesTreemapReady. Only folders
+          // carry the pointer cursor (set per-node above); files are inert.
           roam: false,
           // Built-in click is disabled and drilling is handled in
           // onFilesTreemapReady: with the nested (container-with-header) layout
@@ -139,9 +182,12 @@
           // without a setOption that reinitialises the series and corrupts the
           // drill state. A Svelte overlay (.files-crumbs) renders the path.
           breadcrumb: { show: false },
-          // Hug the card edges; the title overlay blurs over the top and the
-          // crumb overlay floats over the bottom, so no inset is reserved.
-          top: 2,
+          // Clear the title overlay so a zoomed-in folder's name strip
+          // (upperLabel) isn't hidden behind it. The 36px title sits at the
+          // card's border top, but the canvas starts 20px down (card padding),
+          // so the title only intrudes ~16px into the canvas — inset just past
+          // that. The crumb overlay floats over the bottom, so a small inset.
+          top: 18,
           bottom: 2,
           left: 2,
           right: 2,
@@ -157,8 +203,9 @@
     };
   }
 
-  // Half-transparent dark inner border on the treemap tiles, so each brand-
-  // coloured tile reads against the contributor-coloured gap around it.
+  // Half-transparent dark inner border on the treemap tiles, so each grey tile
+  // reads against the gap around it (and the contributor-coloured gaps of the
+  // languages treemap, which shares this border).
   const tileInnerBorder = "rgba(0, 0, 0, 0.6)";
 
   // The Reset button shows (via .has-hidden on the card) once the legend has
@@ -232,15 +279,26 @@
       }
       if (!sameCrumbs(crumbs, filesPath)) filesPath = crumbs;
     };
-    // Clicking a tile drills into its folder: a container drills into itself, a
-    // file drills into its parent folder, so any cell zooms to its directory.
-    // Root-level files (parent is the synthetic root) do nothing.
+    // Clicking drills one level toward the tile, then steps back out. From any
+    // view, a click re-roots to the clicked tile's ancestor that sits directly
+    // under the current view root — so clicking a file inside a folder zooms into
+    // the folder first. Once fully zoomed in (the clicked leaf already sits at
+    // the view root), the same click steps back out one level. Root-level files
+    // have no folder to drill into, so they do nothing.
     chart.on("click", (params: any) => {
       if (params.seriesType !== "treemap") return;
       try {
-        const node = series()?.getData?.()?.tree?.getNodeByDataIndex?.(params.dataIndex);
-        const target = node?.children?.length ? node : node?.parentNode;
-        if (target?.parentNode) zoomFilesTo(target);
+        const s = series();
+        const node = s?.getData?.()?.tree?.getNodeByDataIndex?.(params.dataIndex);
+        const viewRoot = s?.getViewRoot?.();
+        if (!node || !viewRoot) return;
+        if (node.parentNode === viewRoot && !node.children?.length) {
+          if (viewRoot.parentNode) zoomFilesTo(viewRoot.parentNode);
+          return;
+        }
+        let target = node;
+        while (target.parentNode && target.parentNode !== viewRoot) target = target.parentNode;
+        if (target.parentNode === viewRoot) zoomFilesTo(target);
       } catch {
         /* ignore — a future internal change just disables drilling */
       }
@@ -253,15 +311,11 @@
     syncPath();
   }
 
-  // Re-root the files treemap to a node — a crumb click, or the Reset button
-  // (which targets the tree root). dispatchAction is ECharts' own navigation, so
-  // it leaves the drill state coherent.
+  // Re-root the files treemap to a node — a crumb click, or a step in/out from
+  // a tile click. dispatchAction is ECharts' own navigation, so it leaves the
+  // drill state coherent.
   function zoomFilesTo(node: unknown): void {
     filesChart?.dispatchAction({ type: "treemapRootToNode", seriesIndex: 0, targetNode: node });
-  }
-  function resetFiles(): void {
-    const root = (filesChart as any)?.getModel?.().getSeriesByIndex(0)?.getData?.()?.tree?.root;
-    if (root) zoomFilesTo(root);
   }
 
   // All five chart options, derived from data (data is set once at mount, but
@@ -425,10 +479,13 @@
           // No hover interaction: the emphasis state would otherwise re-layout the
           // header label (jumping it back to the left) and show a pointer cursor.
           emphasis: { disabled: true },
+          // Top keeps clearance for the contributor name strips below the title
+          // overlay; the other three match the files treemap's edge inset so the
+          // two cards share the same outer padding.
           top: 24,
-          bottom: 6,
-          left: 6,
-          right: 6,
+          bottom: 2,
+          left: 2,
+          right: 2,
           squareRatio: 1,
           // Root background (shows in the gaps between contributor containers and
           // at the edges); default is white, so paint it the card colour.
@@ -523,9 +580,6 @@
   {#if hasFiles && filesOption}
     <div class="card chart-card span-2">
       <div class="chart-title chart-title-opaque">Largest files</div>
-      {#if filesPath.length > 1}
-        <button class="files-reset" type="button" onclick={resetFiles}>Reset</button>
-      {/if}
       <div class="files-tabs">
         {#if hasHeadFiles}
           <button
@@ -588,30 +642,8 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  /* Reset-to-root, pinned top-left; only mounts while drilled in. Mirrors the
-     line/pie chart-reset-btn styling. */
-  .files-reset {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 2;
-    background: var(--bg-badge);
-    border: 1px solid var(--border-default);
-    border-radius: 4px;
-    color: var(--text-muted);
-    font-size: 0.72rem;
-    padding: 3px 8px;
-    cursor: pointer;
-    font-family: inherit;
-
-    &:hover {
-      color: var(--text-primary);
-      border-color: var(--text-muted);
-    }
-  }
   /* Tab toggle pinned top-right above the centered title overlay (which is
-     pointer-events: none), mirroring the Reset button's placement and the
-     year-toggle button styling. */
+     pointer-events: none), mirroring the year-toggle button styling. */
   .files-tabs {
     position: absolute;
     top: 8px;
