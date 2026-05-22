@@ -40,8 +40,9 @@ export const selectionStroke = readVar("--selection-stroke");
 export const accentWeekend = readVar("--accent-weekend");
 
 // The shared dashboard theme — the ECharts analog of the old Chart.defaults
-// block. Per-chart options still override (titles, per-series colour); this just
-// sets the palette, fonts, and axis/grid colours every chart inherits.
+// block. Per-chart options still override (per-series colour); this just sets the
+// palette, fonts, and axis/grid colours every chart inherits. (Titles are CSS
+// .chart-title overlays, not ECharts `title:`, so the theme sets no title style.)
 export function registerEchartsTheme(): void {
   const axis = {
     axisLine: { lineStyle: { color: borderSubtle } },
@@ -53,7 +54,6 @@ export function registerEchartsTheme(): void {
     color: colors,
     backgroundColor: "transparent",
     textStyle: { fontFamily: "system-ui", fontSize: 11, color: textMuted },
-    title: { textStyle: { color: textPrimary, fontSize: 13, fontWeight: "bold" } },
     legend: { textStyle: { color: textMuted } },
     categoryAxis: { ...axis, splitLine: { show: false } },
     valueAxis: axis,

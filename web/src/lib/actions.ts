@@ -30,13 +30,21 @@ export function echart(node: HTMLElement, params: EchartParams) {
   const chart = echarts.init(node, "repo", { renderer: "canvas" });
   chart.setOption(params.option);
   params.onReady?.(chart);
-  const ro = new ResizeObserver(() => chart.resize());
+  // Debounce resize through rAF: calling chart.resize() synchronously inside the
+  // observer reflows labels/legend, which can mutate the box and re-fire the same
+  // observer in one frame ("ResizeObserver loop" warnings + thrash).
+  let raf = 0;
+  const ro = new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => chart.resize());
+  });
   ro.observe(node);
   return {
     update(next: EchartParams) {
       chart.setOption(next.option, true);
     },
     destroy() {
+      cancelAnimationFrame(raf);
       ro.disconnect();
       chart.dispose();
     },

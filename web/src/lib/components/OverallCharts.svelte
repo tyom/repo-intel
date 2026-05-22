@@ -5,19 +5,11 @@
   // once the legend hides a series; Reset re-selects every series. Each chart mounts
   // through the `echart` action (div + setOption + auto-resize + dispose).
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  import type { RepoData } from "$types";
-  import type { EChartsType, EChartsCoreOption } from "echarts/core";
   import { echart } from "$lib/actions";
-  import {
-    clr,
-    contrastText,
-    textMuted,
-    borderDefault,
-    bgCard,
-    colorAdded,
-    colorDeleted,
-  } from "$lib/theme";
   import { weekLabel } from "$lib/format";
+  import { bgCard, borderDefault, clr, colorAdded, colorDeleted, contrastText } from "$lib/theme";
+  import type { RepoData } from "$types";
+  import type { EChartsCoreOption, EChartsType } from "echarts/core";
 
   let { data }: { data: RepoData } = $props();
 
@@ -56,10 +48,15 @@
 
   // ECharts' treemap view forces a pointer cursor on every node (and on the root
   // background) and ignores series.cursor, so override it to the default after
-  // each render — `finished` fires on the initial draw and on every resize.
+  // each render — `finished` fires on the initial draw and on every redraw/resize.
+  // zrender exposes no public per-node cursor API, so we reach into the display
+  // list; guard the private access so a future ECharts bump degrades to a stray
+  // pointer cursor instead of throwing and breaking the treemap mount.
   function onTreemapReady(chart: EChartsType): void {
     const useDefaultCursor = (): void => {
-      for (const el of (chart.getZr() as any).storage.getDisplayList()) el.cursor = "default";
+      const list = (chart.getZr() as any)?.storage?.getDisplayList?.();
+      if (!list) return;
+      for (const el of list) el.cursor = "default";
     };
     chart.on("finished", useDefaultCursor);
     useDefaultCursor();
@@ -209,8 +206,11 @@
       // Only language tiles get a tooltip; the root and contributor containers
       // (which carry summed/empty values) would otherwise show e.g. ": 300%".
       tooltip: {
+        // Suppress the tooltip on the root and contributor containers (returning
+        // "" still renders an empty box; undefined hides it). Only language tiles
+        // — leaf nodes, no children — get a "name: pct%" tooltip.
         formatter: (info: any) =>
-          !info.name || info.data?.children ? "" : `${info.name}: ${info.value}%`,
+          !info.name || info.data?.children ? undefined : `${info.name}: ${info.value}%`,
       },
       animation: false,
       series: [

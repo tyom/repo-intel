@@ -7,14 +7,11 @@
 // contributor). Add a series here when a new chart needs it.
 import * as echarts from "echarts/core";
 import { LineChart, BarChart, PieChart, TreemapChart } from "echarts/charts";
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-} from "echarts/components";
+import { GridComponent, TooltipComponent, LegendComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
+// Chart titles are CSS overlays (.chart-title), not ECharts `title:` options, so
+// TitleComponent is deliberately not registered.
 echarts.use([
   LineChart,
   BarChart,
@@ -23,7 +20,6 @@ echarts.use([
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  TitleComponent,
   CanvasRenderer,
 ]);
 
