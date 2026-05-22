@@ -21,6 +21,10 @@
 
   let { data }: { data: RepoData } = $props();
 
+  // Hide the languages treemap entirely when no contributor has a language mix,
+  // rather than rendering an empty chart.
+  const hasLangData = $derived(data.contributors.some((c) => c.languages?.length > 0));
+
   // Half-transparent dark inner border on the treemap tiles, so each brand-
   // coloured tile reads against the contributor-coloured gap around it.
   const tileInnerBorder = "rgba(0, 0, 0, 0.6)";
@@ -288,10 +292,12 @@
     <div class="chart-title">Net lines per commit</div>
     <div class="ec" use:echart={{ option: opts.ratio }}></div>
   </div>
-  <div class="card chart-card span-2">
-    <div class="chart-title">Languages by contributor</div>
-    <div class="ec ec-tree" use:echart={{ option: opts.treemap, onReady: onTreemapReady }}></div>
-  </div>
+  {#if hasLangData}
+    <div class="card chart-card span-2">
+      <div class="chart-title">Languages by contributor</div>
+      <div class="ec ec-tree" use:echart={{ option: opts.treemap, onReady: onTreemapReady }}></div>
+    </div>
+  {/if}
 </div>
 
 <style>

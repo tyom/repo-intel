@@ -333,8 +333,11 @@ table {
     scroll-behavior: auto;
   }
   .card {
-    min-width: 220px;
     flex-shrink: 0;
+  }
+  /* Pattern cards run wider than the default card to give the hour/dow bars room. */
+  .pattern-card {
+    min-width: 380px;
   }
 }
 

@@ -37,7 +37,8 @@
     const barColor = (i: number): string =>
       kind === "dow" && i >= 5 ? color + "30" : color + "90";
     return {
-      tooltip: { trigger: "axis" },
+      // axisPointer "none": keep the floating tooltip, drop the dashed column line.
+      tooltip: { trigger: "axis", axisPointer: { type: "none" } },
       grid: { left: 6, right: 6, top: 40, bottom: 22 },
       xAxis: {
         type: "category",
@@ -49,8 +50,6 @@
       series: [
         {
           type: "bar",
-          // Bars are the only clickable chart — pointer only when links are on.
-          cursor: linksEnabled ? "pointer" : "default",
           itemStyle: { borderRadius: kind === "hour" ? 2 : 3 },
           data: values.map((v, i) => ({ value: v, itemStyle: { color: barColor(i) } })),
         },
@@ -59,9 +58,16 @@
   });
 
   function onReady(chart: EChartsType): void {
-    chart.on("click", (p: any) => {
+    // Listen on the whole canvas (zrender), not the bar graphic, so a click
+    // anywhere in a column opens its bucket — matching the axis-triggered hover
+    // area instead of forcing a pixel-perfect hit on the thin bar.
+    chart.getZr().on("click", (e: any) => {
       if (!commitPopover || !linksEnabled) return;
-      const idx = p.dataIndex as number;
+      const x = e.offsetX as number;
+      const y = e.offsetY as number;
+      if (!chart.containPixel("grid", [x, y])) return;
+      const idx = Math.round(chart.convertFromPixel({ xAxisIndex: 0 }, x) as number);
+      if (idx < 0 || idx >= values.length) return;
       const list = commitPopover.commitsInBucket(contributor.email, kind, idx);
       if (!list.length) return;
       // Pixel of the bar's top within the chart, then offset by the canvas rect.
@@ -81,7 +87,7 @@
 
 <div class="card pattern-card">
   <div class="chart-title" style="color:{color}">{contributor.name}</div>
-  <div class="ec" use:echart={{ option, onReady }}></div>
+  <div class="ec" class:clickable={linksEnabled} use:echart={{ option, onReady }}></div>
 </div>
 
 <style>
@@ -92,5 +98,9 @@
   .ec {
     width: 100%;
     height: 160px;
+
+    &.clickable {
+      cursor: pointer;
+    }
   }
 </style>
