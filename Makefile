@@ -9,6 +9,9 @@ web-build: ## Build the frontend bundle (web/dist/index.html) with Bun + Vite
 web-dev: ## Run the frontend dev server with HMR (reads web/public/mock-data.json)
 	cd web && bun run dev
 
+web-check: ## Type-check the frontend (svelte-check); does not build
+	cd web && bun install --frozen-lockfile && bun run check
+
 build: web-build ## Build the single-file artifact into dist/repo-intel
 	python3 build.py dist/repo-intel
 
@@ -22,4 +25,4 @@ install-hooks: ## Point git at the tracked .githooks/ (auto-rebuilds dist on com
 	git config core.hooksPath .githooks
 	@echo "core.hooksPath -> .githooks"
 
-.PHONY: help web-build web-dev build techdata dev install-hooks
+.PHONY: help web-build web-dev web-check build techdata dev install-hooks
