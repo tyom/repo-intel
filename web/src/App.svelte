@@ -6,11 +6,12 @@
   import { fmtTimelineDuration } from "./lib/format";
   import { configureCharts } from "./lib/theme";
   import { initDashboard } from "./lib/dashboard";
-  import type { Mode } from "./lib/heatmap";
+  import type { Mode } from "./types";
   import Header from "./lib/components/Header.svelte";
   import TechGrid from "./lib/components/TechGrid.svelte";
   import Table from "./lib/components/Table.svelte";
   import YearToggles from "./lib/components/YearToggles.svelte";
+  import Heatmap from "./lib/components/Heatmap.svelte";
   import ContributorCard from "./lib/components/ContributorCard.svelte";
   import AuthorPopover from "./lib/components/AuthorPopover.svelte";
   import CommitPopover from "./lib/components/CommitPopover.svelte";
@@ -34,15 +35,14 @@
   // and is handed to the Table component and the imperative dashboard engine.
   let authorPopover = $state<AuthorPopoverAdapter | undefined>(undefined);
 
-  // The heatmap rebuild closure, handed back by initDashboard, lets the
-  // YearToggles component re-render the (imperative) heatmap on selection.
-  let rebuildHeatmap = $state<((mode: Mode) => void) | undefined>(undefined);
+  // Heatmap view mode, chosen by YearToggles and read by the Heatmap component.
+  let heatmapMode = $state<Mode>("current");
 
   // The dashboard engine renders into the container elements below (by id) and
   // wires all canvas / Chart.js / popover behavior. Run it once mounted.
   onMount(() => {
     authorPopover = createAuthorPopover(data.contributors);
-    ({ rebuildHeatmap } = initDashboard(data, authorPopover));
+    initDashboard(data, authorPopover);
   });
 </script>
 
@@ -69,9 +69,9 @@
         <div class="card">
           <div class="contributions-header">
             <h2>Contributions</h2>
-            <YearToggles {data} onSelect={(mode) => rebuildHeatmap?.(mode)} />
+            <YearToggles {data} onSelect={(mode) => (heatmapMode = mode)} />
           </div>
-          <div id="heatmapContainer"></div>
+          <Heatmap {data} mode={heatmapMode} />
         </div>
       </div>
       <div class="section" id="commit-timeline">

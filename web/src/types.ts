@@ -59,6 +59,10 @@ export interface DateRange {
   end: string;
 }
 
+// Contributions-heatmap view mode: rolling 52-week window ("current") or a
+// specific calendar year. Chosen by YearToggles, consumed by Heatmap.
+export type Mode = "current" | number;
+
 // Compact per-commit record. `f` is [name, color, fileCount][] of churned langs.
 export interface Commit {
   h: string;
