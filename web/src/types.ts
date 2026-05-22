@@ -81,6 +81,7 @@ export interface RepoData {
   githubBaseUrl: string | null;
   defaultBranch: string;
   repoSizeKb: number;
+  fileCount: number | null;
   dateRange: DateRange;
   totals: Totals;
   contributors: Contributor[];

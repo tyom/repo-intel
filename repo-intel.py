@@ -895,7 +895,11 @@ def collect_local(cwd=None, suppress_current_user=False):
                 rec[2] += 1
 
     default_branch = detect_default_branch(cwd=cwd)
-    extras = {"lang_stats": lang_stats, "frameworks": detect_frameworks(present, cwd=cwd)}
+    extras = {
+        "lang_stats": lang_stats,
+        "frameworks": detect_frameworks(present, cwd=cwd),
+        "file_count": len(present),
+    }
     return (
         repo_name,
         github_base,
@@ -1640,6 +1644,9 @@ def build_data(
     # runs build it below from per-commit line churn. `repo_languages` being a
     # non-empty list signals the former.
     repo_languages = (extras or {}).get("repo_languages") or []
+    # File count at HEAD: a snapshot stat like repoSizeKb. None on the remote
+    # GraphQL path (no per-file tree fetched); a real count on local/bare runs.
+    file_count = (extras or {}).get("file_count")
     repo_langs = {}
     authors = {}
     daily_by_author = defaultdict(lambda: defaultdict(int))
@@ -1779,6 +1786,7 @@ def build_data(
         "githubBaseUrl": github_base,
         "defaultBranch": default_branch,
         "repoSizeKb": repo_size_kb,
+        "fileCount": file_count,
         "dateRange": date_range,
         "totals": {
             "commits": total_commits,
@@ -1918,6 +1926,9 @@ def render_markdown(data):
     out.append(f"- Lines: +{t['added']:,} / -{t['deleted']:,}")
     out.append(f"- Contributors: {t['contributors']:,}")
     out.append(f"- Default branch: `{data['defaultBranch']}`")
+    file_count = data.get("fileCount")
+    if file_count is not None:
+        out.append(f"- Files at HEAD: {file_count:,}")
     size_kb = data.get("repoSizeKb") or 0
     if size_kb:
         size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{size_kb:,} KB"
