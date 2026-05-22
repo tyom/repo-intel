@@ -129,7 +129,17 @@
               value: c.commits,
               itemStyle: { color: clr(i) },
             })),
-            { name: "Others", value: totals.commits - subC, itemStyle: { color: borderDefault } },
+            // Only show "Others" when the top-N contributors don't cover every
+            // commit; otherwise it's a 0-value slice cluttering the legend.
+            ...(totals.commits - subC > 0
+              ? [
+                  {
+                    name: "Others",
+                    value: totals.commits - subC,
+                    itemStyle: { color: borderDefault },
+                  },
+                ]
+              : []),
           ],
           itemStyle: { borderColor: bgCard, borderWidth: 2 },
           label: { show: false },
