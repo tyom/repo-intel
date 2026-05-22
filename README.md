@@ -174,11 +174,11 @@ fallback, when stdin/stderr is not a TTY, or when any filter flag is given.
 
 ### Output
 
-| Flag                | Default                                                                                       |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| `--format LIST`     | `html`. Comma-separated, repeatable: `html`, `json`, `md` (e.g. `--format html,json,md`)      |
+| Flag                | Default                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `--format LIST`     | `html`. Comma-separated, repeatable: `html`, `json`, `md` (e.g. `--format html,json,md`)       |
 | `-o, --output PATH` | `/tmp/<owner>--<repo>.<ext>` (or `/tmp/<repo>.<ext>` for a local repo without a GitHub origin) |
-| `--no-open`         | Opens the **HTML** result in your default browser unless given                                |
+| `--no-open`         | Opens the **HTML** result in your default browser unless given                                 |
 
 `json` is the raw analysis data (the same object the HTML embeds); `md` is a
 Markdown report — totals, a top-contributors table, language/framework
