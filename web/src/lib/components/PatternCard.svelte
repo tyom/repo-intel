@@ -10,7 +10,7 @@
   import type { CommitPopover } from "$lib/popovers";
   import type { PunchPoint } from "$lib/popovers";
   import { echart } from "$lib/actions";
-  import { clr } from "$lib/theme";
+  import { clr, accentWeekend } from "$lib/theme";
 
   let {
     contributor,
@@ -30,6 +30,7 @@
 
   const HOURS = Array.from({ length: 24 }, (_, i) => `${i}:00`);
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const WEEKEND = new Set([5, 6]); // Sat, Sun — row indices into DAYS
 
   const option: EChartsCoreOption = $derived.by(() => {
     // Scale dot radius to this author's busiest cell so light contributors
@@ -73,6 +74,20 @@
         axisTick: { show: false },
         axisLabel: { fontSize: 9 },
         splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.06)" } },
+        // Tint the Sat/Sun rows to match the weekend shading in the contributor
+        // heatmap and timeline. Under `inverse: true`, ECharts shifts the
+        // splitArea colour array by one band (verified in-browser): color[i]
+        // paints the row for DAYS[i + 1], the top (Mon) band goes unpainted, and
+        // the final slot is unused. So we colour slot i when DAYS[i + 1] is a
+        // weekend, which lands the tint on the Sat and Sun rows.
+        splitArea: {
+          show: true,
+          areaStyle: {
+            color: DAYS.map((_, i) =>
+              WEEKEND.has(i + 1) ? `rgba(${accentWeekend},0.05)` : "transparent",
+            ),
+          },
+        },
       },
       series: [
         {
