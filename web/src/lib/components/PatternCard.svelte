@@ -49,6 +49,21 @@
         data: HOURS,
         axisTick: { show: false },
         axisLabel: { fontSize: 9, interval: 3 },
+        // interval: 0 forces a line at every hour (splitLine otherwise inherits
+        // the label's interval: 3). The cycling colour array keeps the 4-hour
+        // marks brighter while the in-between hours read as a faint subdivision.
+        splitLine: {
+          show: true,
+          interval: 0,
+          lineStyle: {
+            color: [
+              "rgba(255,255,255,0.06)",
+              "rgba(255,255,255,0.03)",
+              "rgba(255,255,255,0.03)",
+              "rgba(255,255,255,0.03)",
+            ],
+          },
+        },
       },
       yAxis: {
         // inverse so Monday sits on top, matching GitHub-style punch cards.
@@ -57,6 +72,7 @@
         inverse: true,
         axisTick: { show: false },
         axisLabel: { fontSize: 9 },
+        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.06)" } },
       },
       series: [
         {
