@@ -37,9 +37,8 @@
     const barColor = (i: number): string =>
       kind === "dow" && i >= 5 ? color + "30" : color + "90";
     return {
-      title: { text: contributor.name, left: "center", top: 4, textStyle: { color, fontSize: 11 } },
       tooltip: { trigger: "axis" },
-      grid: { left: 6, right: 6, top: 28, bottom: 22 },
+      grid: { left: 6, right: 6, top: 40, bottom: 22 },
       xAxis: {
         type: "category",
         data: labels,
@@ -81,11 +80,13 @@
 </script>
 
 <div class="card pattern-card">
+  <div class="chart-title" style="color:{color}">{contributor.name}</div>
   <div class="ec" use:echart={{ option, onReady }}></div>
 </div>
 
 <style>
   .pattern-card {
+    position: relative;
     padding: 14px;
   }
   .ec {

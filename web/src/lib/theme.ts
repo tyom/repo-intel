@@ -9,9 +9,21 @@ const readVar = (name: string) => cs.getPropertyValue(name).trim();
 export const colors = Array.from({ length: 10 }, (_, i) => readVar(`--c${i + 1}`));
 export const clr = (i: number): string => colors[i % colors.length];
 
+// A label colour (near-white or near-black) that reads on the given hex `bg`.
+// Used by the treemap so each tile's label stays legible on its brand colour.
+export const contrastText = (bg: string): string => {
+  const h = bg.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum >= 0.6 ? bgPrimary : textPrimary;
+};
+
 export const textPrimary = readVar("--text-primary");
 export const colorAdded = readVar("--color-added");
 export const colorDeleted = readVar("--color-deleted");
+export const bgPrimary = readVar("--bg-primary");
 export const bgCard = readVar("--bg-card");
 export const borderDefault = readVar("--border-default");
 export const colorHeatmap = readVar("--color-heatmap");

@@ -10,7 +10,7 @@
   import { echart } from "$lib/actions";
   import {
     clr,
-    textPrimary,
+    contrastText,
     textMuted,
     borderDefault,
     bgCard,
@@ -20,6 +20,10 @@
   import { weekLabel } from "$lib/format";
 
   let { data }: { data: RepoData } = $props();
+
+  // Half-transparent dark inner border on the treemap tiles, so each brand-
+  // coloured tile reads against the contributor-coloured gap around it.
+  const tileInnerBorder = "rgba(0, 0, 0, 0.6)";
 
   // The Reset button shows (via .has-hidden on the card) once the legend has
   // hidden at least one series, and re-selects everything when clicked.
@@ -46,6 +50,17 @@
     pieHasHidden = false;
   }
 
+  // ECharts' treemap view forces a pointer cursor on every node (and on the root
+  // background) and ignores series.cursor, so override it to the default after
+  // each render — `finished` fires on the initial draw and on every resize.
+  function onTreemapReady(chart: EChartsType): void {
+    const useDefaultCursor = (): void => {
+      for (const el of (chart.getZr() as any).storage.getDisplayList()) el.cursor = "default";
+    };
+    chart.on("finished", useDefaultCursor);
+    useDefaultCursor();
+  }
+
   // All five chart options, derived from data (data is set once at mount, but
   // $derived keeps the reads reactive and avoids capturing only the initial value).
   const opts = $derived.by(() => {
@@ -54,16 +69,15 @@
     const subC = contributors.reduce((acc, c) => acc + c.commits, 0);
 
     const timeline: EChartsCoreOption = {
-      title: { text: "Weekly commits (stacked)", left: "center", top: 4 },
       tooltip: { trigger: "axis" },
       legend: {
-        top: 26,
+        top: 42,
         type: "scroll",
         itemWidth: 10,
         itemHeight: 10,
         textStyle: { fontSize: 10 },
       },
-      grid: { left: 36, right: 14, top: 60, bottom: 34 },
+      grid: { left: 36, right: 14, top: 76, bottom: 34 },
       xAxis: {
         type: "category",
         boundaryGap: false,
@@ -89,7 +103,6 @@
     };
 
     const pie: EChartsCoreOption = {
-      title: { text: "Commit share", left: "center", top: 8 },
       tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
       legend: {
         type: "scroll",
@@ -123,10 +136,9 @@
     };
 
     const addDel: EChartsCoreOption = {
-      title: { text: "Lines added vs deleted", left: "center", top: 4 },
       tooltip: { trigger: "axis" },
-      legend: { top: 26, itemWidth: 10, itemHeight: 10 },
-      grid: { left: 56, right: 14, top: 60, bottom: 40 },
+      legend: { top: 42, itemWidth: 10, itemHeight: 10 },
+      grid: { left: 56, right: 14, top: 76, bottom: 40 },
       xAxis: {
         type: "category",
         data: contributors.map((c) => c.name),
@@ -152,9 +164,8 @@
     };
 
     const ratio: EChartsCoreOption = {
-      title: { text: "Net lines per commit", left: "center", top: 4 },
       tooltip: { trigger: "axis" },
-      grid: { left: 44, right: 14, top: 44, bottom: 40 },
+      grid: { left: 44, right: 14, top: 48, bottom: 40 },
       xAxis: {
         type: "category",
         data: contributors.map((c) => c.name),
@@ -174,11 +185,19 @@
       ],
     };
 
-    // Two-level hierarchy: contributor → their language mix (pct). The treemap
-    // chart.js couldn't do; denser file-tree data is a future pipeline task.
+    // Two-level hierarchy: contributor → their language mix (pct), laid out like
+    // ECharts' "treemap-show-parent": each contributor is a container with a
+    // name-header strip in the contributor's colour (clr(i)), and the languages
+    // are tiles inside carrying their own brand colour (l.color). Tiles are
+    // separated by dark (card-coloured) gaps; tile + header labels flip
+    // near-white/near-black for contrast.
     const treemap: EChartsCoreOption = {
-      title: { text: "Languages by contributor", left: "center", top: 8 },
-      tooltip: { formatter: "{b}: {c}" },
+      // Only language tiles get a tooltip; the root and contributor containers
+      // (which carry summed/empty values) would otherwise show e.g. ": 300%".
+      tooltip: {
+        formatter: (info: any) =>
+          !info.name || info.data?.children ? "" : `${info.name}: ${info.value}%`,
+      },
       animation: false,
       series: [
         {
@@ -187,32 +206,61 @@
           roam: false,
           nodeClick: false,
           breadcrumb: { show: false },
-          top: 34,
+          // No hover interaction: the emphasis state would otherwise re-layout the
+          // header label (jumping it back to the left) and show a pointer cursor.
+          emphasis: { disabled: true },
+          top: 24,
           bottom: 6,
           left: 6,
           right: 6,
           squareRatio: 1,
+          // Root background (shows in the gaps between contributor containers and
+          // at the edges); default is white, so paint it the card colour.
+          itemStyle: { color: bgCard, borderColor: bgCard },
           upperLabel: {
             show: true,
-            height: 16,
-            color: textPrimary,
-            fontSize: 10,
+            height: 24,
+            fontSize: 12,
+            fontWeight: "bold",
+            // Anchor at the strip's horizontal centre (default is the left edge)
+            // so align:center actually centres the name across the full strip.
+            position: ["50%", "50%"],
+            align: "center",
             overflow: "truncate",
           },
-          label: { show: true, color: "#fff", fontSize: 11, overflow: "truncate" },
+          label: { show: true, fontSize: 12, overflow: "truncate" },
           levels: [
-            { itemStyle: { gapWidth: 3, borderColor: bgCard, borderWidth: 0 } },
-            { itemStyle: { gapWidth: 1 }, colorSaturation: [0.35, 0.55] },
+            // Contributor containers: dark gap separates regions; the contributor
+            // colour is applied per-node as a 3px border + the gap fill below.
+            { itemStyle: { gapWidth: 6, borderWidth: 3 } },
+            // Language tiles: the gap reveals the contributor (parent) colour; each
+            // tile carries a half-transparent white inner border for contrast.
+            { itemStyle: { gapWidth: 3 } },
           ],
-          data: contributors.map((c, i) => ({
-            name: c.name,
-            itemStyle: { color: clr(i) },
-            children: c.languages.map((l) => ({
-              name: l.name,
-              value: l.pct,
-              itemStyle: { color: l.color },
-            })),
-          })),
+          data: contributors.map((c, i) => {
+            const base = clr(i);
+            const langs = [...c.languages].sort((a, b) => b.pct - a.pct);
+            return {
+              name: c.name,
+              // Container fill = contributor colour (shows in the language gaps);
+              // matching border frames the whole section.
+              itemStyle: { color: base, borderColor: base, borderWidth: 3 },
+              // Header strip is the contributor colour already (it's the container
+              // fill, which shows in the top strip above the tiles); just colour
+              // the label so it reads. No backgroundColor, so `align: center` can
+              // centre the text across the full-width strip.
+              upperLabel: { color: contrastText(base) },
+              children: langs.map((l) => {
+                const color = l.color || base;
+                return {
+                  name: l.name,
+                  value: l.pct,
+                  itemStyle: { color, borderColor: tileInnerBorder, borderWidth: 1 },
+                  label: { color: contrastText(color) },
+                };
+              }),
+            };
+          }),
         },
       ],
     };
@@ -222,22 +270,34 @@
 </script>
 
 <div class="grid-2">
-  <div class="card chart-resettable" class:has-hidden={timelineHasHidden}>
+  <div class="card chart-card chart-resettable" class:has-hidden={timelineHasHidden}>
+    <div class="chart-title">Weekly commits (stacked)</div>
     <div class="ec" use:echart={{ option: opts.timeline, onReady: onTimelineReady }}></div>
     <button class="chart-reset-btn" onclick={resetTimeline}>Reset</button>
   </div>
-  <div class="card chart-resettable" class:has-hidden={pieHasHidden}>
+  <div class="card chart-card chart-resettable" class:has-hidden={pieHasHidden}>
+    <div class="chart-title">Commit share</div>
     <div class="ec" use:echart={{ option: opts.pie, onReady: onPieReady }}></div>
     <button class="chart-reset-btn" onclick={resetPie}>Reset</button>
   </div>
-  <div class="card"><div class="ec" use:echart={{ option: opts.addDel }}></div></div>
-  <div class="card"><div class="ec" use:echart={{ option: opts.ratio }}></div></div>
-  <div class="card span-2">
-    <div class="ec ec-tree" use:echart={{ option: opts.treemap }}></div>
+  <div class="card chart-card">
+    <div class="chart-title">Lines added vs deleted</div>
+    <div class="ec" use:echart={{ option: opts.addDel }}></div>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-title">Net lines per commit</div>
+    <div class="ec" use:echart={{ option: opts.ratio }}></div>
+  </div>
+  <div class="card chart-card span-2">
+    <div class="chart-title">Languages by contributor</div>
+    <div class="ec ec-tree" use:echart={{ option: opts.treemap, onReady: onTreemapReady }}></div>
   </div>
 </div>
 
 <style>
+  .chart-card {
+    position: relative;
+  }
   .ec {
     width: 100%;
     height: 260px;
