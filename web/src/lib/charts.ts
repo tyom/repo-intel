@@ -7,7 +7,7 @@
 import { Chart } from "./chart";
 import type { Contributor, RepoData } from "../types";
 import { clr, textPrimary, borderDefault, bgCard, colorAdded, colorDeleted } from "./theme";
-import { escapeHtml, fmt, weekLabel } from "./format";
+import { weekLabel } from "./format";
 import type { CommitPopover } from "./popovers";
 import { topCommitSubtotal } from "./table";
 
@@ -106,42 +106,8 @@ export function renderCharts(D: RepoData, commitPopover: CommitPopover): void {
     options: barOpts("Net lines per commit"),
   } as any);
 
-  // Contributor cards
-  const cardsContainer = document.getElementById("contributorCards");
-  if (cardsContainer) {
-    contributors.forEach((c, i) => {
-      const card = document.createElement("div");
-      card.className = "contributor-card";
-      card.innerHTML = `<div class="rank">#${i + 1}</div><div class="name" style="color:${clr(i)}">${escapeHtml(c.name)}</div><div class="meta"><span>${fmt(c.commits)} commits</span><span class="add">${fmt(c.added)} ++</span><span class="del">${fmt(c.deleted)} --</span></div><canvas id="contrib-${i}"></canvas>`;
-      cardsContainer.appendChild(card);
-      new Chart(document.getElementById(`contrib-${i}`) as HTMLCanvasElement, {
-        type: "line",
-        data: {
-          labels: weeks.map(weekLabel),
-          datasets: [
-            {
-              data: weeklyData[c.email],
-              backgroundColor: clr(i) + "40",
-              borderColor: clr(i),
-              borderWidth: 1.5,
-              fill: true,
-              tension: 0.3,
-              pointRadius: 0,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { display: true, ticks: { maxTicksLimit: 4, font: { size: 9 }, maxRotation: 0 } },
-            y: { display: false, beginAtZero: true },
-          },
-        },
-      } as any);
-    });
-  }
+  // The per-contributor frequency cards are now Svelte components
+  // (lib/components/ContributorCard.svelte), each owning its own sparkline.
 
   function renderChartCards(
     container: HTMLElement | null,

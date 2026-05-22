@@ -4,14 +4,22 @@
   import type { AuthorPopover } from "./lib/popovers";
   import { createAuthorPopover } from "./lib/popovers";
   import { fmtTimelineDuration } from "./lib/format";
+  import { configureCharts } from "./lib/theme";
   import { initDashboard } from "./lib/dashboard";
   import type { Mode } from "./lib/heatmap";
   import Header from "./lib/components/Header.svelte";
   import TechGrid from "./lib/components/TechGrid.svelte";
   import Table from "./lib/components/Table.svelte";
   import YearToggles from "./lib/components/YearToggles.svelte";
+  import ContributorCard from "./lib/components/ContributorCard.svelte";
 
   let { data }: { data: RepoData } = $props();
+
+  // Set Chart.js global defaults before any chart is built. ContributorCard
+  // creates its sparkline in its own onMount, which (children-first) fires
+  // before App's onMount → before initDashboard, so this must run at script
+  // top level rather than inside the dashboard engine.
+  configureCharts();
 
   // The timeline heading gains a ": <duration>" suffix when the span is known.
   const timelineDur = $derived(fmtTimelineDuration(data.dateRange.start, data.dateRange.end));
@@ -94,7 +102,11 @@
       </div>
       <div class="section" id="commit-frequency">
         <h2>Commit frequency over time</h2>
-        <div class="grid-5" id="contributorCards"></div>
+        <div class="grid-5">
+          {#each data.contributors as c, i (c.email)}
+            <ContributorCard contributor={c} index={i} weeks={data.weeks} weekly={data.weeklyData[c.email]} />
+          {/each}
+        </div>
       </div>
       <div class="section" id="hour-patterns">
         <h2>Commit time patterns (hour of day)</h2>

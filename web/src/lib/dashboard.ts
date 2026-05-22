@@ -2,7 +2,6 @@
 // renders each section in the same order as the original template.html script.
 // Call once after the static layout (App.svelte) is in the DOM.
 import type { RepoData } from "../types";
-import { configureCharts } from "./theme";
 import { initHeatmap, type Mode } from "./heatmap";
 import { buildTimeline } from "./timeline";
 import { renderCharts } from "./charts";
@@ -26,8 +25,6 @@ export function initDashboard(D: RepoData, authorPopover: AuthorPopover): Dashbo
     c.lc = c.commits ? +(c.net / c.commits).toFixed(1) : 0;
     c.avgPerDay = c.activeDays ? +(c.commits / c.activeDays).toFixed(1) : 0;
   });
-
-  configureCharts();
 
   const allDaily: Record<string, number> = {};
   Object.values(D.dailyData).forEach((d) => {
