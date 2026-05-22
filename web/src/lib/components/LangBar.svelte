@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Stacked language bar + optional legend. Svelte port of langBarHtml() in
-  // lib/format.ts; that string version stays for now because the (still
-  // imperative) author popover renders it inline. When the popover becomes a
-  // component, langBarHtml can be deleted in favour of this.
+  // Stacked language bar + optional legend. Used by the Technologies grid and
+  // the author popover. (Replaced the old langBarHtml() string builder, now
+  // removed from lib/format.ts.)
   import type { LanguageStat } from "../../types";
   import { langSearchUrl } from "../format";
 

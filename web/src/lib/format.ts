@@ -1,5 +1,5 @@
 // Pure formatting / string helpers ported verbatim from template.html.
-import type { Contributor, LanguageStat, RepoData } from "../types";
+import type { Contributor, RepoData } from "../types";
 
 export const fmt = (n: number): string => n.toLocaleString();
 export const pct = (n: number, t: number): string => (t ? (n / t) * 100 : 0).toFixed(1) + "%";
@@ -83,33 +83,4 @@ export function langSearchUrl(base: string | null | undefined, name: string): st
   const m = /^(https?:\/\/[^/]+)\/(.+?)\/?$/.exec(base || "");
   if (!m || name === "Other") return "";
   return `${m[1]}/search?q=${encodeURIComponent(`repo:${m[2]} language:${name}`)}&type=code`;
-}
-
-// Stacked language bar from a [{name, pct, color}] list (Python-precomputed).
-// `repoBase`, when given, links each legend entry to GitHub code search.
-export function langBarHtml(
-  langs: LanguageStat[] | undefined,
-  { legend = true, repoBase = "" }: { legend?: boolean; repoBase?: string | null } = {},
-): string {
-  if (!langs || !langs.length) return "";
-  const segs = langs
-    .map(
-      (l) =>
-        `<span style="width:${l.pct}%;background:${l.color}" title="${escapeHtml(l.name)} ${l.pct}%"></span>`,
-    )
-    .join("");
-  let html = `<div class="langbar">${segs}</div>`;
-  if (legend) {
-    const items = langs
-      .map((l) => {
-        const inner = `<span class="lang-dot" style="background:${l.color}"></span>${escapeHtml(l.name)} <span class="lang-pct">${l.pct}%</span>`;
-        const url = langSearchUrl(repoBase, l.name);
-        return url
-          ? `<a class="lang-item" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="Browse ${escapeHtml(l.name)} on GitHub">${inner}</a>`
-          : `<span class="lang-item">${inner}</span>`;
-      })
-      .join("");
-    html += `<div class="lang-legend">${items}</div>`;
-  }
-  return html;
 }

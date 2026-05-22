@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { RepoData } from "./types";
-  import type { AuthorPopover } from "./lib/popovers";
+  import type { AuthorPopover as AuthorPopoverAdapter } from "./lib/popovers";
   import { createAuthorPopover } from "./lib/popovers";
   import { fmtTimelineDuration } from "./lib/format";
   import { configureCharts } from "./lib/theme";
@@ -12,6 +12,8 @@
   import Table from "./lib/components/Table.svelte";
   import YearToggles from "./lib/components/YearToggles.svelte";
   import ContributorCard from "./lib/components/ContributorCard.svelte";
+  import AuthorPopover from "./lib/components/AuthorPopover.svelte";
+  import CommitPopover from "./lib/components/CommitPopover.svelte";
 
   let { data }: { data: RepoData } = $props();
 
@@ -27,10 +29,10 @@
     timelineDur ? `Commit timeline: ${timelineDur}` : "Commit timeline",
   );
 
-  // The author popover (shared by the table and the timeline lane labels) is a
-  // body-appended singleton, so it's created on mount and handed to both the
-  // Table component and the imperative dashboard engine.
-  let authorPopover = $state<AuthorPopover | undefined>(undefined);
+  // The author popover (shared by the table and the timeline lane labels) is
+  // rendered by <AuthorPopover/>; this adapter writes the shared popover store
+  // and is handed to the Table component and the imperative dashboard engine.
+  let authorPopover = $state<AuthorPopoverAdapter | undefined>(undefined);
 
   // The heatmap rebuild closure, handed back by initDashboard, lets the
   // YearToggles component re-render the (imperative) heatmap on selection.
@@ -45,6 +47,9 @@
 </script>
 
 <div class="container">
+  <!-- Rendered here for tree placement, but both use:portal to <body>. -->
+  <AuthorPopover />
+  <CommitPopover />
   <Header {data} />
   <div class="layout">
     <aside class="sidebar">
