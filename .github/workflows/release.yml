@@ -28,6 +28,14 @@ jobs:
           echo "sha256 (for the Homebrew formula):"
           shasum -a 256 dist/repo-intel
 
+      - name: Update the floating major tag (e.g. v1)
+        if: ${{ !contains(github.ref_name, '-') }} # skip prereleases like v1.0.0-rc1
+        run: |
+          set -euo pipefail
+          major="${GITHUB_REF_NAME%%.*}" # v1.2.3 -> v1
+          git tag -f "$major"
+          git push -f origin "refs/tags/${major}"
+
       - name: Bump Homebrew tap formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

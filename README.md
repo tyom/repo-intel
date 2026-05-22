@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # required — repo-intel reads full git history
-      - uses: tyom/repo-intel@v1.0.0 # or @main for the latest
+      - uses: tyom/repo-intel@v1 # moves with v1.x; pin @v1.0.0 to lock a version
         with:
           contributors: '10' # optional, top N
           output: public # optional, dir for index.html

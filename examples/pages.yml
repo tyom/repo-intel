@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: tyom/repo-intel@v1.0.0 # or @main for the latest
+      - uses: tyom/repo-intel@v1 # moves with v1.x; pin @v1.0.0 to lock a version
         with:
           contributors: "10" # top N contributors (optional)
           output: public # dir to write index.html into (optional)
