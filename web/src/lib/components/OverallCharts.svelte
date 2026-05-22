@@ -101,15 +101,22 @@
     // wherever it sits. File sizes are log-skewed, so map on log(bytes), and
     // brighter = larger. Folder headers are deliberately left off this scale
     // (see below) — their area already carries the folder's size.
+    // The "N more files" remainder is a sum of many files, not a single file (it
+    // has no fullPath), so keep it off the scale — otherwise its large aggregate
+    // pins `hi` and washes every real tile toward the dark floor, defeating the
+    // size encoding.
     const leafTotals: number[] = [];
     for (const n of nodes) {
       if (n.children) for (const c of n.children) leafTotals.push(c.total);
-      else leafTotals.push(n.total);
+      else if (n.fullPath) leafTotals.push(n.total);
     }
     const lo = Math.log(Math.max(Math.min(...leafTotals), 1));
     const hi = Math.log(Math.max(...leafTotals, 1));
     const grey = (value: number): string => {
-      const t = hi > lo ? (Math.log(Math.max(value, 1)) - lo) / (hi - lo) : 1;
+      const raw = hi > lo ? (Math.log(Math.max(value, 1)) - lo) / (hi - lo) : 1;
+      // Clamp: the remainder tile sits above the real-file range (it's off the
+      // scale above), so its t > 1 would overflow the byte into invalid hex.
+      const t = Math.min(1, Math.max(0, raw));
       const h = Math.round(58 + t * (210 - 58))
         .toString(16)
         .padStart(2, "0");

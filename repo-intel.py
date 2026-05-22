@@ -778,8 +778,14 @@ def head_file_sizes(cwd=None, limit=40):
     try:
         # -l adds the blob size column; quotePath=false keeps non-ASCII paths raw
         # so they tie back to the same path strings used elsewhere (the log walk).
-        out = git("-c", "core.quotePath=false", "ls-tree", "-r", "-l", "HEAD", cwd=cwd)
-    except subprocess.CalledProcessError:
+        # Read bytes and decode leniently (not git(), which is text=True): a path
+        # with non-UTF-8 bytes would otherwise raise UnicodeDecodeError and abort
+        # the run — the trap _head_first_line documents and sidesteps the same way.
+        out = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "-l", "HEAD"],
+            cwd=cwd, capture_output=True, check=True,
+        ).stdout.decode("utf-8", "replace")
+    except (subprocess.CalledProcessError, OSError):
         return None
     sized = {}
     for line in out.splitlines():
@@ -813,17 +819,20 @@ def history_disk_by_path(cwd=None, limit=40):
             cwd=cwd, stdout=subprocess.PIPE,
         )
         # `%(rest)` echoes the path rev-list appended after each blob's oid.
+        # No text=True: read bytes and decode each line leniently, so a non-UTF-8
+        # path (quotePath=false emits raw bytes) can't crash the strict UTF-8
+        # decode and abort the run — same trap _head_first_line sidesteps.
         cat = subprocess.Popen(
             ["git", "cat-file", "--batch-check=%(objecttype) %(objectsize:disk) %(rest)"],
-            cwd=cwd, stdin=revs.stdout, stdout=subprocess.PIPE, text=True,
+            cwd=cwd, stdin=revs.stdout, stdout=subprocess.PIPE,
         )
         # Drop our handle so rev-list gets SIGPIPE if cat-file exits early.
         revs.stdout.close()
-        for line in cat.stdout:
+        for raw in cat.stdout:
             # `blob <disk-size> <path>`; non-blobs (commits/trees) and pathless blobs
             # split short and are skipped. rstrip drops the streamed line's newline
             # so it doesn't bleed into the path key.
-            parts = line.rstrip("\n").split(" ", 2)
+            parts = raw.decode("utf-8", "replace").rstrip("\n").split(" ", 2)
             if len(parts) < 3 or parts[0] != "blob":
                 continue
             try:
