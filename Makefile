@@ -12,4 +12,8 @@ techdata: ## Regenerate techdata.json from GitHub Linguist (needs network)
 dev: ## Run from source (reads template.html + techdata.json live; pass args via ARGS=)
 	python3 repo-intel.py $(ARGS)
 
-.PHONY: help build techdata dev
+install-hooks: ## Point git at the tracked .githooks/ (auto-rebuilds dist on commit)
+	git config core.hooksPath .githooks
+	@echo "core.hooksPath -> .githooks"
+
+.PHONY: help build techdata dev install-hooks
