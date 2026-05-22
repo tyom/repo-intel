@@ -1,4 +1,6 @@
 // Reusable element directives (Svelte actions).
+//  - echart: mount an ECharts instance on a <div>, apply options, auto-resize,
+//    dispose on unmount — the single home for the canvas→div mount-model shift.
 //  - portal / position: power the body-portaled popovers + timeline tooltip.
 //  - dragScroll / scrollSpy: the pattern-row drag-to-pan and sidebar scroll-spy
 //    (formerly the imperative initScrollRows / initSidebar in interactions.ts).
@@ -10,6 +12,36 @@
 //    never painted at a stale position. The action's update() runs after each
 //    DOM render, so offsetWidth/Height reflect the freshly rendered content —
 //    no flushSync needed.
+import { echarts } from "./echarts";
+import type { EChartsType } from "echarts/core";
+import type { EChartsCoreOption } from "echarts/core";
+
+export interface EchartParams {
+  option: EChartsCoreOption;
+  // Called once with the instance so the component can attach event listeners
+  // (legend toggles, bar clicks) and keep a ref for dispatchAction.
+  onReady?: (chart: EChartsType) => void;
+}
+
+// Mount an ECharts chart on `node` using the shared "repo" theme. Re-applies
+// options on update (notMerge, so series swaps cleanly) and tears the instance
+// down on destroy. The node sizes the chart, so give it width/height in CSS.
+export function echart(node: HTMLElement, params: EchartParams) {
+  const chart = echarts.init(node, "repo", { renderer: "canvas" });
+  chart.setOption(params.option);
+  params.onReady?.(chart);
+  const ro = new ResizeObserver(() => chart.resize());
+  ro.observe(node);
+  return {
+    update(next: EchartParams) {
+      chart.setOption(next.option, true);
+    },
+    destroy() {
+      ro.disconnect();
+      chart.dispose();
+    },
+  };
+}
 
 export function portal(node: HTMLElement, target: HTMLElement = document.body) {
   target.appendChild(node);

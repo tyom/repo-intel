@@ -1,6 +1,7 @@
 // Reads the CSS custom properties (the --c1..--c10 palette and named colors)
-// and configures Chart.js global defaults. Call configureCharts() once at boot.
-import { Chart } from "./chart";
+// and registers the "repo" ECharts theme. Call registerEchartsTheme() once at
+// boot, before any chart mounts.
+import { echarts } from "./echarts";
 
 const cs = getComputedStyle(document.documentElement);
 const readVar = (name: string) => cs.getPropertyValue(name).trim();
@@ -26,10 +27,23 @@ export const selectionFill = readVar("--selection-fill");
 export const selectionStroke = readVar("--selection-stroke");
 export const accentWeekend = readVar("--accent-weekend");
 
-export function configureCharts(): void {
-  const cd = Chart.defaults;
-  cd.color = textMuted;
-  cd.borderColor = borderSubtle;
-  cd.font.family = "system-ui";
-  cd.font.size = 11;
+// The shared dashboard theme — the ECharts analog of the old Chart.defaults
+// block. Per-chart options still override (titles, per-series colour); this just
+// sets the palette, fonts, and axis/grid colours every chart inherits.
+export function registerEchartsTheme(): void {
+  const axis = {
+    axisLine: { lineStyle: { color: borderSubtle } },
+    axisTick: { show: false },
+    axisLabel: { color: textMuted, fontSize: 11 },
+    splitLine: { lineStyle: { color: gridLine || borderSubtle } },
+  };
+  echarts.registerTheme("repo", {
+    color: colors,
+    backgroundColor: "transparent",
+    textStyle: { fontFamily: "system-ui", fontSize: 11, color: textMuted },
+    title: { textStyle: { color: textPrimary, fontSize: 13, fontWeight: "bold" } },
+    legend: { textStyle: { color: textMuted } },
+    categoryAxis: { ...axis, splitLine: { show: false } },
+    valueAxis: axis,
+  });
 }

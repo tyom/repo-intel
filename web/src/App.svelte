@@ -7,7 +7,7 @@
   } from "$lib/popovers";
   import { createAuthorPopover, createCommitPopover, createTimelineTooltip } from "$lib/popovers";
   import { fmtTimelineDuration } from "$lib/format";
-  import { configureCharts } from "$lib/theme";
+  import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
   import Header from "$components/Header.svelte";
@@ -24,11 +24,11 @@
 
   let { data }: { data: RepoData } = $props();
 
-  // Set Chart.js global defaults before any chart is built. The chart-owning
-  // components (ContributorCard / OverallCharts / PatternCard) build their charts
-  // in their own onMount, which (children-first) fires before App's onMount, so
-  // this must run at script top level rather than inside onMount.
-  configureCharts();
+  // Register the shared "repo" ECharts theme before any chart mounts. The
+  // chart-owning components (ContributorCard / OverallCharts / PatternCard) mount
+  // their charts in their own onMount, which (children-first) fires before App's
+  // onMount, so this must run at script top level rather than inside onMount.
+  registerEchartsTheme();
 
   // The timeline heading gains a ": <duration>" suffix when the span is known.
   const timelineDur = $derived(fmtTimelineDuration(data.dateRange.start, data.dateRange.end));

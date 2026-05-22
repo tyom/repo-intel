@@ -1,12 +1,11 @@
 <script lang="ts">
-  // One contributor's frequency card: rank/name/meta markup (the conversion win)
-  // plus a Chart.js weekly-commits sparkline that stays imperative on its own
-  // canvas. Svelte port of the contributor-cards block from lib/charts.ts.
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  import { onMount } from "svelte";
+  // One contributor's frequency card: rank/name/meta markup plus an ECharts
+  // weekly-commits sparkline mounted via the `echart` action. Svelte port of the
+  // contributor-cards block from lib/charts.ts.
   import type { Contributor } from "$types";
-  import { Chart } from "$lib/chart";
-  import { clr } from "$lib/theme";
+  import type { EChartsCoreOption } from "echarts/core";
+  import { echart } from "$lib/actions";
+  import { clr, textMuted } from "$lib/theme";
   import { fmt, weekLabel } from "$lib/format";
 
   let {
@@ -18,36 +17,34 @@
 
   const color = $derived(clr(index));
 
-  let canvas: HTMLCanvasElement;
-
-  onMount(() => {
-    const chart = new Chart(canvas, {
-      type: "line",
-      data: {
-        labels: weeks.map(weekLabel),
-        datasets: [
-          {
-            data: weekly,
-            backgroundColor: color + "40",
-            borderColor: color,
-            borderWidth: 1.5,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0,
-          },
-        ],
+  const option: EChartsCoreOption = $derived.by(() => {
+    const labels = weeks.map(weekLabel);
+    // Aim for ~4 x-axis labels (chart.js used maxTicksLimit: 4).
+    const interval = Math.max(0, Math.round(labels.length / 4) - 1);
+    return {
+      grid: { left: 2, right: 2, top: 4, bottom: 16 },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        data: labels,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 9, color: textMuted, interval, hideOverlap: true },
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { display: true, ticks: { maxTicksLimit: 4, font: { size: 9 }, maxRotation: 0 } },
-          y: { display: false, beginAtZero: true },
+      yAxis: { type: "value", show: false, min: 0 },
+      series: [
+        {
+          type: "line",
+          silent: true,
+          cursor: "default",
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { width: 1.5, color },
+          areaStyle: { color, opacity: 0.25 },
+          data: weekly,
         },
-      },
-    } as any);
-    return () => chart.destroy();
+      ],
+    };
   });
 </script>
 
@@ -59,7 +56,7 @@
     <span class="add">{fmt(contributor.added)} ++</span>
     <span class="del">{fmt(contributor.deleted)} --</span>
   </div>
-  <canvas bind:this={canvas}></canvas>
+  <div class="spark" use:echart={{ option }}></div>
 </div>
 
 <style>
@@ -98,8 +95,8 @@
       font-size: 0.7rem;
       font-weight: 600;
     }
-    canvas {
-      height: 80px !important;
+    .spark {
+      height: 80px;
     }
   }
 </style>
