@@ -216,6 +216,7 @@ repo-intel facebook/react --clone                     # analyse via bare clone
 | `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use) |
 
 ```bash
+make install-hooks   # one-time per clone: auto-rebuild dist on commit
 make build       # rebuild dist/repo-intel after editing source or template
 make techdata    # regenerate techdata.json from Linguist (needs network)
 make dev ARGS="3 facebook/react"   # run from source, reading template/techdata live
@@ -226,8 +227,11 @@ placeholder and reads `template.html` / `techdata.json` from disk, so you can
 iterate without rebuilding. The built artifact carries both embedded.
 
 > Commit `dist/repo-intel` alongside source changes — CI fails if it's stale.
-> The weekly `refresh-techdata` workflow rebuilds it automatically when
-> Linguist changes.
+> Run `make install-hooks` once after cloning: it points `core.hooksPath` at
+> the tracked `.githooks/`, whose `pre-commit` rebuilds and stages
+> `dist/repo-intel` whenever you commit a change to `repo-intel.py`,
+> `template.html`, or `techdata.json`. The weekly `refresh-techdata` workflow
+> rebuilds it automatically when Linguist changes.
 
 ### Detection data (`techdata.json`)
 

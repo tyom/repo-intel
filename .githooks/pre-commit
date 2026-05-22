@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Keep dist/repo-intel in sync with its bundled sources.
+#
+# When any source that build.py embeds is part of this commit, rebuild the
+# single-file artifact and stage it so it always lands in the same commit.
+# Install once with: make install-hooks   (sets core.hooksPath=.githooks)
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Sources build.py reads into dist/repo-intel.
+sources="repo-intel.py template.html techdata.json"
+
+# Nothing to do unless one of them is staged in this commit.
+staged="$(git diff --cached --name-only -- $sources)"
+[ -z "$staged" ] && exit 0
+
+# build.py reads the working tree, not the index. If a staged source also has
+# unstaged edits, the rebuilt artifact would embed content you're not
+# committing — refuse rather than bundle the wrong thing.
+for f in $staged; do
+  if ! git diff --quiet -- "$f"; then
+    echo "pre-commit: '$f' has unstaged changes; the rebuild would embed them." >&2
+    echo "  Stage them (git add $f) or stash, then commit again." >&2
+    exit 1
+  fi
+done
+
+echo "pre-commit: bundled source changed — rebuilding dist/repo-intel ..."
+python3 build.py dist/repo-intel
+git add dist/repo-intel
