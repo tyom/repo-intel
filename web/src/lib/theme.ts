@@ -1,6 +1,6 @@
 // Reads the CSS custom properties (the --c1..--c10 palette and named colors)
 // and configures Chart.js global defaults. Call configureCharts() once at boot.
-import Chart from "chart.js/auto";
+import { Chart } from "./chart";
 
 const cs = getComputedStyle(document.documentElement);
 const readVar = (name: string) => cs.getPropertyValue(name).trim();

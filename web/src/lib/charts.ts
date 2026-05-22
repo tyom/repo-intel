@@ -4,7 +4,7 @@
 // is now bundled (no CDN). `any` is used for chart configs to match the original
 // untyped option objects.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Chart from "chart.js/auto";
+import { Chart } from "./chart";
 import type { Contributor, RepoData } from "../types";
 import { clr, textPrimary, borderDefault, bgCard, colorAdded, colorDeleted } from "./theme";
 import { escapeHtml, fmt, weekLabel } from "./format";
