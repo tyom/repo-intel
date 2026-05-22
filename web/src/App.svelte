@@ -5,9 +5,11 @@
   import { createAuthorPopover } from "./lib/popovers";
   import { fmtTimelineDuration } from "./lib/format";
   import { initDashboard } from "./lib/dashboard";
+  import type { Mode } from "./lib/heatmap";
   import Header from "./lib/components/Header.svelte";
   import TechGrid from "./lib/components/TechGrid.svelte";
   import Table from "./lib/components/Table.svelte";
+  import YearToggles from "./lib/components/YearToggles.svelte";
 
   let { data }: { data: RepoData } = $props();
 
@@ -22,11 +24,15 @@
   // Table component and the imperative dashboard engine.
   let authorPopover = $state<AuthorPopover | undefined>(undefined);
 
+  // The heatmap rebuild closure, handed back by initDashboard, lets the
+  // YearToggles component re-render the (imperative) heatmap on selection.
+  let rebuildHeatmap = $state<((mode: Mode) => void) | undefined>(undefined);
+
   // The dashboard engine renders into the container elements below (by id) and
   // wires all canvas / Chart.js / popover behavior. Run it once mounted.
   onMount(() => {
     authorPopover = createAuthorPopover(data.contributors);
-    initDashboard(data, authorPopover);
+    ({ rebuildHeatmap } = initDashboard(data, authorPopover));
   });
 </script>
 
@@ -50,7 +56,7 @@
         <div class="card">
           <div class="contributions-header">
             <h2>Contributions</h2>
-            <div class="year-toggles" id="yearToggles"></div>
+            <YearToggles {data} onSelect={(mode) => rebuildHeatmap?.(mode)} />
           </div>
           <div id="heatmapContainer"></div>
         </div>

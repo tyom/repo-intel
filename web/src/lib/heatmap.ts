@@ -4,9 +4,15 @@ import type { RepoData } from "../types";
 import { colorHeatmap, bgEmptyCell } from "./theme";
 import { encodeBranch } from "./format";
 
-type Mode = "current" | number;
+export type Mode = "current" | number;
 
-export function initHeatmap(D: RepoData, allDaily: Record<string, number>): void {
+// Returns a `rebuild(mode)` closure so the (now Svelte) year toggles can
+// re-render the heatmap for a chosen year. The heatmap grid itself stays
+// imperative (innerHTML + a body-appended hover tooltip).
+export function initHeatmap(
+  D: RepoData,
+  allDaily: Record<string, number>,
+): (mode: Mode) => void {
   const color = colorHeatmap;
 
   function shade(opacity: number): string {
@@ -101,30 +107,6 @@ export function initHeatmap(D: RepoData, allDaily: Record<string, number>): void
 
   buildHeatmap("heatmapContainer", allDaily);
 
-  // Year toggles
-  (function buildYearToggles() {
-    const togglesDiv = document.getElementById("yearToggles");
-    if (!togglesDiv) return;
-    const startYear = parseInt((D.dateRange.start || "").slice(0, 4), 10);
-    const endYear = parseInt((D.dateRange.end || "").slice(0, 4), 10);
-    if (!startYear || !endYear) return;
-    const years: number[] = [];
-    for (let y = endYear; y >= startYear && years.length < 20; y--) years.push(y);
-    let html = '<button class="year-toggle active" type="button" data-mode="current">Current</button>';
-    years.forEach((y) => {
-      html += `<button class="year-toggle" type="button" data-mode="${y}">${y}</button>`;
-    });
-    togglesDiv.innerHTML = html;
-    togglesDiv.addEventListener("click", (e) => {
-      const btn = (e.target as Element).closest(".year-toggle") as HTMLElement | null;
-      if (!btn) return;
-      togglesDiv.querySelectorAll(".year-toggle").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const m = btn.dataset.mode!;
-      buildHeatmap("heatmapContainer", allDaily, m === "current" ? "current" : parseInt(m, 10));
-    });
-  })();
-
   // Tooltip
   const tooltip = document.createElement("div");
   tooltip.className = "heatmap-tooltip";
@@ -168,4 +150,6 @@ export function initHeatmap(D: RepoData, allDaily: Record<string, number>): void
     const next = rel && rel.closest && rel.closest(".heatmap-cell[data-date]");
     if (!next) tooltip.classList.remove("visible");
   });
+
+  return (mode: Mode) => buildHeatmap("heatmapContainer", allDaily, mode);
 }

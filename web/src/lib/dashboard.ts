@@ -3,7 +3,7 @@
 // Call once after the static layout (App.svelte) is in the DOM.
 import type { RepoData } from "../types";
 import { configureCharts } from "./theme";
-import { initHeatmap } from "./heatmap";
+import { initHeatmap, type Mode } from "./heatmap";
 import { buildTimeline } from "./timeline";
 import { renderCharts } from "./charts";
 import { initScrollRows, initSidebar } from "./interactions";
@@ -11,8 +11,14 @@ import { createCommitPopover, type AuthorPopover } from "./popovers";
 
 // The summary table is now a Svelte component (lib/components/Table.svelte); the
 // author popover it shares with the timeline is created by App.svelte and passed
-// in here so both halves wire to the same singleton.
-export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
+// in here so both halves wire to the same singleton. Returns the imperative
+// bridges App needs to wire to Svelte components — currently the heatmap rebuild
+// the year toggles call on selection.
+export interface DashboardBridges {
+  rebuildHeatmap: (mode: Mode) => void;
+}
+
+export function initDashboard(D: RepoData, authorPopover: AuthorPopover): DashboardBridges {
   // Client-side derived fields (mirrors template.html lines 326-327).
   D.totals.net = D.totals.added - D.totals.deleted;
   D.contributors.forEach((c) => {
@@ -29,7 +35,7 @@ export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
       allDaily[k] = (allDaily[k] || 0) + v;
     });
   });
-  initHeatmap(D, allDaily);
+  const rebuildHeatmap = initHeatmap(D, allDaily);
 
   buildTimeline(D, authorPopover);
 
@@ -38,4 +44,6 @@ export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
 
   initScrollRows();
   initSidebar();
+
+  return { rebuildHeatmap };
 }
