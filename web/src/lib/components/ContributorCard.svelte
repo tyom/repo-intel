@@ -62,7 +62,6 @@
 <style>
   .contributor-card {
     background: var(--bg-card);
-    border: 1px solid var(--border-default);
     border-radius: 8px;
     padding: 12px;
     overflow: hidden;
