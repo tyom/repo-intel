@@ -25,6 +25,7 @@ export const colorAdded = readVar("--color-added");
 export const colorDeleted = readVar("--color-deleted");
 export const bgPrimary = readVar("--bg-primary");
 export const bgCard = readVar("--bg-card");
+export const bgPopover = readVar("--bg-popover");
 export const borderDefault = readVar("--border-default");
 export const colorHeatmap = readVar("--color-heatmap");
 export const bgEmptyCell = readVar("--bg-empty-cell");
@@ -55,6 +56,13 @@ export function registerEchartsTheme(): void {
     backgroundColor: "transparent",
     textStyle: { fontFamily: "system-ui", fontSize: 11, color: textMuted },
     legend: { textStyle: { color: textMuted } },
+    // Dark tooltip surface (matches the body-portaled popovers) so the default
+    // white box doesn't glare against the dark dashboard.
+    tooltip: {
+      backgroundColor: bgPopover,
+      borderColor: borderDefault,
+      textStyle: { color: textPrimary, fontSize: 11 },
+    },
     categoryAxis: { ...axis, splitLine: { show: false } },
     valueAxis: axis,
   });
