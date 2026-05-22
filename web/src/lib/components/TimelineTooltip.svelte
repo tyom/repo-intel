@@ -1,0 +1,248 @@
+<script lang="ts">
+  // Timeline hover tooltip: one body-portaled node with two content shapes — a
+  // commit-bundle tip and a git-tag tip, discriminated by timelineTipState.kind.
+  // Unlike the popovers it follows the cursor, so the position action's params
+  // carry the live {x, y} (the action ignores them; their presence is what makes
+  // Svelte re-run update() on each mousemove). Svelte port of showTooltipFor /
+  // showTagTooltip's innerHTML in lib/timeline.ts.
+  import { timelineTipState as tip } from "$lib/popover-store.svelte";
+  import { portal, position } from "$lib/actions";
+  import { colorAdded, colorDeleted } from "$lib/theme";
+  import { fmt } from "$lib/format";
+
+  function dateTime(d: string): [string, string] {
+    const dt = new Date(d);
+    if (isNaN(+dt)) return ["", ""];
+    return [
+      dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+      dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+    ];
+  }
+
+  // --- commit tip ---
+  const c = $derived(tip.kind === "commit" ? tip.c : null);
+  const bundle = $derived(c?.commits ?? []);
+  const commitDT = $derived(c ? dateTime(c.d) : ["", ""]);
+
+  // Churn by file-type, aggregated across the bundle; top 5 + "+N" overflow.
+  const ftypes = $derived.by(() => {
+    const agg: Record<string, [string, number]> = {};
+    for (const cc of bundle)
+      for (const [name, color, files] of cc.f ?? []) {
+        if (!agg[name]) agg[name] = [color, 0];
+        agg[name][1] += files;
+      }
+    const sorted = Object.entries(agg).sort((a, b) => b[1][1] - a[1][1]);
+    const shown = sorted.slice(0, 5);
+    return { shown, more: sorted.length - shown.length };
+  });
+
+  // Reset the avatar-failed flag when the hovered bundle changes, so a 404 on
+  // one avatar doesn't suppress the next one's image.
+  let imgFailed = $state(false);
+  $effect(() => {
+    tip.c;
+    imgFailed = false;
+  });
+
+  // --- tag tip ---
+  const tag = $derived(tip.kind === "tag" ? tip.tag : null);
+  const tagDT = $derived(tag ? dateTime(String(tag.date ?? "")) : ["", ""]);
+  const tagOid = $derived((tag?.oid ?? "").slice(0, 7));
+  // Show the message only when it adds something beyond the tag name.
+  const tagMsg = $derived.by(() => {
+    const msg = (tag?.message ?? "").trim();
+    return msg && msg !== (tag?.name ?? "").trim() ? msg : "";
+  });
+
+  // Place at the cursor: 12px to the right, flipped left near the right edge,
+  // vertically centred, clamped to the viewport with an 8px margin.
+  function place(m: { w: number; h: number; vw: number; vh: number }) {
+    if (tip.kind == null) return null;
+    const margin = 8,
+      gap = 12;
+    let left = tip.x + gap;
+    if (left + m.w + margin > m.vw) left = tip.x - gap - m.w;
+    left = Math.max(margin, Math.min(left, m.vw - m.w - margin));
+    let top = tip.y - m.h / 2;
+    top = Math.max(margin, Math.min(top, m.vh - m.h - margin));
+    return { left, top };
+  }
+</script>
+
+<div class="timeline-tooltip" use:portal use:position={{ visible: tip.kind != null, place, deps: [tip.x, tip.y] }}>
+  {#if c}
+    <div class="tt-author-row">
+      {#if tip.author?.avatarUrl && !imgFailed}
+        <img class="tt-avatar" src={tip.author.avatarUrl} alt="" onerror={() => (imgFailed = true)} />
+      {:else}
+        <span class="tt-dot" style="background:{tip.color}"></span>
+      {/if}
+      <span class="tt-author">{tip.author?.name}</span>
+      {#if bundle.length > 1}<span class="tt-bundle-count">· {bundle.length} commits</span>{/if}
+    </div>
+    {#if bundle.length > 1}
+      <!-- prettier-ignore -->
+      <div class="tt-meta">{commitDT[0]} {commitDT[1]} · <span style="color:{colorAdded}">+{fmt(c.a)}</span> <span style="color:{colorDeleted}">-{fmt(c.l)}</span></div>
+      <div class="tt-bundle-list">
+        {#each bundle as cc (cc.h)}
+          <div class="tt-bundle-item">
+            <div class="tt-bundle-subject">{cc.s || ""}</div>
+            <!-- prettier-ignore -->
+            <div class="tt-bundle-meta"><span style="color:{colorAdded}">+{fmt(cc.a || 0)}</span> <span style="color:{colorDeleted}">-{fmt(cc.l || 0)}</span> · <span class="tt-hash">{cc.h}</span></div>
+          </div>
+        {/each}
+      </div>
+    {:else}
+      <div class="tt-subject">{c.s || ""}</div>
+      <!-- prettier-ignore -->
+      <div class="tt-meta">{commitDT[0]} {commitDT[1]} · <span style="color:{colorAdded}">+{fmt(c.a)}</span> <span style="color:{colorDeleted}">-{fmt(c.l)}</span> · <span class="tt-hash">{c.h}</span></div>
+    {/if}
+    {#if ftypes.shown.length}
+      <div class="tt-ftypes">
+        {#each ftypes.shown as [name, [color, files]] (name)}
+          <span class="tt-ftype"><span class="tt-fdot" style="background:{color}"></span>{name} ×{fmt(files)}</span>
+        {/each}
+        {#if ftypes.more > 0}<span class="tt-ftype">+{ftypes.more}</span>{/if}
+      </div>
+    {/if}
+  {:else if tag}
+    <div class="tt-author-row">
+      <span class="tt-tag-icon"></span><span class="tt-tag-kicker">TAG</span><span class="tt-tag-name">{tag.name || ""}</span>
+    </div>
+    {#if tagMsg}<div class="tt-subject">{tagMsg}</div>{/if}
+    <!-- prettier-ignore -->
+    <div class="tt-meta">{tagDT[0] || tag.date || ""}{tagDT[1] ? " " + tagDT[1] : ""}{#if tagOid}{" · "}<span class="tt-hash">{tagOid}</span>{/if}</div>
+  {/if}
+</div>
+
+<style>
+  .timeline-tooltip {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    background: var(--bg-popover);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    padding: 8px 10px;
+    border-radius: 4px;
+    max-width: 360px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.1s;
+    border: 1px solid var(--border-default);
+
+    /* .visible is toggled at runtime by the position action. */
+    &:global(.visible) {
+      opacity: 1;
+    }
+    .tt-author {
+      font-weight: 600;
+    }
+    .tt-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tt-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--bg-badge);
+      object-fit: cover;
+    }
+    /* Avatar fallback: a colour swatch filling the same slot. */
+    .tt-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tt-subject {
+      color: var(--text-primary);
+      margin: 4px 0;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+    .tt-meta {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+    .tt-hash {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+    .tt-bundle-count {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+    .tt-bundle-list {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tt-bundle-item {
+      padding-top: 6px;
+      border-top: 1px solid var(--border-default);
+
+      &:first-child {
+        padding-top: 0;
+        border-top: none;
+      }
+    }
+    .tt-bundle-subject {
+      color: var(--text-primary);
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+    .tt-bundle-meta {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      margin-top: 2px;
+    }
+    .tt-tag-kicker {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-right: 6px;
+    }
+    .tt-tag-name {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .tt-tag-icon {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .tt-ftypes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      margin-top: 5px;
+    }
+    .tt-ftype {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+
+      .tt-fdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+    }
+  }
+</style>

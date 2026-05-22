@@ -15,6 +15,7 @@
   import ContributorCard from "$components/ContributorCard.svelte";
   import AuthorPopover from "$components/AuthorPopover.svelte";
   import CommitPopover from "$components/CommitPopover.svelte";
+  import TimelineTooltip from "$components/TimelineTooltip.svelte";
 
   let { data }: { data: RepoData } = $props();
 
@@ -47,9 +48,10 @@
 </script>
 
 <div class="container">
-  <!-- Rendered here for tree placement, but both use:portal to <body>. -->
+  <!-- Rendered here for tree placement, but all use:portal to <body>. -->
   <AuthorPopover />
   <CommitPopover />
+  <TimelineTooltip />
   <Header {data} />
   <div class="layout">
     <aside class="sidebar">

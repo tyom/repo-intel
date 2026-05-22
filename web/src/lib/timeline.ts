@@ -2,30 +2,40 @@
 // inertia, wheel/pinch zoom, a draggable histogram minimap, tag markers, and a
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
-import type { Commit, Contributor, RepoData, Tag } from "$types";
-import { clr, colorAdded, colorDeleted, gridLine, selectionFill, selectionStroke, accentWeekend } from "./theme";
-import { authorUrl, escapeHtml, fmt } from "./format";
-import { installAvatarFallback } from "./avatar";
-import type { AuthorPopover } from "./popovers";
+import type { Commit, RepoData } from "$types";
+import { clr, gridLine, selectionFill, selectionStroke, accentWeekend } from "./theme";
+import { authorUrl, escapeHtml } from "./format";
+import type { AuthorPopover, TimelineTooltip } from "./popovers";
 
+// A day+author commit bundle (one or more commits collapsed onto one square),
+// with churn aggregated across the bundle. Consumed by the timeline tooltip.
+export interface TimelineBundle {
+  h: string;
+  e: string;
+  d: string;
+  s: string;
+  a: number;
+  l: number;
+  commits: Commit[];
+}
 interface Drawable {
   idx: number;
   tMs: number;
   stack: number;
   lineLog: number;
-  c: { h: string; e: string; d: string; s: string; a: number; l: number; commits: Commit[] };
+  c: TimelineBundle;
 }
 interface Position {
   x: number;
   y: number;
   hw: number;
   hh: number;
-  c: Drawable["c"];
+  c: TimelineBundle;
   color: string;
   idx: number;
 }
 
-export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
+export function buildTimeline(D: RepoData, authorPopover: AuthorPopover, tooltip: TimelineTooltip): void {
   const contributors = D.contributors;
   const commits = D.commits || [];
   const labelsDiv = document.getElementById("timelineLabels");
@@ -820,18 +830,6 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
   applyLayout();
   drawCanvas();
 
-  const tooltip = document.createElement("div");
-  tooltip.className = "timeline-tooltip";
-  document.body.appendChild(tooltip);
-
-  function tooltipDateTime(dt: Date): [string, string] {
-    if (isNaN(+dt)) return ["", ""];
-    return [
-      dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
-      dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
-    ];
-  }
-
   function findHit(mx: number, my: number): Position | null {
     let best: Position | null = null,
       bestDist = Infinity;
@@ -853,84 +851,6 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
   }
 
   let dragging = false;
-  let tooltipHash: string | null = null;
-
-  function positionTimelineTooltip(clientX: number, clientY: number): void {
-    const w = tooltip.offsetWidth,
-      h = tooltip.offsetHeight;
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    const m = 8,
-      gap = 12;
-    let left = clientX + gap;
-    if (left + w + m > vw) left = clientX - gap - w;
-    left = Math.max(m, Math.min(left, vw - w - m));
-    let top = clientY - h / 2;
-    top = Math.max(m, Math.min(top, vh - h - m));
-    tooltip.style.left = left + "px";
-    tooltip.style.top = top + "px";
-  }
-
-  function showTooltipFor(hit: Position, clientX: number, clientY: number): void {
-    if (hit.c.h !== tooltipHash) {
-      const c = hit.c;
-      const author = contributors[hit.idx];
-      const [dateStr, timeStr] = tooltipDateTime(new Date(c.d));
-      const av = author.avatarUrl;
-      const avatarHtml = av
-        ? `<img class="tt-avatar" src="${escapeHtml(av)}" alt="" data-fallback-tag="span" data-fallback-class="tt-dot" data-bg="${escapeHtml(hit.color)}">`
-        : `<span class="tt-dot" style="background:${hit.color}"></span>`;
-      const bundle = c.commits;
-      const headerExtra = bundle.length > 1 ? `<span class="tt-bundle-count">· ${bundle.length} commits</span>` : "";
-      let body: string;
-      if (bundle.length > 1) {
-        const items = bundle
-          .map(
-            (cc) =>
-              `<div class="tt-bundle-item">` +
-              `<div class="tt-bundle-subject">${escapeHtml(cc.s || "")}</div>` +
-              `<div class="tt-bundle-meta"><span style="color:${colorAdded}">+${fmt(cc.a || 0)}</span> <span style="color:${colorDeleted}">-${fmt(cc.l || 0)}</span> · <span class="tt-hash">${cc.h}</span></div>` +
-              `</div>`,
-          )
-          .join("");
-        body =
-          `<div class="tt-meta">${dateStr} ${timeStr} · <span style="color:${colorAdded}">+${fmt(c.a || 0)}</span> <span style="color:${colorDeleted}">-${fmt(c.l || 0)}</span></div>` +
-          `<div class="tt-bundle-list">${items}</div>`;
-      } else {
-        body =
-          `<div class="tt-subject">${escapeHtml(c.s || "")}</div>` +
-          `<div class="tt-meta">${dateStr} ${timeStr} · <span style="color:${colorAdded}">+${fmt(c.a || 0)}</span> <span style="color:${colorDeleted}">-${fmt(c.l || 0)}</span> · <span class="tt-hash">${c.h}</span></div>`;
-      }
-      const ftAgg: Record<string, [string, number]> = {};
-      for (const cc of bundle)
-        for (const [name, fcolor, files] of cc.f || []) {
-          if (!ftAgg[name]) ftAgg[name] = [fcolor, 0];
-          ftAgg[name][1] += files;
-        }
-      const ftSorted = Object.entries(ftAgg).sort((a, b) => b[1][1] - a[1][1]);
-      const ftShown = ftSorted.slice(0, 5);
-      const ftMore = ftSorted.length - ftShown.length;
-      const ftypesHtml = ftShown.length
-        ? `<div class="tt-ftypes">` +
-          ftShown
-            .map(
-              ([name, [fcolor, files]]) =>
-                `<span class="tt-ftype"><span class="tt-fdot" style="background:${fcolor}"></span>${escapeHtml(name)} ×${fmt(files)}</span>`,
-            )
-            .join("") +
-          (ftMore > 0 ? `<span class="tt-ftype">+${ftMore}</span>` : "") +
-          `</div>`
-        : "";
-      tooltip.innerHTML =
-        `<div class="tt-author-row">${avatarHtml}<span class="tt-author">${escapeHtml(author.name)}</span>${headerExtra}</div>` +
-        body +
-        ftypesHtml;
-      installAvatarFallback(tooltip.querySelector(".tt-avatar"));
-      tooltipHash = c.h;
-    }
-    positionTimelineTooltip(clientX, clientY);
-    tooltip.classList.add("visible");
-  }
 
   contributors.forEach((c) => {
     if (c.avatarUrl) {
@@ -942,7 +862,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
   let lastMouse: { clientX: number; clientY: number } | null = null;
   function applyHover(clientX: number, clientY: number): void {
     if (dragging) {
-      tooltip.classList.remove("visible");
+      tooltip.hide();
       return;
     }
     const rect = canvas.getBoundingClientRect();
@@ -951,10 +871,10 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     const outside = mx < 0 || mx > rect.width || my < 0 || my > rect.height;
     const hit = outside ? null : findHit(mx, my);
     if (hit) {
-      showTooltipFor(hit, clientX, clientY);
+      tooltip.showCommit(hit.c, contributors[hit.idx], hit.color, clientX, clientY);
       canvas.style.cursor = "pointer";
     } else {
-      tooltip.classList.remove("visible");
+      tooltip.hide();
       canvas.style.cursor = "";
     }
     const newHash = hit ? hit.c.h : null;
@@ -969,7 +889,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
   });
   canvas.addEventListener("mouseleave", () => {
     lastMouse = null;
-    tooltip.classList.remove("visible");
+    tooltip.hide();
     if (hoveredHash) {
       hoveredHash = null;
       drawCanvas();
@@ -1014,7 +934,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
       selStartX = Math.max(0, Math.min(canvasViewW, e.clientX - rect.left));
       selCurX = selStartX;
       selMoved = false;
-      tooltip.classList.remove("visible");
+      tooltip.hide();
       return;
     }
     isDown = true;
@@ -1118,7 +1038,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     e.preventDefault();
     stopInertia();
     stopResetAnim();
-    tooltip.classList.remove("visible");
+    tooltip.hide();
     const rect = histCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     mmPointerId = e.pointerId;
@@ -1194,21 +1114,6 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
     animateReset();
   });
 
-  function showTagTooltip(idx: number, clientX: number, clientY: number): void {
-    const t = tags[idx];
-    const [dateStr, timeStr] = tooltipDateTime(new Date(t.date as string));
-    const oidShort = (t.oid || "").slice(0, 7);
-    const msg = (t.message || "").trim();
-    const showMsg = msg && msg !== (t.name || "").trim();
-    tooltip.innerHTML =
-      `<div class="tt-author-row"><span class="tt-tag-icon"></span><span class="tt-tag-kicker">TAG</span><span class="tt-tag-name">${escapeHtml(t.name || "")}</span></div>` +
-      (showMsg ? `<div class="tt-subject">${escapeHtml(msg)}</div>` : "") +
-      `<div class="tt-meta">${escapeHtml(dateStr || t.date || "")}${timeStr ? " " + escapeHtml(timeStr) : ""}${oidShort ? ' · <span class="tt-hash">' + escapeHtml(oidShort) + "</span>" : ""}</div>`;
-    tooltipHash = null;
-    positionTimelineTooltip(clientX, clientY);
-    tooltip.classList.add("visible");
-  }
-
   function findTagHit(mx: number): number | null {
     if (!tags.length) return null;
     const sl = scrollDiv.scrollLeft;
@@ -1244,10 +1149,10 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
       }
       if (hit != null) {
         tagCanvas!.style.cursor = "pointer";
-        showTagTooltip(hit, e.clientX, e.clientY);
+        tooltip.showTag(tags[hit], e.clientX, e.clientY);
       } else {
         tagCanvas!.style.cursor = "";
-        tooltip.classList.remove("visible");
+        tooltip.hide();
       }
     });
     tagCanvas.addEventListener("mouseleave", () => {
@@ -1255,7 +1160,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
         hoveredTagIdx = null;
         drawCanvas();
       }
-      tooltip.classList.remove("visible");
+      tooltip.hide();
     });
     tagCanvas.addEventListener("click", (e) => {
       const rect = tagCanvas!.getBoundingClientRect();
@@ -1298,7 +1203,7 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover): void {
       accumDelta += e.deltaY || e.deltaX;
       accumCtrl = accumCtrl || e.ctrlKey;
       lastWheel = { clientX: e.clientX };
-      tooltip.classList.remove("visible");
+      tooltip.hide();
       if (zoomFrameQueued) return;
       zoomFrameQueued = true;
       requestAnimationFrame(() => {

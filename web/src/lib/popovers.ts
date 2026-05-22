@@ -3,13 +3,17 @@
 // which the AuthorPopover / CommitPopover components render. The show/hide call
 // sites in timeline.ts and charts.ts stay unchanged — they still receive an
 // object with the same shape.
-import type { Commit, Contributor, RepoData } from "$types";
+import type { Commit, Contributor, RepoData, Tag } from "$types";
+import type { TimelineBundle } from "./timeline";
 import {
   setAuthor,
   clearAuthor,
   setCommit,
   clearCommit,
   setCommitBaseUrl,
+  setCommitTip,
+  setTagTip,
+  clearTip,
 } from "./popover-store.svelte";
 
 export interface AuthorPopover {
@@ -74,5 +78,23 @@ export function createCommitPopover(D: RepoData): CommitPopover {
     hide: clearCommit,
     commitsInBucket,
     dowFull,
+  };
+}
+
+// === Timeline hover tooltip ===
+// The timeline canvas hover handlers drive this; TimelineTooltip.svelte renders
+// it. show* fires on every mousemove over a commit/tag (the store guards against
+// rebuilding when the hovered item is unchanged), hide on leave/drag/zoom.
+export interface TimelineTooltip {
+  showCommit(c: TimelineBundle, author: Contributor, color: string, x: number, y: number): void;
+  showTag(tag: Tag, x: number, y: number): void;
+  hide(): void;
+}
+
+export function createTimelineTooltip(): TimelineTooltip {
+  return {
+    showCommit: setCommitTip,
+    showTag: setTagTip,
+    hide: clearTip,
   };
 }

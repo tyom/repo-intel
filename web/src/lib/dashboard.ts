@@ -5,7 +5,7 @@ import type { RepoData } from "$types";
 import { buildTimeline } from "./timeline";
 import { renderCharts } from "./charts";
 import { initScrollRows, initSidebar } from "./interactions";
-import { createCommitPopover, type AuthorPopover } from "./popovers";
+import { createCommitPopover, createTimelineTooltip, type AuthorPopover } from "./popovers";
 
 // The summary table and contributions heatmap are now Svelte components; the
 // author popover the timeline shares with the table is created by App.svelte and
@@ -21,7 +21,7 @@ export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
     c.avgPerDay = c.activeDays ? +(c.commits / c.activeDays).toFixed(1) : 0;
   });
 
-  buildTimeline(D, authorPopover);
+  buildTimeline(D, authorPopover, createTimelineTooltip());
 
   const commitPopover = createCommitPopover(D);
   renderCharts(D, commitPopover);

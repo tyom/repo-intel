@@ -28,6 +28,11 @@ export interface PositionParams {
   // Given the measured popover + viewport, return the clamped {left, top}, or
   // null to leave the popover hidden (e.g. no anchor yet).
   place: (m: Metrics) => { left: number; top: number } | null;
+  // Unused by the action — its only job is to be read in the params expression
+  // so Svelte re-runs update() when it changes. Element-anchored popovers don't
+  // need it (visible flips when they open); a cursor-follower passes the live
+  // {x, y} here so it repositions on every mousemove. See TimelineTooltip.svelte.
+  deps?: unknown;
 }
 
 export function position(node: HTMLElement, params: PositionParams) {
