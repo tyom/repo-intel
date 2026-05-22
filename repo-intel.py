@@ -756,6 +756,79 @@ def repo_disk_kb(cwd=None):
     return size + size_pack
 
 
+def _top_with_remainder(sized, limit):
+    """Shape a {path: bytes} map into the sunburst payload: the `limit` largest
+    paths as items, plus the summed/counted remainder. Returns None when empty
+    so the web hides the chart rather than drawing an empty ring."""
+    if not sized:
+        return None
+    ranked = sorted(sized.items(), key=lambda kv: kv[1], reverse=True)
+    items = [{"path": p, "bytes": b} for p, b in ranked[:limit]]
+    rest = ranked[limit:]
+    return {
+        "items": items,
+        "otherBytes": sum(b for _, b in rest),
+        "otherCount": len(rest),
+    }
+
+
+def head_file_sizes(cwd=None, limit=40):
+    """Blob sizes of every file at HEAD, shaped for the sunburst. Best-effort:
+    None on failure or on a tree with no blobs (e.g. an empty repo)."""
+    try:
+        # -l adds the blob size column; quotePath=false keeps non-ASCII paths raw
+        # so they tie back to the same path strings used elsewhere (the log walk).
+        out = git("-c", "core.quotePath=false", "ls-tree", "-r", "-l", "HEAD", cwd=cwd)
+    except subprocess.CalledProcessError:
+        return None
+    sized = {}
+    for line in out.splitlines():
+        meta, _, path = line.partition("\t")
+        if not path:
+            continue
+        cols = meta.split()
+        # `<mode> <type> <object> <size>`; submodules list as type commit with a
+        # "-" size — skip those, they hold no bytes in this tree.
+        if len(cols) < 4 or cols[1] != "blob":
+            continue
+        try:
+            sized[path] = int(cols[3])
+        except ValueError:
+            continue
+    return _top_with_remainder(sized, limit)
+
+
+def history_disk_by_path(cwd=None, limit=40):
+    """On-disk (compressed) size of all blob versions ever committed, summed per
+    path across full history — what actually fills the .git object store. Walks
+    every reachable object, so it's O(history) like the log scan; best-effort,
+    returns None on failure."""
+    try:
+        revs = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "rev-list", "--objects", "--all"],
+            cwd=cwd, capture_output=True, text=True, check=True,
+        )
+        # `%(rest)` echoes the path rev-list appended after each blob's oid.
+        cat = subprocess.run(
+            ["git", "cat-file", "--batch-check=%(objecttype) %(objectsize:disk) %(rest)"],
+            cwd=cwd, input=revs.stdout, capture_output=True, text=True, check=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return None
+    sized = {}
+    for line in cat.stdout.splitlines():
+        # `blob <disk-size> <path>`; non-blobs (commits/trees) and pathless blobs
+        # split short and are skipped.
+        parts = line.split(" ", 2)
+        if len(parts) < 3 or parts[0] != "blob":
+            continue
+        try:
+            sized[parts[2]] = sized.get(parts[2], 0) + int(parts[1])
+        except ValueError:
+            continue
+    return _top_with_remainder(sized, limit)
+
+
 def detect_default_branch(cwd=None):
     try:
         ref = git(
@@ -899,6 +972,8 @@ def collect_local(cwd=None, suppress_current_user=False):
         "lang_stats": lang_stats,
         "frameworks": detect_frameworks(present, cwd=cwd),
         "file_count": len(present),
+        "largest_files": head_file_sizes(cwd=cwd),
+        "disk_by_path": history_disk_by_path(cwd=cwd),
     }
     return (
         repo_name,
@@ -1647,6 +1722,10 @@ def build_data(
     # File count at HEAD: a snapshot stat like repoSizeKb. None on the remote
     # GraphQL path (no per-file tree fetched); a real count on local/bare runs.
     file_count = (extras or {}).get("file_count")
+    # File-size sunbursts: blob sizes at HEAD and accumulated on-disk size per
+    # path across history. None on the remote GraphQL path (no tree fetched).
+    largest_files = (extras or {}).get("largest_files")
+    disk_by_path = (extras or {}).get("disk_by_path")
     repo_langs = {}
     authors = {}
     daily_by_author = defaultdict(lambda: defaultdict(int))
@@ -1787,6 +1866,8 @@ def build_data(
         "defaultBranch": default_branch,
         "repoSizeKb": repo_size_kb,
         "fileCount": file_count,
+        "largestFiles": largest_files,
+        "diskByPath": disk_by_path,
         "dateRange": date_range,
         "totals": {
             "commits": total_commits,
@@ -1899,6 +1980,35 @@ def _md_cell(s):
     return (s or "").replace("|", "\\|").replace("\n", " ")
 
 
+def _fmt_bytes(n):
+    """Human-readable byte size: 12.3 KB / 4.6 MB. Mirrors the web's fmtSize."""
+    v = float(n)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if v < 1024 or unit == "TB":
+            return f"{int(v)} {unit}" if unit == "B" else f"{v:.1f} {unit}"
+        v /= 1024
+
+
+def _md_file_sizes(out, heading, payload):
+    """Render a file-size section (largest files / disk by path) as a table.
+    Skips entirely when the payload is absent (the remote path has neither)."""
+    if not payload or not payload.get("items"):
+        return
+    out.append(f"## {heading}")
+    out.append("")
+    out.append("| Path | Size |")
+    out.append("|------|-----:|")
+    for it in payload["items"]:
+        out.append(f"| `{_md_cell(it['path'])}` | {_fmt_bytes(it['bytes'])} |")
+    other_bytes, other_count = payload.get("otherBytes", 0), payload.get("otherCount", 0)
+    if other_count:
+        out.append(
+            f"| _… {other_count:,} more file{'' if other_count == 1 else 's'}_ "
+            f"| {_fmt_bytes(other_bytes)} |"
+        )
+    out.append("")
+
+
 def render_markdown(data):
     """A human + LLM readable Markdown report of the same data the HTML embeds.
 
@@ -1934,6 +2044,9 @@ def render_markdown(data):
         size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{size_kb:,} KB"
         out.append(f"- Repo size: {size}")
     out.append("")
+
+    _md_file_sizes(out, "Largest files (at HEAD)", data.get("largestFiles"))
+    _md_file_sizes(out, "Disk usage by path (full history)", data.get("diskByPath"))
 
     contribs = data["contributors"]
     if contribs:

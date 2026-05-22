@@ -6,9 +6,9 @@
   // through the `echart` action (div + setOption + auto-resize + dispose).
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
-  import { weekLabel } from "$lib/format";
+  import { fmtBytes, weekLabel } from "$lib/format";
   import { bgCard, borderDefault, clr, colorAdded, colorDeleted, contrastText } from "$lib/theme";
-  import type { RepoData } from "$types";
+  import type { FileSizes, RepoData } from "$types";
   import type { EChartsCoreOption, EChartsType } from "echarts/core";
 
   let { data }: { data: RepoData } = $props();
@@ -16,6 +16,120 @@
   // Hide the languages treemap entirely when no contributor has a language mix,
   // rather than rendering an empty chart.
   const hasLangData = $derived(data.contributors.some((c) => c.languages?.length > 0));
+
+  // The two file-size treemaps are absent on the remote GraphQL path (no tree
+  // fetched), so hide each card unless its payload arrived with files.
+  const hasHeadFiles = $derived(!!data.largestFiles?.items.length);
+  const hasHistFiles = $derived(!!data.diskByPath?.items.length);
+
+  // Build a one-level-grouped treemap from a file-size payload: files are
+  // grouped under their top-level directory (a path with no slash stays a
+  // root-level tile), with the capped remainder as a single "N more files"
+  // tile. Each top-level node gets a palette colour its children share, so a
+  // directory reads as one hue; tooltips show the full path + byte size.
+  // `sizeNote` distinguishes the two charts' units in the tooltip: HEAD blob
+  // sizes are uncompressed, while the history figures are the compressed on-disk
+  // (packed) sizes — so a value in one chart isn't directly comparable to the
+  // other, and the note says which is which.
+  function fileTreemap(payload: FileSizes, sizeNote: string): EChartsCoreOption {
+    type Node = {
+      name: string;
+      value?: number;
+      total: number;
+      fullPath?: string;
+      children?: Node[];
+    };
+    const groups = new Map<string, Node>();
+    const nodes: Node[] = [];
+    for (const f of payload.items) {
+      const slash = f.path.indexOf("/");
+      if (slash < 0) {
+        nodes.push({ name: f.path, fullPath: f.path, value: f.bytes, total: f.bytes });
+        continue;
+      }
+      const dir = f.path.slice(0, slash);
+      let g = groups.get(dir);
+      if (!g) {
+        g = { name: dir, children: [], total: 0 };
+        groups.set(dir, g);
+        nodes.push(g);
+      }
+      g.children!.push({
+        name: f.path.slice(slash + 1),
+        fullPath: f.path,
+        value: f.bytes,
+        total: f.bytes,
+      });
+      g.total += f.bytes;
+    }
+    if (payload.otherBytes > 0) {
+      const n = payload.otherCount;
+      nodes.push({
+        name: `${n} more file${n === 1 ? "" : "s"}`,
+        value: payload.otherBytes,
+        total: payload.otherBytes,
+      });
+    }
+    // Biggest-first so the colour cycle tracks the layout (treemap lays out
+    // largest tiles first too) and the dominant path gets clr(0).
+    nodes.sort((a, b) => b.total - a.total);
+
+    const styled = nodes.map((node, i) => {
+      const base = clr(i);
+      if (node.children) {
+        return {
+          name: node.name,
+          upperLabel: { color: contrastText(base) },
+          itemStyle: { color: base, borderColor: base, borderWidth: 2 },
+          children: node.children.map((c) => ({
+            name: c.name,
+            value: c.value,
+            fullPath: c.fullPath,
+            itemStyle: { color: base, borderColor: tileInnerBorder, borderWidth: 1 },
+            label: { color: contrastText(base) },
+          })),
+        };
+      }
+      return {
+        name: node.name,
+        value: node.value,
+        fullPath: node.fullPath,
+        itemStyle: { color: base, borderColor: tileInnerBorder, borderWidth: 1 },
+        label: { color: contrastText(base) },
+      };
+    });
+
+    return {
+      tooltip: {
+        formatter: (info: any) => {
+          const path = info.data?.fullPath || info.name;
+          return `${path}: ${fmtBytes(info.value)} (${sizeNote})`;
+        },
+      },
+      animation: false,
+      series: [
+        {
+          type: "treemap",
+          cursor: "default",
+          roam: false,
+          nodeClick: false,
+          breadcrumb: { show: false },
+          emphasis: { disabled: true },
+          top: 6,
+          bottom: 6,
+          left: 6,
+          right: 6,
+          // Directory containers carry a name strip; the existing languages
+          // treemap establishes this upperLabel idiom.
+          upperLabel: { show: true, height: 20, fontSize: 11, overflow: "truncate" },
+          label: { show: true, fontSize: 11, overflow: "truncate" },
+          itemStyle: { color: bgCard, borderColor: bgCard },
+          levels: [{ itemStyle: { gapWidth: 4 } }, { itemStyle: { gapWidth: 1 } }],
+          data: styled,
+        },
+      ],
+    };
+  }
 
   // Half-transparent dark inner border on the treemap tiles, so each brand-
   // coloured tile reads against the contributor-coloured gap around it.
@@ -279,7 +393,14 @@
       ],
     };
 
-    return { timeline, pie, addDel, ratio, treemap };
+    const headFiles = data.largestFiles?.items.length
+      ? fileTreemap(data.largestFiles, "uncompressed")
+      : null;
+    const histFiles = data.diskByPath?.items.length
+      ? fileTreemap(data.diskByPath, "on disk, all history")
+      : null;
+
+    return { timeline, pie, addDel, ratio, treemap, headFiles, histFiles };
   });
 </script>
 
@@ -306,6 +427,24 @@
     <div class="card chart-card span-2">
       <div class="chart-title">Languages by contributor</div>
       <div class="ec ec-tree" use:echart={{ option: opts.treemap, onReady: onTreemapReady }}></div>
+    </div>
+  {/if}
+  {#if hasHeadFiles && opts.headFiles}
+    <div class="card chart-card">
+      <div class="chart-title">Largest files (at HEAD)</div>
+      <div
+        class="ec ec-tree"
+        use:echart={{ option: opts.headFiles, onReady: onTreemapReady }}
+      ></div>
+    </div>
+  {/if}
+  {#if hasHistFiles && opts.histFiles}
+    <div class="card chart-card">
+      <div class="chart-title">Disk usage by path (full history)</div>
+      <div
+        class="ec ec-tree"
+        use:echart={{ option: opts.histFiles, onReady: onTreemapReady }}
+      ></div>
     </div>
   {/if}
 </div>

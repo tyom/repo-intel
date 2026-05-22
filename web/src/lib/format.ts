@@ -17,6 +17,22 @@ export function fmtSize(kb: number): string {
   return `${s} ${units[i]}`;
 }
 
+// Byte-accurate size, for the file-size treemaps. fmtSize works in KB and so
+// can't render sub-KB blobs; this starts at bytes.
+export function fmtBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = bytes,
+    i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  if (i === 0) return `${v} B`;
+  const s = v >= 100 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, "");
+  return `${s} ${units[i]}`;
+}
+
 export const weekLabel = (w: string): string => {
   const [y, wn] = w.split("-W").map(Number);
   const jan4 = new Date(y, 0, 4);
