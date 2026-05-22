@@ -803,29 +803,38 @@ def history_disk_by_path(cwd=None, limit=40):
     path across full history — what actually fills the .git object store. Walks
     every reachable object, so it's O(history) like the log scan; best-effort,
     returns None on failure."""
+    sized = {}
     try:
-        revs = subprocess.run(
+        # Pipe rev-list straight into cat-file and read the result line by line, so
+        # neither the full object list nor the size table is buffered in memory at
+        # once — this walks every reachable object and can be huge on big repos.
+        revs = subprocess.Popen(
             ["git", "-c", "core.quotePath=false", "rev-list", "--objects", "--all"],
-            cwd=cwd, capture_output=True, text=True, check=True,
+            cwd=cwd, stdout=subprocess.PIPE,
         )
         # `%(rest)` echoes the path rev-list appended after each blob's oid.
-        cat = subprocess.run(
+        cat = subprocess.Popen(
             ["git", "cat-file", "--batch-check=%(objecttype) %(objectsize:disk) %(rest)"],
-            cwd=cwd, input=revs.stdout, capture_output=True, text=True, check=True,
+            cwd=cwd, stdin=revs.stdout, stdout=subprocess.PIPE, text=True,
         )
-    except (subprocess.CalledProcessError, OSError):
+        # Drop our handle so rev-list gets SIGPIPE if cat-file exits early.
+        revs.stdout.close()
+        for line in cat.stdout:
+            # `blob <disk-size> <path>`; non-blobs (commits/trees) and pathless blobs
+            # split short and are skipped. rstrip drops the streamed line's newline
+            # so it doesn't bleed into the path key.
+            parts = line.rstrip("\n").split(" ", 2)
+            if len(parts) < 3 or parts[0] != "blob":
+                continue
+            try:
+                sized[parts[2]] = sized.get(parts[2], 0) + int(parts[1])
+            except ValueError:
+                continue
+        cat.stdout.close()
+        if cat.wait() != 0 or revs.wait() != 0:
+            return None
+    except OSError:
         return None
-    sized = {}
-    for line in cat.stdout.splitlines():
-        # `blob <disk-size> <path>`; non-blobs (commits/trees) and pathless blobs
-        # split short and are skipped.
-        parts = line.split(" ", 2)
-        if len(parts) < 3 or parts[0] != "blob":
-            continue
-        try:
-            sized[parts[2]] = sized.get(parts[2], 0) + int(parts[1])
-        except ValueError:
-            continue
     return _top_with_remainder(sized, limit)
 
 
