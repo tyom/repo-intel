@@ -159,6 +159,34 @@ h3 {
   padding: 20px;
 }
 
+/* Chart title pinned as a blurred strip across the top of a chart card, so the
+   canvas can scroll/zoom underneath it and stay readable. The card must be
+   position: relative; the overlay is non-interactive so chart hover/clicks pass
+   through (the Reset button is a separate sibling above it). */
+.chart-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(to bottom, rgba(22, 27, 34, 0.92) 45%, rgba(22, 27, 34, 0));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -173,6 +201,13 @@ h3 {
 
 canvas {
   max-height: 300px;
+}
+/* ECharts charts are sized by their container (.ec / .ec-tree); the generic
+   300px cap above otherwise crushes the 320px treemaps, and a canvas displayed
+   shorter than the size zrender laid out at offsets every hover/click hit-region
+   downward from its tile. Let chart canvases honour their container height. */
+.ec canvas {
+  max-height: none;
 }
 
 /* === Summary table (Table.svelte) === */
@@ -305,8 +340,12 @@ table {
     scroll-behavior: auto;
   }
   .card {
-    min-width: 220px;
     flex-shrink: 0;
+  }
+  /* Pattern cards run wider than the default card to give the punch-card grid
+     room for all 24 hour columns. */
+  .pattern-card {
+    min-width: 560px;
   }
 }
 

@@ -18,6 +18,8 @@
     typeof totals.contributors === "number" ? totals.contributors : data.contributors.length,
   );
   const sizeStr = $derived(fmtSize(data.repoSizeKb));
+  const fileCount = $derived(data.fileCount);
+  const branchCount = $derived(data.branchCount);
 
   $effect(() => {
     document.title = titleText ? `${titleText} · Repo Intel` : "Repo Intel";
@@ -38,5 +40,7 @@
       style="color:{colorDeleted}">{fmt(net)}</span
     >{:else}{fmt(net)}{/if}) · {fmt(contribCount)} contributor{contribCount === 1
     ? ""
-    : "s"}{#if sizeStr}{" "}· {sizeStr}{/if}
+    : "s"}{#if branchCount != null}{" "}· {fmt(branchCount)} branch{branchCount === 1
+      ? ""
+      : "es"}{/if}{#if fileCount != null}{" "}· {fmt(fileCount)} files{/if}{#if sizeStr}{" "}· {sizeStr}{/if}
 </p>

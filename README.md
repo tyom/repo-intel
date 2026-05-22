@@ -227,8 +227,8 @@ repo-intel facebook/react --clone                     # analyse via bare clone
 | `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use)    |
 
 The frontend is built with [Bun](https://bun.sh). It compiles to a single
-self-contained `web/dist/index.html` (all JS + CSS inlined, Chart.js bundled, no
-CDN) that still carries the `/*__DATA_INJECTION__*/` marker; `build.py` embeds
+self-contained `web/dist/index.html` (all JS + CSS inlined, Apache ECharts
+bundled, no CDN) that still carries the `/*__DATA_INJECTION__*/` marker; `build.py` embeds
 that HTML into `repo-intel.py`. Bun/Vite are **build-time only** — the shipped
 tool is still a zero-dependency Python script.
 

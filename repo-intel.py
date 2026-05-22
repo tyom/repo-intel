@@ -756,6 +756,97 @@ def repo_disk_kb(cwd=None):
     return size + size_pack
 
 
+def _top_with_remainder(sized, limit):
+    """Shape a {path: bytes} map into the sunburst payload: the `limit` largest
+    paths as items, plus the summed/counted remainder. Returns None when empty
+    so the web hides the chart rather than drawing an empty ring."""
+    if not sized:
+        return None
+    ranked = sorted(sized.items(), key=lambda kv: kv[1], reverse=True)
+    items = [{"path": p, "bytes": b} for p, b in ranked[:limit]]
+    rest = ranked[limit:]
+    return {
+        "items": items,
+        "otherBytes": sum(b for _, b in rest),
+        "otherCount": len(rest),
+    }
+
+
+def head_file_sizes(cwd=None, limit=40):
+    """Blob sizes of every file at HEAD, shaped for the sunburst. Best-effort:
+    None on failure or on a tree with no blobs (e.g. an empty repo)."""
+    try:
+        # -l adds the blob size column; quotePath=false keeps non-ASCII paths raw
+        # so they tie back to the same path strings used elsewhere (the log walk).
+        # Read bytes and decode leniently (not git(), which is text=True): a path
+        # with non-UTF-8 bytes would otherwise raise UnicodeDecodeError and abort
+        # the run — the trap _head_first_line documents and sidesteps the same way.
+        out = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "-l", "HEAD"],
+            cwd=cwd, capture_output=True, check=True,
+        ).stdout.decode("utf-8", "replace")
+    except (subprocess.CalledProcessError, OSError):
+        return None
+    sized = {}
+    for line in out.splitlines():
+        meta, _, path = line.partition("\t")
+        if not path:
+            continue
+        cols = meta.split()
+        # `<mode> <type> <object> <size>`; submodules list as type commit with a
+        # "-" size — skip those, they hold no bytes in this tree.
+        if len(cols) < 4 or cols[1] != "blob":
+            continue
+        try:
+            sized[path] = int(cols[3])
+        except ValueError:
+            continue
+    return _top_with_remainder(sized, limit)
+
+
+def history_disk_by_path(cwd=None, limit=40):
+    """On-disk (compressed) size of all blob versions ever committed, summed per
+    path across full history — what actually fills the .git object store. Walks
+    every reachable object, so it's O(history) like the log scan; best-effort,
+    returns None on failure."""
+    sized = {}
+    try:
+        # Pipe rev-list straight into cat-file and read the result line by line, so
+        # neither the full object list nor the size table is buffered in memory at
+        # once — this walks every reachable object and can be huge on big repos.
+        revs = subprocess.Popen(
+            ["git", "-c", "core.quotePath=false", "rev-list", "--objects", "--all"],
+            cwd=cwd, stdout=subprocess.PIPE,
+        )
+        # `%(rest)` echoes the path rev-list appended after each blob's oid.
+        # No text=True: read bytes and decode each line leniently, so a non-UTF-8
+        # path (quotePath=false emits raw bytes) can't crash the strict UTF-8
+        # decode and abort the run — same trap _head_first_line sidesteps.
+        cat = subprocess.Popen(
+            ["git", "cat-file", "--batch-check=%(objecttype) %(objectsize:disk) %(rest)"],
+            cwd=cwd, stdin=revs.stdout, stdout=subprocess.PIPE,
+        )
+        # Drop our handle so rev-list gets SIGPIPE if cat-file exits early.
+        revs.stdout.close()
+        for raw in cat.stdout:
+            # `blob <disk-size> <path>`; non-blobs (commits/trees) and pathless blobs
+            # split short and are skipped. rstrip drops the streamed line's newline
+            # so it doesn't bleed into the path key.
+            parts = raw.decode("utf-8", "replace").rstrip("\n").split(" ", 2)
+            if len(parts) < 3 or parts[0] != "blob":
+                continue
+            try:
+                sized[parts[2]] = sized.get(parts[2], 0) + int(parts[1])
+            except ValueError:
+                continue
+        cat.stdout.close()
+        if cat.wait() != 0 or revs.wait() != 0:
+            return None
+    except OSError:
+        return None
+    return _top_with_remainder(sized, limit)
+
+
 def detect_default_branch(cwd=None):
     try:
         ref = git(
@@ -772,6 +863,32 @@ def detect_default_branch(cwd=None):
     except subprocess.CalledProcessError:
         pass
     return "main"
+
+
+def count_branches(cwd=None):
+    """Total distinct branches, counting local heads and remote-tracking heads
+    deduped by short name. A bare/mirror clone keeps every branch under
+    refs/heads; a working clone keeps the full set under refs/remotes/origin —
+    the union covers both. None when no refs resolve."""
+    try:
+        out = git(
+            "for-each-ref", "--format=%(refname)",
+            "refs/heads", "refs/remotes", cwd=cwd, quiet=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+    names = set()
+    for line in out.splitlines():
+        ref = line.strip()
+        if ref.startswith("refs/heads/"):
+            names.add(ref[len("refs/heads/"):])
+        elif ref.startswith("refs/remotes/"):
+            # refs/remotes/<remote>/<branch> — drop the remote and skip the
+            # symbolic origin/HEAD pointer so it isn't counted as a branch.
+            _, _, branch = ref[len("refs/remotes/"):].partition("/")
+            if branch and branch != "HEAD":
+                names.add(branch)
+    return len(names) or None
 
 
 def collect_local_tags(cwd=None):
@@ -895,7 +1012,14 @@ def collect_local(cwd=None, suppress_current_user=False):
                 rec[2] += 1
 
     default_branch = detect_default_branch(cwd=cwd)
-    extras = {"lang_stats": lang_stats, "frameworks": detect_frameworks(present, cwd=cwd)}
+    extras = {
+        "lang_stats": lang_stats,
+        "frameworks": detect_frameworks(present, cwd=cwd),
+        "file_count": len(present),
+        "branch_count": count_branches(cwd=cwd),
+        "largest_files": head_file_sizes(cwd=cwd),
+        "disk_by_path": history_disk_by_path(cwd=cwd),
+    }
     return (
         repo_name,
         github_base,
@@ -1406,6 +1530,7 @@ history(first: $pageSize, after: $cursor) {
 query($owner: String!, $repo: String!, $cursor: String, $pageSize: Int!) {{
   repository(owner: $owner, name: $repo) {{
     name url diskUsage
+    refs(refPrefix: "refs/heads/") {{ totalCount }}
     defaultBranchRef {{
       name
       target {{ ... on Commit {{ {history_block} }} }}
@@ -1434,6 +1559,7 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         "url": f"https://github.com/{owner}/{repo}",
         "branch": "main",
         "disk_kb": 0,
+        "branch_count": None,
     }
 
     def top_fetch_page(cursor):
@@ -1448,6 +1574,7 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         repo_meta["name"] = repo_node["name"]
         repo_meta["url"] = repo_node["url"]
         repo_meta["disk_kb"] = repo_node.get("diskUsage") or 0
+        repo_meta["branch_count"] = (repo_node.get("refs") or {}).get("totalCount")
         branch_ref = repo_node.get("defaultBranchRef")
         if not branch_ref or not branch_ref.get("target"):
             sys.exit(f"error: {slug} has no commits on its default branch")
@@ -1579,7 +1706,12 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         default_branch,
         repo_size_kb,
         tags,
-        {"lang_stats": {}, "frameworks": frameworks, "repo_languages": repo_languages},
+        {
+            "lang_stats": {},
+            "frameworks": frameworks,
+            "repo_languages": repo_languages,
+            "branch_count": repo_meta["branch_count"],
+        },
     )
 
 
@@ -1640,11 +1772,19 @@ def build_data(
     # runs build it below from per-commit line churn. `repo_languages` being a
     # non-empty list signals the former.
     repo_languages = (extras or {}).get("repo_languages") or []
+    # File count at HEAD: a snapshot stat like repoSizeKb. None on the remote
+    # GraphQL path (no per-file tree fetched); a real count on local/bare runs.
+    file_count = (extras or {}).get("file_count")
+    # Total branch count: a snapshot stat like file_count. None on paths that
+    # can't determine it.
+    branch_count = (extras or {}).get("branch_count")
+    # File-size sunbursts: blob sizes at HEAD and accumulated on-disk size per
+    # path across history. None on the remote GraphQL path (no tree fetched).
+    largest_files = (extras or {}).get("largest_files")
+    disk_by_path = (extras or {}).get("disk_by_path")
     repo_langs = {}
     authors = {}
     daily_by_author = defaultdict(lambda: defaultdict(int))
-    hourly_by_author = defaultdict(lambda: [0] * 24)
-    dow_by_author = defaultdict(lambda: [0] * 7)
     weekly_by_author = defaultdict(lambda: defaultdict(int))
     all_dates, all_weeks = set(), set()
     total_added = total_deleted = total_commits = 0
@@ -1659,7 +1799,7 @@ def build_data(
             continue
         total_commits += 1
         d_key = dt.strftime("%Y-%m-%d")
-        wk, hr, dow = iso_week_label(dt), dt.hour, dt.weekday()
+        wk = iso_week_label(dt)
         email, name = meta["email"], meta["name"]
         a, d = line_stats.get(h, [0, 0])
         total_added += a
@@ -1700,8 +1840,6 @@ def build_data(
             rec["last"] = d_key
 
         daily_by_author[email][d_key] += 1
-        hourly_by_author[email][hr] += 1
-        dow_by_author[email][dow] += 1
         weekly_by_author[email][wk] += 1
         all_dates.add(d_key)
         all_weeks.add(wk)
@@ -1743,8 +1881,6 @@ def build_data(
         for r in top
     }
     daily_data = {r["email"]: dict(daily_by_author[r["email"]]) for r in top}
-    hourly_data = {r["email"]: hourly_by_author[r["email"]] for r in top}
-    dow_data = {r["email"]: dow_by_author[r["email"]] for r in top}
 
     commits_list = []
     for h, meta in commits_meta.items():
@@ -1778,7 +1914,11 @@ def build_data(
         "repoName": repo_name,
         "githubBaseUrl": github_base,
         "defaultBranch": default_branch,
+        "branchCount": branch_count,
         "repoSizeKb": repo_size_kb,
+        "fileCount": file_count,
+        "largestFiles": largest_files,
+        "diskByPath": disk_by_path,
         "dateRange": date_range,
         "totals": {
             "commits": total_commits,
@@ -1790,8 +1930,6 @@ def build_data(
         "weeks": weeks_sorted,
         "weeklyData": weekly_data,
         "dailyData": daily_data,
-        "hourlyData": hourly_data,
-        "dowData": dow_data,
         "commits": commits_list,
         "tags": tags or [],
         "repoLanguages": repo_languages or top_languages(repo_langs),
@@ -1891,6 +2029,35 @@ def _md_cell(s):
     return (s or "").replace("|", "\\|").replace("\n", " ")
 
 
+def _fmt_bytes(n):
+    """Human-readable byte size: 12.3 KB / 4.6 MB. Mirrors the web's fmtSize."""
+    v = float(n)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if v < 1024 or unit == "TB":
+            return f"{int(v)} {unit}" if unit == "B" else f"{v:.1f} {unit}"
+        v /= 1024
+
+
+def _md_file_sizes(out, heading, payload):
+    """Render a file-size section (largest files / disk by path) as a table.
+    Skips entirely when the payload is absent (the remote path has neither)."""
+    if not payload or not payload.get("items"):
+        return
+    out.append(f"## {heading}")
+    out.append("")
+    out.append("| Path | Size |")
+    out.append("|------|-----:|")
+    for it in payload["items"]:
+        out.append(f"| `{_md_cell(it['path'])}` | {_fmt_bytes(it['bytes'])} |")
+    other_bytes, other_count = payload.get("otherBytes", 0), payload.get("otherCount", 0)
+    if other_count:
+        out.append(
+            f"| _… {other_count:,} more file{'' if other_count == 1 else 's'}_ "
+            f"| {_fmt_bytes(other_bytes)} |"
+        )
+    out.append("")
+
+
 def render_markdown(data):
     """A human + LLM readable Markdown report of the same data the HTML embeds.
 
@@ -1918,11 +2085,20 @@ def render_markdown(data):
     out.append(f"- Lines: +{t['added']:,} / -{t['deleted']:,}")
     out.append(f"- Contributors: {t['contributors']:,}")
     out.append(f"- Default branch: `{data['defaultBranch']}`")
+    branch_count = data.get("branchCount")
+    if branch_count is not None:
+        out.append(f"- Branches: {branch_count:,}")
+    file_count = data.get("fileCount")
+    if file_count is not None:
+        out.append(f"- Files at HEAD: {file_count:,}")
     size_kb = data.get("repoSizeKb") or 0
     if size_kb:
         size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{size_kb:,} KB"
         out.append(f"- Repo size: {size}")
     out.append("")
+
+    _md_file_sizes(out, "Largest files (at HEAD)", data.get("largestFiles"))
+    _md_file_sizes(out, "Disk usage by path (full history)", data.get("diskByPath"))
 
     contribs = data["contributors"]
     if contribs:

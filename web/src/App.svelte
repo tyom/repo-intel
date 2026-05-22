@@ -5,9 +5,14 @@
     AuthorPopover as AuthorPopoverApi,
     CommitPopover as CommitPopoverApi,
   } from "$lib/popovers";
-  import { createAuthorPopover, createCommitPopover, createTimelineTooltip } from "$lib/popovers";
+  import {
+    createAuthorPopover,
+    createCommitPopover,
+    createTimelineTooltip,
+    buildPunchPoints,
+  } from "$lib/popovers";
   import { fmtTimelineDuration } from "$lib/format";
-  import { configureCharts } from "$lib/theme";
+  import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
   import Header from "$components/Header.svelte";
@@ -24,11 +29,11 @@
 
   let { data }: { data: RepoData } = $props();
 
-  // Set Chart.js global defaults before any chart is built. The chart-owning
-  // components (ContributorCard / OverallCharts / PatternCard) build their charts
-  // in their own onMount, which (children-first) fires before App's onMount, so
-  // this must run at script top level rather than inside onMount.
-  configureCharts();
+  // Register the shared "repo" ECharts theme before any chart mounts. The
+  // chart-owning components (ContributorCard / OverallCharts / PatternCard) mount
+  // their charts in their own onMount, which (children-first) fires before App's
+  // onMount, so this must run at script top level rather than inside onMount.
+  registerEchartsTheme();
 
   // The timeline heading gains a ": <duration>" suffix when the span is known.
   const timelineDur = $derived(fmtTimelineDuration(data.dateRange.start, data.dateRange.end));
@@ -37,13 +42,18 @@
   );
 
   // The author popover (shared by the table and the timeline lane labels) and the
-  // commit-bucket popover (opened by the pattern-card bars) write the shared
+  // commit-bucket popover (opened by the punch-card cells) write the shared
   // popover store rendered by <AuthorPopover/> / <CommitPopover/>. Created in
-  // onMount; consumers read them reactively (the table on hover, the pattern bars
+  // onMount; consumers read them reactively (the table on hover, the punch cards
   // on click), so they're defined well before any interaction fires.
   let authorPopover = $state<AuthorPopoverApi>();
   let commitPopover = $state<CommitPopoverApi>();
   const patternsEnabled = $derived(!!data.githubBaseUrl);
+
+  // The punch cards plot the joint hour×weekday commit distribution, which can't
+  // be reconstructed from the per-axis marginals — build it once from the commit
+  // list (keyed by email) and hand each card its author's points.
+  const punchData = $derived(buildPunchPoints(data.commits || []));
 
   // Heatmap view mode, chosen by YearToggles and read by the Heatmap component.
   let heatmapMode = $state<Mode>("current");
@@ -72,8 +82,7 @@
         <a href="#summary">Summary</a>
         <a href="#overall">Overall</a>
         <a href="#commit-frequency">Commit frequency</a>
-        <a href="#hour-patterns">Hour of day</a>
-        <a href="#dow-patterns">Day of week</a>
+        <a href="#patterns">Commit patterns</a>
       </nav>
     </aside>
     <main class="main">
@@ -125,30 +134,14 @@
           {/each}
         </div>
       </div>
-      <div class="section" id="hour-patterns">
-        <h2>Commit time patterns (hour of day)</h2>
+      <div class="section" id="patterns">
+        <h2>Commit time patterns</h2>
         <div class="scroll-row" use:dragScroll>
           {#each data.contributors as c, i (c.email)}
             <PatternCard
               contributor={c}
               index={i}
-              values={data.hourlyData[c.email]}
-              kind="hour"
-              {commitPopover}
-              linksEnabled={patternsEnabled}
-            />
-          {/each}
-        </div>
-      </div>
-      <div class="section" id="dow-patterns">
-        <h2>Day of week patterns</h2>
-        <div class="scroll-row" use:dragScroll>
-          {#each data.contributors as c, i (c.email)}
-            <PatternCard
-              contributor={c}
-              index={i}
-              values={data.dowData[c.email]}
-              kind="dow"
+              points={punchData[c.email] ?? []}
               {commitPopover}
               linksEnabled={patternsEnabled}
             />

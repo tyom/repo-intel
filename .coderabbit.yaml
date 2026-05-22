@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  tools:
+    # No ESLint in this repo (Bun workspace uses svelte-check + Prettier),
+    # so disable the tool to suppress the "ESLint skipped" warning.
+    eslint:
+      enabled: false

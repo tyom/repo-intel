@@ -1,5 +1,5 @@
 // Thin adapters bridging the imperative consumers (timeline lane labels and the
-// hour/dow chart bars) to the reactive popover state in popover-store.svelte.ts,
+// punch-card cells) to the reactive popover state in popover-store.svelte.ts,
 // which the AuthorPopover / CommitPopover components render. The show/hide call
 // sites in timeline.ts and charts.ts stay unchanged — they still receive an
 // object with the same shape.
@@ -35,14 +35,37 @@ export function createAuthorPopover(contributors: Contributor[]): AuthorPopover 
 // === Commit-bucket popover ===
 const dowFull = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-// The bars are histograms bucketed server-side by the commit's author-local
-// wall-clock. Reproduce that bucketing from the ISO string itself —
-// new Date(iso).getHours() would reinterpret the instant in the viewer's tz.
+// The punch card buckets each commit by the author-local wall-clock. Reproduce
+// that from the ISO string itself — new Date(iso).getHours() would reinterpret
+// the instant in the viewer's tz. dow is 0=Mon..6=Sun (matches Python weekday()).
 function isoBuckets(iso: string): { hour: number; dow: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):/.exec(iso || "");
   if (!m) return null;
   const dow = (new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay() + 6) % 7;
   return { hour: +m[4], dow };
+}
+
+// A single scatter point: [hour 0-23, dow 0-6, commit count]. Zero-count cells
+// are omitted so the scatter only renders dots that exist.
+export type PunchPoint = [number, number, number];
+
+// One pass over the commit list builds the joint hour×weekday distribution for
+// every author — the marginals the old bar charts used can't be re-joined, so
+// the punch card is computed straight from the per-commit timestamps.
+export function buildPunchPoints(commits: Commit[]): Record<string, PunchPoint[]> {
+  const acc: Record<string, Map<number, number>> = {};
+  for (const c of commits) {
+    const b = isoBuckets(c.d);
+    if (!b) continue;
+    const cells = (acc[c.e] ??= new Map());
+    const key = b.dow * 24 + b.hour;
+    cells.set(key, (cells.get(key) ?? 0) + 1);
+  }
+  const out: Record<string, PunchPoint[]> = {};
+  for (const [email, cells] of Object.entries(acc)) {
+    out[email] = Array.from(cells, ([key, count]) => [key % 24, Math.floor(key / 24), count]);
+  }
+  return out;
 }
 
 export interface CommitPopover {
@@ -54,19 +77,19 @@ export interface CommitPopover {
     list: Commit[],
   ): void;
   hide(): void;
-  commitsInBucket(email: string, kind: "hour" | "dow", idx: number): Commit[];
+  commitsInCell(email: string, hour: number, dow: number): Commit[];
   readonly dowFull: string[];
 }
 
 export function createCommitPopover(D: RepoData): CommitPopover {
   setCommitBaseUrl(D.githubBaseUrl ?? "");
 
-  function commitsInBucket(email: string, kind: "hour" | "dow", idx: number): Commit[] {
+  function commitsInCell(email: string, hour: number, dow: number): Commit[] {
     return (D.commits || [])
       .filter((c) => {
         if (c.e !== email) return false;
         const b = isoBuckets(c.d);
-        return b && (kind === "hour" ? b.hour === idx : b.dow === idx);
+        return b !== null && b.hour === hour && b.dow === dow;
       })
       .sort((a, b) => +new Date(b.d) - +new Date(a.d));
   }
@@ -76,7 +99,7 @@ export function createCommitPopover(D: RepoData): CommitPopover {
       setCommit(c, colorIdx, label, list, anchor);
     },
     hide: clearCommit,
-    commitsInBucket,
+    commitsInCell,
     dowFull,
   };
 }

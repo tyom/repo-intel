@@ -76,19 +76,34 @@ export interface Tag {
   message?: string;
 }
 
+export interface FileSize {
+  path: string;
+  bytes: number;
+}
+
+// Payload for the file-size sunbursts: the largest paths plus the summed
+// remainder. Null when unavailable (the remote GraphQL path fetches no tree).
+export interface FileSizes {
+  items: FileSize[];
+  otherBytes: number;
+  otherCount: number;
+}
+
 export interface RepoData {
   repoName: string;
   githubBaseUrl: string | null;
   defaultBranch: string;
+  branchCount: number | null;
   repoSizeKb: number;
+  fileCount: number | null;
+  largestFiles: FileSizes | null;
+  diskByPath: FileSizes | null;
   dateRange: DateRange;
   totals: Totals;
   contributors: Contributor[];
   weeks: string[];
   weeklyData: Record<string, number[]>;
   dailyData: Record<string, Record<string, number>>;
-  hourlyData: Record<string, number[]>;
-  dowData: Record<string, number[]>;
   commits: Commit[];
   tags: Tag[];
   repoLanguages: LanguageStat[];

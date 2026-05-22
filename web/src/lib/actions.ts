@@ -1,4 +1,6 @@
 // Reusable element directives (Svelte actions).
+//  - echart: mount an ECharts instance on a <div>, apply options, auto-resize,
+//    dispose on unmount — the single home for the canvas→div mount-model shift.
 //  - portal / position: power the body-portaled popovers + timeline tooltip.
 //  - dragScroll / scrollSpy: the pattern-row drag-to-pan and sidebar scroll-spy
 //    (formerly the imperative initScrollRows / initSidebar in interactions.ts).
@@ -10,6 +12,44 @@
 //    never painted at a stale position. The action's update() runs after each
 //    DOM render, so offsetWidth/Height reflect the freshly rendered content —
 //    no flushSync needed.
+import { echarts } from "./echarts";
+import type { EChartsType } from "echarts/core";
+import type { EChartsCoreOption } from "echarts/core";
+
+export interface EchartParams {
+  option: EChartsCoreOption;
+  // Called once with the instance so the component can attach event listeners
+  // (legend toggles, bar clicks) and keep a ref for dispatchAction.
+  onReady?: (chart: EChartsType) => void;
+}
+
+// Mount an ECharts chart on `node` using the shared "repo" theme. Re-applies
+// options on update (notMerge, so series swaps cleanly) and tears the instance
+// down on destroy. The node sizes the chart, so give it width/height in CSS.
+export function echart(node: HTMLElement, params: EchartParams) {
+  const chart = echarts.init(node, "repo", { renderer: "canvas" });
+  chart.setOption(params.option);
+  params.onReady?.(chart);
+  // Debounce resize through rAF: calling chart.resize() synchronously inside the
+  // observer reflows labels/legend, which can mutate the box and re-fire the same
+  // observer in one frame ("ResizeObserver loop" warnings + thrash).
+  let raf = 0;
+  const ro = new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => chart.resize());
+  });
+  ro.observe(node);
+  return {
+    update(next: EchartParams) {
+      chart.setOption(next.option, true);
+    },
+    destroy() {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      chart.dispose();
+    },
+  };
+}
 
 export function portal(node: HTMLElement, target: HTMLElement = document.body) {
   target.appendChild(node);
@@ -70,7 +110,7 @@ export function position(node: HTMLElement, params: PositionParams) {
 }
 
 // Horizontal drag-to-pan (with inertia + edge fade masks) for a .scroll-row strip
-// — the hour/dow pattern rows. Was initScrollRows() in interactions.ts, now a
+// — the contributor / pattern card rows. Was initScrollRows() in interactions.ts, now a
 // per-element action so each row owns its own listeners and cleanup.
 export function dragScroll(row: HTMLElement) {
   let isDown = false,

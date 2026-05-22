@@ -3,8 +3,16 @@
   "githubBaseUrl": "https://github.com/arivera/repo-intel",
   "defaultBranch": "main",
   "repoSizeKb": 512,
-  "dateRange": { "start": "2025-01-04", "end": "2026-05-22" },
-  "totals": { "commits": 142, "added": 18420, "deleted": 6310, "contributors": 3 },
+  "dateRange": {
+    "start": "2025-01-04",
+    "end": "2026-05-22"
+  },
+  "totals": {
+    "commits": 142,
+    "added": 18420,
+    "deleted": 6310,
+    "contributors": 3
+  },
   "contributors": [
     {
       "name": "Alex Rivera",
@@ -21,9 +29,21 @@
       "avatarUrl": "https://github.com/arivera.png",
       "highlight": true,
       "languages": [
-        { "name": "Python", "pct": 62.0, "color": "#3572A5" },
-        { "name": "HTML", "pct": 28.0, "color": "#e34c26" },
-        { "name": "JavaScript", "pct": 10.0, "color": "#f1e05a" }
+        {
+          "name": "Python",
+          "pct": 62.0,
+          "color": "#3572A5"
+        },
+        {
+          "name": "HTML",
+          "pct": 28.0,
+          "color": "#e34c26"
+        },
+        {
+          "name": "JavaScript",
+          "pct": 10.0,
+          "color": "#f1e05a"
+        }
       ]
     },
     {
@@ -40,7 +60,13 @@
       "busiestCount": 4,
       "avatarUrl": "https://github.com/ada.png",
       "highlight": false,
-      "languages": [{ "name": "Python", "pct": 100.0, "color": "#3572A5" }]
+      "languages": [
+        {
+          "name": "Python",
+          "pct": 100.0,
+          "color": "#3572A5"
+        }
+      ]
     },
     {
       "name": "Grace Hopper",
@@ -56,46 +82,1234 @@
       "busiestCount": 3,
       "avatarUrl": "https://github.com/grace.png",
       "highlight": false,
-      "languages": [{ "name": "Markdown", "pct": 100.0, "color": "#083fa1" }]
+      "languages": [
+        {
+          "name": "Markdown",
+          "pct": 100.0,
+          "color": "#083fa1"
+        }
+      ]
     }
   ],
-  "weeks": ["2025-W01", "2025-W02", "2025-W03"],
+  "weeks": [
+    "2025-W01",
+    "2025-W02",
+    "2025-W03"
+  ],
   "weeklyData": {
-    "alex@example.com": [5, 8, 3],
-    "ada@example.com": [0, 2, 1],
-    "grace@example.com": [0, 0, 2]
+    "alex@example.com": [
+      5,
+      8,
+      3
+    ],
+    "ada@example.com": [
+      0,
+      2,
+      1
+    ],
+    "grace@example.com": [
+      0,
+      0,
+      2
+    ]
   },
   "dailyData": {
-    "alex@example.com": { "2025-01-04": 2, "2025-01-05": 3 },
-    "ada@example.com": { "2025-06-01": 1 },
-    "grace@example.com": { "2025-08-10": 3 }
-  },
-  "hourlyData": {
-    "alex@example.com": [0,0,0,0,0,0,0,1,3,5,8,6,4,7,9,6,5,3,2,4,6,3,1,0],
-    "ada@example.com": [0,0,0,0,0,0,0,0,1,2,1,0,0,1,2,1,0,0,0,0,0,0,0,0],
-    "grace@example.com": [0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0]
-  },
-  "dowData": {
-    "alex@example.com": [22, 25, 18, 20, 19, 8, 6],
-    "ada@example.com": [3, 4, 2, 3, 2, 1, 1],
-    "grace@example.com": [1, 2, 1, 1, 2, 0, 1]
+    "alex@example.com": {
+      "2025-01-04": 2,
+      "2025-01-05": 3
+    },
+    "ada@example.com": {
+      "2025-06-01": 1
+    },
+    "grace@example.com": {
+      "2025-08-10": 3
+    }
   },
   "commits": [
-    { "h": "fea2f4e", "s": "Merge pull request #5 from arivera/add-build-hook", "e": "alex@example.com", "d": "2026-05-21T10:12:00", "a": 12, "l": 3 },
-    { "h": "e92ea57", "s": "Add pre-commit hook to auto-rebuild dist/repo-intel", "e": "alex@example.com", "d": "2026-05-21T09:40:00", "a": 40, "l": 1 }
+    {
+      "h": "3330be2",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2026-04-20T09:29:00",
+      "a": 69,
+      "l": 13
+    },
+    {
+      "h": "f308871",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2026-04-10T14:47:00",
+      "a": 34,
+      "l": 15
+    },
+    {
+      "h": "d9acc32",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-04-08T12:49:00",
+      "a": 23,
+      "l": 33
+    },
+    {
+      "h": "879e5fb",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2026-04-03T22:09:00",
+      "a": 32,
+      "l": 35
+    },
+    {
+      "h": "cc9f4cc",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-03-31T20:31:00",
+      "a": 19,
+      "l": 0
+    },
+    {
+      "h": "1da85e3",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-03-31T18:15:00",
+      "a": 73,
+      "l": 5
+    },
+    {
+      "h": "f51a075",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2026-03-28T18:30:00",
+      "a": 44,
+      "l": 11
+    },
+    {
+      "h": "8ee978b",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2026-03-24T11:49:00",
+      "a": 66,
+      "l": 25
+    },
+    {
+      "h": "f9a0253",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2026-03-17T19:11:00",
+      "a": 46,
+      "l": 16
+    },
+    {
+      "h": "f81d19b",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-03-12T17:49:00",
+      "a": 36,
+      "l": 28
+    },
+    {
+      "h": "eb39bcc",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2026-03-11T10:46:00",
+      "a": 49,
+      "l": 5
+    },
+    {
+      "h": "1507037",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2026-02-22T14:50:00",
+      "a": 69,
+      "l": 27
+    },
+    {
+      "h": "d31840d",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2026-02-19T14:56:00",
+      "a": 23,
+      "l": 21
+    },
+    {
+      "h": "a11d75a",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2026-02-18T11:13:00",
+      "a": 64,
+      "l": 25
+    },
+    {
+      "h": "f345120",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2026-02-16T10:15:00",
+      "a": 59,
+      "l": 26
+    },
+    {
+      "h": "cf0daa0",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-02-15T18:14:00",
+      "a": 40,
+      "l": 37
+    },
+    {
+      "h": "3fab484",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2026-02-13T18:28:00",
+      "a": 39,
+      "l": 25
+    },
+    {
+      "h": "7f0fc6c",
+      "s": "Speed up treemap build",
+      "e": "alex@example.com",
+      "d": "2026-02-10T21:51:00",
+      "a": 21,
+      "l": 6
+    },
+    {
+      "h": "9645a61",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2026-02-03T19:07:00",
+      "a": 21,
+      "l": 29
+    },
+    {
+      "h": "3aa40d5",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2026-02-02T20:10:00",
+      "a": 40,
+      "l": 6
+    },
+    {
+      "h": "fa2a870",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2026-02-02T15:20:00",
+      "a": 15,
+      "l": 23
+    },
+    {
+      "h": "2991676",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2026-01-27T17:42:00",
+      "a": 31,
+      "l": 11
+    },
+    {
+      "h": "66129a6",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2026-01-27T09:15:00",
+      "a": 80,
+      "l": 9
+    },
+    {
+      "h": "d689f51",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2026-01-26T20:54:00",
+      "a": 63,
+      "l": 14
+    },
+    {
+      "h": "3267231",
+      "s": "Tidy theme tokens",
+      "e": "grace@example.com",
+      "d": "2026-01-23T10:27:00",
+      "a": 57,
+      "l": 10
+    },
+    {
+      "h": "5ecbf5f",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2026-01-21T13:48:00",
+      "a": 28,
+      "l": 30
+    },
+    {
+      "h": "7b0bbd1",
+      "s": "Format with prettier",
+      "e": "alex@example.com",
+      "d": "2026-01-09T21:31:00",
+      "a": 63,
+      "l": 28
+    },
+    {
+      "h": "7c6a225",
+      "s": "Format with prettier",
+      "e": "alex@example.com",
+      "d": "2026-01-09T14:30:00",
+      "a": 53,
+      "l": 12
+    },
+    {
+      "h": "bf30f8e",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2026-01-06T18:25:00",
+      "a": 67,
+      "l": 28
+    },
+    {
+      "h": "04f36d4",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2026-01-02T21:35:00",
+      "a": 10,
+      "l": 9
+    },
+    {
+      "h": "10155bf",
+      "s": "Wire popover anchor",
+      "e": "alex@example.com",
+      "d": "2025-12-30T11:57:00",
+      "a": 10,
+      "l": 32
+    },
+    {
+      "h": "c414c15",
+      "s": "Cache parsed timestamps",
+      "e": "grace@example.com",
+      "d": "2025-12-29T11:36:00",
+      "a": 53,
+      "l": 2
+    },
+    {
+      "h": "f436b00",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-12-28T14:24:00",
+      "a": 46,
+      "l": 19
+    },
+    {
+      "h": "0e21a86",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-12-19T13:21:00",
+      "a": 34,
+      "l": 11
+    },
+    {
+      "h": "f245758",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-12-17T15:32:00",
+      "a": 11,
+      "l": 18
+    },
+    {
+      "h": "ce24607",
+      "s": "Wire popover anchor",
+      "e": "alex@example.com",
+      "d": "2025-12-16T12:03:00",
+      "a": 14,
+      "l": 15
+    },
+    {
+      "h": "5257a2a",
+      "s": "Wire popover anchor",
+      "e": "ada@example.com",
+      "d": "2025-12-15T09:54:00",
+      "a": 53,
+      "l": 31
+    },
+    {
+      "h": "d010b27",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-12-13T13:56:00",
+      "a": 31,
+      "l": 10
+    },
+    {
+      "h": "a0b98d0",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-12-12T19:39:00",
+      "a": 39,
+      "l": 32
+    },
+    {
+      "h": "e298fbe",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-12-12T15:20:00",
+      "a": 71,
+      "l": 28
+    },
+    {
+      "h": "aeb5da5",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-12-10T20:04:00",
+      "a": 54,
+      "l": 31
+    },
+    {
+      "h": "942aa89",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2025-12-10T16:49:00",
+      "a": 30,
+      "l": 6
+    },
+    {
+      "h": "613a4b1",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-12-10T00:09:00",
+      "a": 28,
+      "l": 3
+    },
+    {
+      "h": "f78cfc3",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2025-12-05T17:39:00",
+      "a": 56,
+      "l": 37
+    },
+    {
+      "h": "956ee0d",
+      "s": "Speed up treemap build",
+      "e": "ada@example.com",
+      "d": "2025-12-03T10:31:00",
+      "a": 54,
+      "l": 30
+    },
+    {
+      "h": "7248adb",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-11-29T17:15:00",
+      "a": 14,
+      "l": 34
+    },
+    {
+      "h": "c500388",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-11-20T15:04:00",
+      "a": 77,
+      "l": 29
+    },
+    {
+      "h": "c9bd05c",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-11-20T13:01:00",
+      "a": 11,
+      "l": 27
+    },
+    {
+      "h": "7d57db9",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-11-13T14:34:00",
+      "a": 60,
+      "l": 24
+    },
+    {
+      "h": "5116f16",
+      "s": "Polish scroll-row fades",
+      "e": "ada@example.com",
+      "d": "2025-11-13T10:45:00",
+      "a": 71,
+      "l": 0
+    },
+    {
+      "h": "af8e015",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-11-11T15:45:00",
+      "a": 34,
+      "l": 32
+    },
+    {
+      "h": "378089f",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-10-30T17:02:00",
+      "a": 45,
+      "l": 20
+    },
+    {
+      "h": "4c14b2c",
+      "s": "Add file count to header",
+      "e": "ada@example.com",
+      "d": "2025-10-29T16:31:00",
+      "a": 69,
+      "l": 30
+    },
+    {
+      "h": "a090cf7",
+      "s": "Fix off-by-one in week labels",
+      "e": "alex@example.com",
+      "d": "2025-10-29T13:03:00",
+      "a": 7,
+      "l": 37
+    },
+    {
+      "h": "9fb8dc3",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-10-29T09:59:00",
+      "a": 51,
+      "l": 12
+    },
+    {
+      "h": "4c63a01",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-10-28T10:09:00",
+      "a": 11,
+      "l": 15
+    },
+    {
+      "h": "b92839e",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-10-15T18:53:00",
+      "a": 9,
+      "l": 2
+    },
+    {
+      "h": "730bf6c",
+      "s": "Tidy theme tokens",
+      "e": "ada@example.com",
+      "d": "2025-10-15T14:05:00",
+      "a": 60,
+      "l": 7
+    },
+    {
+      "h": "015eb67",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-10-15T11:10:00",
+      "a": 58,
+      "l": 38
+    },
+    {
+      "h": "d8a5893",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-10-14T14:16:00",
+      "a": 70,
+      "l": 12
+    },
+    {
+      "h": "4bd2f2e",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-10-12T20:37:00",
+      "a": 17,
+      "l": 2
+    },
+    {
+      "h": "db5bad8",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-10-08T17:47:00",
+      "a": 47,
+      "l": 14
+    },
+    {
+      "h": "48d331d",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2025-10-07T17:52:00",
+      "a": 8,
+      "l": 10
+    },
+    {
+      "h": "05e0d72",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-10-03T17:35:00",
+      "a": 69,
+      "l": 17
+    },
+    {
+      "h": "49cebd1",
+      "s": "Tweak axis label cadence",
+      "e": "grace@example.com",
+      "d": "2025-10-02T20:00:00",
+      "a": 20,
+      "l": 4
+    },
+    {
+      "h": "2fd0725",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2025-09-26T15:21:00",
+      "a": 40,
+      "l": 14
+    },
+    {
+      "h": "45e46be",
+      "s": "Add punch card chart",
+      "e": "ada@example.com",
+      "d": "2025-09-23T16:56:00",
+      "a": 36,
+      "l": 26
+    },
+    {
+      "h": "b2b1493",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2025-09-22T17:08:00",
+      "a": 32,
+      "l": 23
+    },
+    {
+      "h": "4e40f2f",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2025-09-22T15:12:00",
+      "a": 21,
+      "l": 34
+    },
+    {
+      "h": "d8deec6",
+      "s": "Speed up treemap build",
+      "e": "alex@example.com",
+      "d": "2025-09-08T11:40:00",
+      "a": 6,
+      "l": 0
+    },
+    {
+      "h": "29045ea",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-09-05T14:03:00",
+      "a": 9,
+      "l": 38
+    },
+    {
+      "h": "4a0e830",
+      "s": "Guard against bad ISO",
+      "e": "ada@example.com",
+      "d": "2025-09-04T10:29:00",
+      "a": 25,
+      "l": 38
+    },
+    {
+      "h": "76840d8",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-09-03T18:02:00",
+      "a": 37,
+      "l": 29
+    },
+    {
+      "h": "cb82ef2",
+      "s": "Add punch card chart",
+      "e": "grace@example.com",
+      "d": "2025-09-03T14:21:00",
+      "a": 43,
+      "l": 34
+    },
+    {
+      "h": "3e22b6e",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2025-08-31T16:58:00",
+      "a": 18,
+      "l": 29
+    },
+    {
+      "h": "9c5acc8",
+      "s": "Fix off-by-one in week labels",
+      "e": "alex@example.com",
+      "d": "2025-08-20T14:27:00",
+      "a": 79,
+      "l": 6
+    },
+    {
+      "h": "6152015",
+      "s": "Speed up treemap build",
+      "e": "alex@example.com",
+      "d": "2025-08-15T12:24:00",
+      "a": 6,
+      "l": 27
+    },
+    {
+      "h": "a4fdd9f",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2025-08-14T14:38:00",
+      "a": 57,
+      "l": 28
+    },
+    {
+      "h": "b227f3a",
+      "s": "Tweak axis label cadence",
+      "e": "ada@example.com",
+      "d": "2025-08-14T09:30:00",
+      "a": 43,
+      "l": 20
+    },
+    {
+      "h": "a1fb3a7",
+      "s": "Speed up treemap build",
+      "e": "alex@example.com",
+      "d": "2025-08-08T14:36:00",
+      "a": 27,
+      "l": 20
+    },
+    {
+      "h": "b93b24f",
+      "s": "Format with prettier",
+      "e": "ada@example.com",
+      "d": "2025-08-05T09:12:00",
+      "a": 57,
+      "l": 3
+    },
+    {
+      "h": "69e6327",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-07-31T21:03:00",
+      "a": 50,
+      "l": 37
+    },
+    {
+      "h": "1e0575a",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-07-29T20:57:00",
+      "a": 49,
+      "l": 0
+    },
+    {
+      "h": "e8f6db7",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-07-24T17:59:00",
+      "a": 55,
+      "l": 35
+    },
+    {
+      "h": "23080b5",
+      "s": "Cache parsed timestamps",
+      "e": "grace@example.com",
+      "d": "2025-07-17T21:02:00",
+      "a": 37,
+      "l": 14
+    },
+    {
+      "h": "ebacdda",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2025-07-17T16:12:00",
+      "a": 40,
+      "l": 14
+    },
+    {
+      "h": "b5e60aa",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-07-16T14:23:00",
+      "a": 35,
+      "l": 4
+    },
+    {
+      "h": "a95d7a3",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2025-07-11T20:27:00",
+      "a": 59,
+      "l": 17
+    },
+    {
+      "h": "c121ad2",
+      "s": "Add file count to header",
+      "e": "grace@example.com",
+      "d": "2025-07-01T14:35:00",
+      "a": 42,
+      "l": 12
+    },
+    {
+      "h": "053286d",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-06-27T17:35:00",
+      "a": 11,
+      "l": 15
+    },
+    {
+      "h": "01503bd",
+      "s": "Polish scroll-row fades",
+      "e": "ada@example.com",
+      "d": "2025-06-27T13:52:00",
+      "a": 39,
+      "l": 37
+    },
+    {
+      "h": "861f003",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-06-25T13:40:00",
+      "a": 57,
+      "l": 35
+    },
+    {
+      "h": "2f7c622",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-06-24T19:06:00",
+      "a": 13,
+      "l": 22
+    },
+    {
+      "h": "d7d7586",
+      "s": "Speed up treemap build",
+      "e": "alex@example.com",
+      "d": "2025-06-19T17:48:00",
+      "a": 11,
+      "l": 30
+    },
+    {
+      "h": "c330baa",
+      "s": "Guard against bad ISO",
+      "e": "grace@example.com",
+      "d": "2025-06-17T20:45:00",
+      "a": 20,
+      "l": 31
+    },
+    {
+      "h": "ce076c6",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-06-13T21:20:00",
+      "a": 71,
+      "l": 8
+    },
+    {
+      "h": "146d19c",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2025-06-12T20:57:00",
+      "a": 27,
+      "l": 15
+    },
+    {
+      "h": "3dc69b8",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-06-11T17:14:00",
+      "a": 41,
+      "l": 7
+    },
+    {
+      "h": "0035351",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-06-09T20:35:00",
+      "a": 37,
+      "l": 13
+    },
+    {
+      "h": "12c9f77",
+      "s": "Add file count to header",
+      "e": "ada@example.com",
+      "d": "2025-06-02T16:25:00",
+      "a": 12,
+      "l": 20
+    },
+    {
+      "h": "040163e",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-05-30T18:39:00",
+      "a": 14,
+      "l": 8
+    },
+    {
+      "h": "2698d92",
+      "s": "Add file count to header",
+      "e": "alex@example.com",
+      "d": "2025-05-28T22:15:00",
+      "a": 71,
+      "l": 6
+    },
+    {
+      "h": "90e5349",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-05-27T14:48:00",
+      "a": 25,
+      "l": 18
+    },
+    {
+      "h": "9592ef1",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-05-26T10:03:00",
+      "a": 63,
+      "l": 6
+    },
+    {
+      "h": "7db18ad",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2025-05-23T19:54:00",
+      "a": 36,
+      "l": 28
+    },
+    {
+      "h": "a60862f",
+      "s": "Fix off-by-one in week labels",
+      "e": "alex@example.com",
+      "d": "2025-05-23T16:43:00",
+      "a": 30,
+      "l": 2
+    },
+    {
+      "h": "1468a1f",
+      "s": "Tweak axis label cadence",
+      "e": "ada@example.com",
+      "d": "2025-05-22T14:05:00",
+      "a": 42,
+      "l": 38
+    },
+    {
+      "h": "36cd6b5",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-05-21T12:56:00",
+      "a": 35,
+      "l": 18
+    },
+    {
+      "h": "cf02983",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-05-19T20:21:00",
+      "a": 60,
+      "l": 8
+    },
+    {
+      "h": "cef0087",
+      "s": "Refactor commit bucketing",
+      "e": "ada@example.com",
+      "d": "2025-05-15T13:07:00",
+      "a": 70,
+      "l": 29
+    },
+    {
+      "h": "753594b",
+      "s": "Refactor commit bucketing",
+      "e": "ada@example.com",
+      "d": "2025-05-14T09:05:00",
+      "a": 35,
+      "l": 36
+    },
+    {
+      "h": "c20ae2d",
+      "s": "Wire popover anchor",
+      "e": "alex@example.com",
+      "d": "2025-05-09T15:42:00",
+      "a": 4,
+      "l": 31
+    },
+    {
+      "h": "43027a4",
+      "s": "Polish scroll-row fades",
+      "e": "alex@example.com",
+      "d": "2025-05-08T17:25:00",
+      "a": 59,
+      "l": 20
+    },
+    {
+      "h": "3a9140e",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-05-08T13:30:00",
+      "a": 60,
+      "l": 16
+    },
+    {
+      "h": "f8883fc",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-05-07T17:42:00",
+      "a": 70,
+      "l": 8
+    },
+    {
+      "h": "0d961f6",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-05-05T01:38:00",
+      "a": 70,
+      "l": 26
+    },
+    {
+      "h": "9ac2d17",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-05-02T20:11:00",
+      "a": 69,
+      "l": 8
+    },
+    {
+      "h": "62e1e86",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-04-30T09:42:00",
+      "a": 43,
+      "l": 17
+    },
+    {
+      "h": "8e6f032",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-04-28T22:37:00",
+      "a": 21,
+      "l": 27
+    },
+    {
+      "h": "f82c251",
+      "s": "Tidy theme tokens",
+      "e": "ada@example.com",
+      "d": "2025-04-15T13:28:00",
+      "a": 4,
+      "l": 40
+    },
+    {
+      "h": "c21f547",
+      "s": "Improve tooltip copy",
+      "e": "alex@example.com",
+      "d": "2025-04-14T21:42:00",
+      "a": 79,
+      "l": 36
+    },
+    {
+      "h": "e5b0acf",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-04-14T15:34:00",
+      "a": 55,
+      "l": 11
+    },
+    {
+      "h": "2e8badb",
+      "s": "Fix off-by-one in week labels",
+      "e": "alex@example.com",
+      "d": "2025-03-17T01:31:00",
+      "a": 15,
+      "l": 9
+    },
+    {
+      "h": "c219e6e",
+      "s": "Wire popover anchor",
+      "e": "alex@example.com",
+      "d": "2025-03-11T10:16:00",
+      "a": 28,
+      "l": 29
+    },
+    {
+      "h": "d514c2d",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2025-03-07T13:48:00",
+      "a": 67,
+      "l": 24
+    },
+    {
+      "h": "75d1992",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2025-03-03T19:01:00",
+      "a": 1,
+      "l": 4
+    },
+    {
+      "h": "4e54db1",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-02-26T22:45:00",
+      "a": 23,
+      "l": 33
+    },
+    {
+      "h": "d8df4c2",
+      "s": "Tweak axis label cadence",
+      "e": "alex@example.com",
+      "d": "2025-02-23T21:22:00",
+      "a": 60,
+      "l": 3
+    },
+    {
+      "h": "1045d1e",
+      "s": "Refactor commit bucketing",
+      "e": "alex@example.com",
+      "d": "2025-02-19T14:27:00",
+      "a": 12,
+      "l": 13
+    },
+    {
+      "h": "236fd29",
+      "s": "Bump deps",
+      "e": "alex@example.com",
+      "d": "2025-02-18T00:52:00",
+      "a": 17,
+      "l": 30
+    },
+    {
+      "h": "4e3c7dc",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-02-16T16:24:00",
+      "a": 9,
+      "l": 26
+    },
+    {
+      "h": "8b1e3e3",
+      "s": "Wire popover anchor",
+      "e": "alex@example.com",
+      "d": "2025-02-14T18:15:00",
+      "a": 41,
+      "l": 34
+    },
+    {
+      "h": "7c56c12",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-02-13T14:44:00",
+      "a": 39,
+      "l": 38
+    },
+    {
+      "h": "8773b42",
+      "s": "Handle empty author case",
+      "e": "alex@example.com",
+      "d": "2025-02-11T16:59:00",
+      "a": 55,
+      "l": 7
+    },
+    {
+      "h": "7e0ff02",
+      "s": "Fix off-by-one in week labels",
+      "e": "alex@example.com",
+      "d": "2025-02-04T20:07:00",
+      "a": 80,
+      "l": 5
+    },
+    {
+      "h": "078e575",
+      "s": "Add punch card chart",
+      "e": "alex@example.com",
+      "d": "2025-01-31T13:53:00",
+      "a": 31,
+      "l": 10
+    },
+    {
+      "h": "2174b1c",
+      "s": "Guard against bad ISO",
+      "e": "alex@example.com",
+      "d": "2025-01-30T12:52:00",
+      "a": 63,
+      "l": 4
+    },
+    {
+      "h": "a9fb35a",
+      "s": "Tidy theme tokens",
+      "e": "grace@example.com",
+      "d": "2025-01-24T11:32:00",
+      "a": 57,
+      "l": 6
+    },
+    {
+      "h": "e26be44",
+      "s": "Speed up treemap build",
+      "e": "ada@example.com",
+      "d": "2025-01-21T14:33:00",
+      "a": 24,
+      "l": 37
+    },
+    {
+      "h": "b32e008",
+      "s": "Cache parsed timestamps",
+      "e": "alex@example.com",
+      "d": "2025-01-15T13:03:00",
+      "a": 9,
+      "l": 2
+    },
+    {
+      "h": "5b78426",
+      "s": "Tidy theme tokens",
+      "e": "alex@example.com",
+      "d": "2025-01-07T17:32:00",
+      "a": 39,
+      "l": 40
+    },
+    {
+      "h": "64e1c9f",
+      "s": "Drop dead marginals",
+      "e": "alex@example.com",
+      "d": "2025-01-06T01:59:00",
+      "a": 56,
+      "l": 4
+    }
   ],
   "tags": [
-    { "name": "v1.2.0", "date": "2026-04-01T10:00:00", "oid": "abc1234", "message": "Release 1.2.0" },
-    { "name": "v1.1.0", "date": "2026-02-01T10:00:00", "oid": "def5678", "message": "Release 1.1.0" }
+    {
+      "name": "v1.2.0",
+      "date": "2026-04-01T10:00:00",
+      "oid": "abc1234",
+      "message": "Release 1.2.0"
+    },
+    {
+      "name": "v1.1.0",
+      "date": "2026-02-01T10:00:00",
+      "oid": "def5678",
+      "message": "Release 1.1.0"
+    }
   ],
   "repoLanguages": [
-    { "name": "Python", "pct": 58.0, "color": "#3572A5" },
-    { "name": "HTML", "pct": 30.0, "color": "#e34c26" },
-    { "name": "JavaScript", "pct": 12.0, "color": "#f1e05a" }
+    {
+      "name": "Python",
+      "pct": 58.0,
+      "color": "#3572A5"
+    },
+    {
+      "name": "HTML",
+      "pct": 30.0,
+      "color": "#e34c26"
+    },
+    {
+      "name": "JavaScript",
+      "pct": 12.0,
+      "color": "#f1e05a"
+    }
   ],
   "repoLanguagesBasis": "size",
   "frameworks": [
-    { "language": "JavaScript", "color": "#f1e05a", "names": ["Chart.js", "Vite"] },
-    { "language": "Python", "color": "#3572A5", "names": ["Make"] }
+    {
+      "language": "JavaScript",
+      "color": "#f1e05a",
+      "names": [
+        "Chart.js",
+        "Vite"
+      ]
+    },
+    {
+      "language": "Python",
+      "color": "#3572A5",
+      "names": [
+        "Make"
+      ]
+    }
   ]
 }
