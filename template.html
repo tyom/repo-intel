@@ -410,6 +410,8 @@ function buildHeatmap(containerId, daily, mode) {
   let startDate, endDate;
   if (mode == null || mode === 'current') {
     endDate = new Date(D.dateRange.end);
+    const today = new Date();
+    if (today > endDate) endDate = today;
     startDate = new Date(endDate); startDate.setDate(startDate.getDate() - 52 * 7 + 1);
     const startDow = (startDate.getDay() + 6) % 7;
     if (startDow !== 0) startDate.setDate(startDate.getDate() - startDow);
