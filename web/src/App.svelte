@@ -6,6 +6,7 @@
   import { fmtTimelineDuration } from "./lib/format";
   import { initDashboard } from "./lib/dashboard";
   import Header from "./lib/components/Header.svelte";
+  import TechGrid from "./lib/components/TechGrid.svelte";
   import Table from "./lib/components/Table.svelte";
 
   let { data }: { data: RepoData } = $props();
@@ -70,14 +71,8 @@
           </div>
         </div>
       </div>
-      <div class="section" id="tech" hidden>
-        <div class="card">
-          <h2>Technologies</h2>
-          <div class="tech-grid">
-            <div id="techLanguages"></div>
-            <div id="techFrameworks"></div>
-          </div>
-        </div>
+      <div class="section" id="tech">
+        <TechGrid {data} />
       </div>
       <div class="section" id="summary">
         <Table {data} {authorPopover} />
