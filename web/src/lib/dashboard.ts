@@ -6,12 +6,14 @@ import { configureCharts } from "./theme";
 import { renderHeader, renderTech } from "./header";
 import { initHeatmap } from "./heatmap";
 import { buildTimeline } from "./timeline";
-import { renderTable } from "./table";
 import { renderCharts } from "./charts";
 import { initScrollRows, initSidebar } from "./interactions";
-import { createAuthorPopover, createCommitPopover } from "./popovers";
+import { createCommitPopover, type AuthorPopover } from "./popovers";
 
-export function initDashboard(D: RepoData): void {
+// The summary table is now a Svelte component (lib/components/Table.svelte); the
+// author popover it shares with the timeline is created by App.svelte and passed
+// in here so both halves wire to the same singleton.
+export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
   // Client-side derived fields (mirrors template.html lines 326-327).
   D.totals.net = D.totals.added - D.totals.deleted;
   D.contributors.forEach((c) => {
@@ -33,9 +35,7 @@ export function initDashboard(D: RepoData): void {
 
   renderTech(D);
 
-  const authorPopover = createAuthorPopover(D.contributors);
   buildTimeline(D, authorPopover);
-  renderTable(D, authorPopover);
 
   const commitPopover = createCommitPopover(D);
   renderCharts(D, commitPopover);

@@ -1,14 +1,23 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { RepoData } from "./types";
+  import type { AuthorPopover } from "./lib/popovers";
+  import { createAuthorPopover } from "./lib/popovers";
   import { initDashboard } from "./lib/dashboard";
+  import Table from "./lib/components/Table.svelte";
 
   let { data }: { data: RepoData } = $props();
+
+  // The author popover (shared by the table and the timeline lane labels) is a
+  // body-appended singleton, so it's created on mount and handed to both the
+  // Table component and the imperative dashboard engine.
+  let authorPopover = $state<AuthorPopover | undefined>(undefined);
 
   // The dashboard engine renders into the container elements below (by id) and
   // wires all canvas / Chart.js / popover behavior. Run it once mounted.
   onMount(() => {
-    initDashboard(data);
+    authorPopover = createAuthorPopover(data.contributors);
+    initDashboard(data, authorPopover);
   });
 </script>
 
@@ -66,33 +75,7 @@
         </div>
       </div>
       <div class="section" id="summary">
-        <div class="card">
-          <h2>Summary</h2>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Author</th>
-                  <th class="num">Commits</th>
-                  <th class="num">%</th>
-                  <th class="num">Added</th>
-                  <th class="num">%</th>
-                  <th class="num">Deleted</th>
-                  <th class="num">%</th>
-                  <th class="num">Net</th>
-                  <th class="num">%</th>
-                  <th class="num">L/C</th>
-                  <th class="num">Active days</th>
-                  <th class="num">Avg/day</th>
-                  <th>First</th>
-                  <th>Last</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
-          </div>
-        </div>
+        <Table {data} {authorPopover} />
       </div>
       <div class="section" id="overall">
         <h2>Overall</h2>
