@@ -847,6 +847,32 @@ def detect_default_branch(cwd=None):
     return "main"
 
 
+def count_branches(cwd=None):
+    """Total distinct branches, counting local heads and remote-tracking heads
+    deduped by short name. A bare/mirror clone keeps every branch under
+    refs/heads; a working clone keeps the full set under refs/remotes/origin —
+    the union covers both. None when no refs resolve."""
+    try:
+        out = git(
+            "for-each-ref", "--format=%(refname)",
+            "refs/heads", "refs/remotes", cwd=cwd, quiet=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+    names = set()
+    for line in out.splitlines():
+        ref = line.strip()
+        if ref.startswith("refs/heads/"):
+            names.add(ref[len("refs/heads/"):])
+        elif ref.startswith("refs/remotes/"):
+            # refs/remotes/<remote>/<branch> — drop the remote and skip the
+            # symbolic origin/HEAD pointer so it isn't counted as a branch.
+            _, _, branch = ref[len("refs/remotes/"):].partition("/")
+            if branch and branch != "HEAD":
+                names.add(branch)
+    return len(names) or None
+
+
 def collect_local_tags(cwd=None):
     """Return list of {name, oid, date, message} for git tags, by commit date."""
     fmt = (
@@ -972,6 +998,7 @@ def collect_local(cwd=None, suppress_current_user=False):
         "lang_stats": lang_stats,
         "frameworks": detect_frameworks(present, cwd=cwd),
         "file_count": len(present),
+        "branch_count": count_branches(cwd=cwd),
         "largest_files": head_file_sizes(cwd=cwd),
         "disk_by_path": history_disk_by_path(cwd=cwd),
     }
@@ -1485,6 +1512,7 @@ history(first: $pageSize, after: $cursor) {
 query($owner: String!, $repo: String!, $cursor: String, $pageSize: Int!) {{
   repository(owner: $owner, name: $repo) {{
     name url diskUsage
+    refs(refPrefix: "refs/heads/") {{ totalCount }}
     defaultBranchRef {{
       name
       target {{ ... on Commit {{ {history_block} }} }}
@@ -1513,6 +1541,7 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         "url": f"https://github.com/{owner}/{repo}",
         "branch": "main",
         "disk_kb": 0,
+        "branch_count": None,
     }
 
     def top_fetch_page(cursor):
@@ -1527,6 +1556,7 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         repo_meta["name"] = repo_node["name"]
         repo_meta["url"] = repo_node["url"]
         repo_meta["disk_kb"] = repo_node.get("diskUsage") or 0
+        repo_meta["branch_count"] = (repo_node.get("refs") or {}).get("totalCount")
         branch_ref = repo_node.get("defaultBranchRef")
         if not branch_ref or not branch_ref.get("target"):
             sys.exit(f"error: {slug} has no commits on its default branch")
@@ -1658,7 +1688,12 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         default_branch,
         repo_size_kb,
         tags,
-        {"lang_stats": {}, "frameworks": frameworks, "repo_languages": repo_languages},
+        {
+            "lang_stats": {},
+            "frameworks": frameworks,
+            "repo_languages": repo_languages,
+            "branch_count": repo_meta["branch_count"],
+        },
     )
 
 
@@ -1722,6 +1757,9 @@ def build_data(
     # File count at HEAD: a snapshot stat like repoSizeKb. None on the remote
     # GraphQL path (no per-file tree fetched); a real count on local/bare runs.
     file_count = (extras or {}).get("file_count")
+    # Total branch count: a snapshot stat like file_count. None on paths that
+    # can't determine it.
+    branch_count = (extras or {}).get("branch_count")
     # File-size sunbursts: blob sizes at HEAD and accumulated on-disk size per
     # path across history. None on the remote GraphQL path (no tree fetched).
     largest_files = (extras or {}).get("largest_files")
@@ -1858,6 +1896,7 @@ def build_data(
         "repoName": repo_name,
         "githubBaseUrl": github_base,
         "defaultBranch": default_branch,
+        "branchCount": branch_count,
         "repoSizeKb": repo_size_kb,
         "fileCount": file_count,
         "largestFiles": largest_files,
@@ -2028,6 +2067,9 @@ def render_markdown(data):
     out.append(f"- Lines: +{t['added']:,} / -{t['deleted']:,}")
     out.append(f"- Contributors: {t['contributors']:,}")
     out.append(f"- Default branch: `{data['defaultBranch']}`")
+    branch_count = data.get("branchCount")
+    if branch_count is not None:
+        out.append(f"- Branches: {branch_count:,}")
     file_count = data.get("fileCount")
     if file_count is not None:
         out.append(f"- Files at HEAD: {file_count:,}")

@@ -93,6 +93,7 @@ export interface RepoData {
   repoName: string;
   githubBaseUrl: string | null;
   defaultBranch: string;
+  branchCount: number | null;
   repoSizeKb: number;
   fileCount: number | null;
   largestFiles: FileSizes | null;
