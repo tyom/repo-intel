@@ -93,6 +93,7 @@ export function dragScroll(row: HTMLElement) {
     animId = requestAnimationFrame(inertiaScroll);
   }
   function onMouseDown(e: MouseEvent): void {
+    if (e.button !== 0) return; // primary (left) button only
     stopInertia();
     isDown = true;
     row.classList.add("dragging");

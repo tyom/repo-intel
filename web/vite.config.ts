@@ -28,8 +28,13 @@ function injectionMarker(): Plugin {
 //   $lib/*        → src/lib/*
 //   $components/* → src/lib/components/*
 // Resolved against this config's location via import.meta.url so no @types/node
-// is needed.
-const abs = (p: string) => new URL(p, import.meta.url).pathname;
+// is needed (avoiding fileURLToPath keeps the dep out of svelte-check's scope).
+// Decode percent-escapes (e.g. spaces) and strip the leading slash that
+// file-URL pathnames prepend before a Windows drive letter (/C:/… → C:/…).
+const abs = (p: string) => {
+  const path = decodeURIComponent(new URL(p, import.meta.url).pathname);
+  return /^\/[a-zA-Z]:/.test(path) ? path.slice(1) : path;
+};
 
 export default defineConfig({
   plugins: [svelte(), viteSingleFile(), injectionMarker()],

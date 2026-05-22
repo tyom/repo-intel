@@ -923,7 +923,7 @@ export function buildTimeline(
     if (Date.now() < suppressClickUntil || !D.githubBaseUrl) return;
     const rect = canvas.getBoundingClientRect();
     const hit = findHit(e.clientX - rect.left, e.clientY - rect.top);
-    if (hit) window.open(`${D.githubBaseUrl}/commit/${hit.c.h}`, "_blank");
+    if (hit) window.open(`${D.githubBaseUrl}/commit/${hit.c.h}`, "_blank", "noopener,noreferrer");
   });
 
   function stopInertia(): void {
@@ -1182,7 +1182,7 @@ export function buildTimeline(
       const hit = findTagHit(mx);
       if (hit == null) return;
       const url = tagUrl(tags[hit].name);
-      if (url) window.open(url, "_blank");
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
     });
   }
 

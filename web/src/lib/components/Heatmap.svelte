@@ -39,7 +39,7 @@
     count: number;
     bg: string; // solid swatch (also the tooltip dot color)
     cellBg: string; // bg + weekend tint, painted on the cell
-    href: string;
+    href: string | null; // null when there's no githubBaseUrl to link to
   }
 
   // Rebuilds whenever {mode} (or {data}) changes — the load-bearing reactivity
@@ -111,7 +111,7 @@
             : bg;
         const href = baseUrl
           ? `${baseUrl}/commits/${branchPath}?after=&since=${day.key}&until=${day.key}`
-          : "#";
+          : null;
         return { key: day.key, count: day.count, bg, cellBg, href };
       }),
     }));
@@ -200,8 +200,9 @@
           {/each}
           {#each week.cells as cell (cell.key)}
             <a
-              href={cell.href}
-              target="_blank"
+              href={cell.href ?? undefined}
+              target={cell.href ? "_blank" : undefined}
+              rel={cell.href ? "noopener noreferrer" : undefined}
               class="heatmap-cell"
               style="background:{cell.cellBg};"
               aria-label="{cell.count} commit{cell.count === 1 ? '' : 's'} on {cell.key}"
