@@ -2,7 +2,13 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*"] # manual path: `git push origin vX.Y.Z`
+  workflow_call: # automated path: called by cut-release.yml after it tags
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.2.3)"
+        type: string
+        required: true
 
 permissions:
   contents: write # create releases and upload assets
@@ -12,10 +18,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Under workflow_call the triggering ref is the caller's branch, not
+          # the tag — pin the checkout (and everything below) to the tag.
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0 # need origin/main for the floating-tag guard below
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.10
+
+      - name: Resolve the tag being released
+        env:
+          TAG_INPUT: ${{ inputs.tag || github.ref_name }} # via env, never inlined into the shell
+        run: echo "TAG=${TAG_INPUT}" >> "$GITHUB_ENV"
 
       - name: Build artifact (frontend bundle + single-file)
         run: make build
@@ -25,18 +41,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release create "${TAG}" \
             dist/repo-intel \
-            --title "${GITHUB_REF_NAME}" \
+            --title "${TAG}" \
             --generate-notes
           echo "sha256 (for the Homebrew formula):"
           shasum -a 256 dist/repo-intel
 
-      - name: Update the floating major tag (e.g. v1)
-        if: ${{ !contains(github.ref_name, '-') }} # skip prereleases like v1.0.0-rc1
+      - name: Smoke test the published artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          major="${GITHUB_REF_NAME%%.*}" # v1.2.3 -> v1
+          # Pull the exact asset just published (not /latest/, which may lag).
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/repo-intel" -o /tmp/repo-intel
+          chmod +x /tmp/repo-intel
+          /tmp/repo-intel --help >/dev/null
+          echo "Published artifact runs."
+
+      - name: Update the floating major tag (e.g. v1)
+        if: ${{ !contains(inputs.tag || github.ref_name, '-') }} # skip prereleases like v1.0.0-rc1
+        run: |
+          set -euo pipefail
+          # Guard: never let the floating major tag drift to an off-main commit.
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::${TAG} is not on origin/main — refusing to move the floating major tag."
+            exit 1
+          fi
+          major="${TAG%%.*}" # v1.2.3 -> v1
           git tag -f "$major"
           git push -f origin "refs/tags/${major}"
 
@@ -45,9 +78,9 @@ jobs:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           sha="$(shasum -a 256 dist/repo-intel | awk '{print $1}')"
-          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/repo-intel"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/repo-intel"
           git clone "https://x-access-token:${GH_TOKEN}@github.com/tyom/homebrew-tap.git" tap
           cd tap
           f=Formula/repo-intel.rb
