@@ -5,7 +5,7 @@ HELP = """\
 repo-intel — generate a contributor stats dashboard for a git repo.
 
 Usage:
-  repo-intel [N] [REPO] [-o PATH] [--no-open] [--clone]
+  repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone]
   repo-intel -h | --help
 
 Arguments:
@@ -17,7 +17,13 @@ Arguments:
           When omitted, the current working directory is used as a local git repo.
 
 Options:
-  -o, --output PATH   Write the dashboard to PATH instead of /tmp/<owner>--<repo>.html.
+  -o, --output PATH   Write output to PATH instead of /tmp/<owner>--<repo>.<ext>.
+                      With a single --format, PATH is used verbatim. With several,
+                      PATH is a stem and each format appends its own extension
+                      (-o ./stats → stats.html, stats.json, stats.md).
+  --format LIST       Comma-separated output formats (repeatable): html, json, md.
+                      Default: html. JSON is the raw data; md is a report for
+                      reading or feeding to an LLM. e.g. --format html,json,md.
   --no-open           Don't open the result in a browser.
   --no-cache          Ignore the local cache and re-fetch all commits.
   --clone             For a remote REPO, analyse a bare `git clone` instead of
@@ -43,6 +49,7 @@ Examples:
   repo-intel --commits 400-800     # commits at positions 400..799 (oldest-first)
   repo-intel --since 2024-01-01    # commits since 2024-01-01
   repo-intel --since 2024-01-01 --until 2024-06-30  # H1 2024
+  repo-intel --format json,md facebook/react  # JSON + Markdown, no HTML
 
 Remote auth:
   The GitHub CLI (`gh`, https://cli.github.com/) is optional but
@@ -53,9 +60,9 @@ Remote auth:
   pass --clone to force that bare-clone path even when a token is present.
 
 Output:
-  /tmp/<owner>--<repo>.html (or --output PATH), opened in default browser
-  unless --no-open is given. Falls back to /tmp/<repo>.html for local
-  repos without a github.com origin.
+  /tmp/<owner>--<repo>.<ext> per --format (or --output PATH). Falls back to
+  /tmp/<repo>.<ext> for local repos without a github.com origin. Only the HTML
+  artifact is opened in the default browser, and only unless --no-open is given.
 
 Cache:
   Remote commit nodes are cached under
@@ -173,6 +180,24 @@ def parse_date(val, flag):
     return val
 
 
+VALID_FORMATS = ("html", "json", "md")
+
+
+def parse_formats(val, acc):
+    """Merge a comma-separated --format value into acc, order-preserving + deduped."""
+    for raw in val.split(","):
+        name = raw.strip().lower()
+        if not name:
+            continue
+        if name not in VALID_FORMATS:
+            raise ValueError(
+                f"--format must be one of {', '.join(VALID_FORMATS)} (got {name!r})"
+            )
+        if name not in acc:
+            acc.append(name)
+    return acc
+
+
 def parse_args(argv):
     if any(tok in ("-h", "--help") for tok in argv):
         sys.stdout.write(HELP)
@@ -180,6 +205,7 @@ def parse_args(argv):
     top_n, remote, output, no_open, no_cache = 10, None, None, False, False
     clone = False
     commits_filter, since, until = None, None, None
+    formats = []
     i = 0
 
     def take_value(name):
@@ -235,6 +261,11 @@ def parse_args(argv):
                 until = parse_date(val, "--until")
                 i += step
                 continue
+            val, step = take_value("--format")
+            if step:
+                parse_formats(val, formats)
+                i += step
+                continue
         except ValueError as exc:
             sys.stderr.write(f"repo-intel: {exc}\n")
             sys.exit(2)
@@ -263,7 +294,10 @@ def parse_args(argv):
     if since and until and since > until:
         sys.stderr.write(f"repo-intel: --since {since} is after --until {until}\n")
         sys.exit(2)
-    return top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until
+    if not formats:
+        formats = ["html"]
+    return (top_n, remote, output, no_open, no_cache, clone,
+            commits_filter, since, until, formats)
 
 
 def login_from_email(email):
@@ -1816,10 +1850,142 @@ def enrich_contributor_profiles(contributors, commits_meta, github_base, token=N
             c["profile"] = p
 
 
-def main():
-    top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until = parse_args(
-        sys.argv[1:]
+def render_html(data):
+    """Inject the data payload into the bundled (or sibling) frontend template."""
+    payload = f"window.__DATA__ = {json.dumps(data, ensure_ascii=False, separators=(',', ':'))};"
+    template = TEMPLATE
+    if template == "__TEMPLATE_PLACEHOLDER__":
+        sibling = Path(__file__).resolve().parent / "web" / "dist" / "index.html"
+        if not sibling.exists():
+            sys.exit(
+                f"error: unbuilt script and frontend bundle not found at {sibling} — "
+                "run `bun run build` in web/ first"
+            )
+        template = sibling.read_text()
+    if PLACEHOLDER not in template:
+        sys.exit(f"error: placeholder {PLACEHOLDER!r} not found in template")
+    return template.replace(PLACEHOLDER, payload)
+
+
+def resolve_out_path(output, data, ext, multi):
+    """Where to write the `ext` artifact.
+
+    Single format with -o → that exact path. Multiple formats with -o → -o is a
+    stem and `ext` is appended. No -o → /tmp/<owner>--<repo>.<ext>.
+    """
+    if output:
+        p = Path(output).expanduser()
+        return p.with_suffix("." + ext) if multi else p
+    safe_name = _slugify(data["repoName"]) or "repo"
+    owner = ""
+    if data["githubBaseUrl"]:
+        m = ORIGIN_RE.match(data["githubBaseUrl"])
+        if m:
+            owner = _slugify(m.group("owner"))
+    stem = f"{owner}--{safe_name}" if owner else safe_name
+    return Path("/tmp") / f"{stem}.{ext}"
+
+
+def _md_cell(s):
+    """Escape a string for use inside a Markdown table cell."""
+    return (s or "").replace("|", "\\|").replace("\n", " ")
+
+
+def render_markdown(data):
+    """A human + LLM readable Markdown report of the same data the HTML embeds.
+
+    Sections backed by an empty list are skipped — the GraphQL remote path has
+    no per-file language/framework data.
+    """
+    t = data["totals"]
+    dr = data["dateRange"]
+    out = []
+
+    name = data["repoName"]
+    base = data.get("githubBaseUrl")
+    out.append(f"# repo-intel — {f'[{name}]({base})' if base else name}")
+    out.append("")
+    n_contrib = t["contributors"]
+    out.append(
+        f"_{t['commits']:,} commits · {dr['start'] or '?'} — {dr['end'] or '?'} · "
+        f"{n_contrib:,} contributor{'' if n_contrib == 1 else 's'}_"
     )
+    out.append("")
+
+    out.append("## Totals")
+    out.append("")
+    out.append(f"- Commits: {t['commits']:,}")
+    out.append(f"- Lines: +{t['added']:,} / -{t['deleted']:,}")
+    out.append(f"- Contributors: {t['contributors']:,}")
+    out.append(f"- Default branch: `{data['defaultBranch']}`")
+    size_kb = data.get("repoSizeKb") or 0
+    if size_kb:
+        size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{size_kb:,} KB"
+        out.append(f"- Repo size: {size}")
+    out.append("")
+
+    contribs = data["contributors"]
+    if contribs:
+        out.append(f"## Top contributors ({len(contribs)})")
+        out.append("")
+        out.append("| # | Name | Commits | +/- | Active days | First | Last |")
+        out.append("|--:|------|--------:|-----|------------:|-------|------|")
+        for i, c in enumerate(contribs, 1):
+            who = c["name"]
+            if c.get("login"):
+                who += f" (@{c['login']})"
+            out.append(
+                f"| {i} | {_md_cell(who)} | {c['commits']:,} | "
+                f"+{c['added']:,}/-{c['deleted']:,} | {c['activeDays']:,} | "
+                f"{c['first']} | {c['last']} |"
+            )
+        out.append("")
+
+    langs = data.get("repoLanguages") or []
+    if langs:
+        out.append(f"## Languages (by {data.get('repoLanguagesBasis', 'size')})")
+        out.append("")
+        for lng in langs:
+            out.append(f"- {lng['name']} — {lng['pct']}%")
+        out.append("")
+
+    fws = data.get("frameworks") or []
+    if fws:
+        out.append("## Frameworks")
+        out.append("")
+        for fw in fws:
+            out.append(f"- **{fw['language']}**: {', '.join(fw.get('names') or [])}")
+        out.append("")
+
+    tags = data.get("tags") or []
+    if tags:
+        shown = tags[-50:][::-1]  # tags are oldest-first; show most recent, cap 50
+        out.append(f"## Tags ({len(tags)})")
+        out.append("")
+        for tg in shown:
+            date = (tg.get("date") or "")[:10]
+            out.append(f"- `{tg['name']}`{f' ({date})' if date else ''}")
+        if len(tags) > len(shown):
+            out.append(f"- …and {len(tags) - len(shown):,} more")
+        out.append("")
+
+    commits = data.get("commits") or []
+    if commits:
+        recent = sorted(commits, key=lambda c: c.get("d") or "", reverse=True)[:25]
+        out.append(f"## Recent commits (showing {len(recent)} of {len(commits):,})")
+        out.append("")
+        for c in recent:
+            date = (c.get("d") or "")[:10]
+            subj = (c.get("s") or "").replace("\n", " ")
+            out.append(f"- `{c['h']}` {subj} — {c['e']}, {date} (+{c['a']:,}/-{c['l']:,})")
+        out.append("")
+
+    return "\n".join(out).rstrip() + "\n"
+
+
+def main():
+    (top_n, remote, output, no_open, no_cache, clone,
+     commits_filter, since, until, formats) = parse_args(sys.argv[1:])
 
     token = None
     if remote:
@@ -1929,35 +2095,21 @@ def main():
 
     enrich_contributor_profiles(data["contributors"], commits_meta, github_base, token=token)
 
-    payload = f"window.__DATA__ = {json.dumps(data, ensure_ascii=False, separators=(',', ':'))};"
-    template = TEMPLATE
-    if template == "__TEMPLATE_PLACEHOLDER__":
-        sibling = Path(__file__).resolve().parent / "web" / "dist" / "index.html"
-        if not sibling.exists():
-            sys.exit(
-                f"error: unbuilt script and frontend bundle not found at {sibling} — "
-                "run `bun run build` in web/ first"
-            )
-        template = sibling.read_text()
-    if PLACEHOLDER not in template:
-        sys.exit(f"error: placeholder {PLACEHOLDER!r} not found in template")
-    html = template.replace(PLACEHOLDER, payload)
+    multi = len(formats) > 1
+    builders = {
+        "html": lambda: render_html(data),
+        "json": lambda: json.dumps(data, indent=2, ensure_ascii=False),
+        "md": lambda: render_markdown(data),
+    }
+    written = {}
+    for fmt in formats:
+        content = builders[fmt]()
+        out_path = resolve_out_path(output, data, fmt, multi)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(content)
+        written[fmt] = out_path
+        print(f"Wrote {out_path}")
 
-    if output:
-        out_path = Path(output).expanduser()
-    else:
-        safe_name = _slugify(data["repoName"]) or "repo"
-        owner = ""
-        if data["githubBaseUrl"]:
-            m = ORIGIN_RE.match(data["githubBaseUrl"])
-            if m:
-                owner = _slugify(m.group("owner"))
-        stem = f"{owner}--{safe_name}" if owner else safe_name
-        out_path = Path("/tmp") / f"{stem}.html"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(html)
-
-    print(f"Wrote {out_path}")
     print(
         f"  {data['totals']['commits']} commits · "
         f"{data['dateRange']['start']} — {data['dateRange']['end']} · "
@@ -1968,13 +2120,16 @@ def main():
     for c in data["contributors"][:3]:
         print(f"    {c['commits']:>5}  {c['name']} <{c['email']}>")
 
-    if no_open:
+    # --no-open is HTML-only; json/md never open. A multi-format run still opens
+    # the html artifact if one was written.
+    html_path = written.get("html")
+    if no_open or not html_path:
         return
     opener = "open" if sys.platform == "darwin" else "xdg-open"
     try:
-        subprocess.run([opener, str(out_path)], check=False)
+        subprocess.run([opener, str(html_path)], check=False)
     except FileNotFoundError:
-        webbrowser.open(out_path.as_uri())
+        webbrowser.open(html_path.as_uri())
 
 
 if __name__ == "__main__":

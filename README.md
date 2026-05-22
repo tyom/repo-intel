@@ -174,11 +174,19 @@ fallback, when stdin/stderr is not a TTY, or when any filter flag is given.
 
 ### Output
 
-| Flag                | Default                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| `-o, --output PATH` | `/tmp/<owner>--<repo>.html` (or `/tmp/<repo>.html` for a local repo without a GitHub origin) |
-| `--no-open`         | Opens the result in your default browser unless given                                        |
+| Flag                | Default                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `--format LIST`     | `html`. Comma-separated, repeatable: `html`, `json`, `md` (e.g. `--format html,json,md`)       |
+| `-o, --output PATH` | `/tmp/<owner>--<repo>.<ext>` (or `/tmp/<repo>.<ext>` for a local repo without a GitHub origin) |
+| `--no-open`         | Opens the **HTML** result in your default browser unless given                                 |
 
+`json` is the raw analysis data (the same object the HTML embeds); `md` is a
+Markdown report — totals, a top-contributors table, language/framework
+breakdowns, tags, and recent commits — for reading or feeding to an LLM.
+
+With a single `--format`, `-o PATH` is used verbatim. With several, `-o` is a
+stem and each format appends its own extension (`-o ./stats` → `stats.html`,
+`stats.json`, `stats.md`). Only the HTML artifact is ever opened in a browser.
 `--output` creates parent directories if they don't exist.
 
 ### Cache
@@ -201,6 +209,8 @@ repo-intel --commits 100 facebook/react               # last 100 commits
 repo-intel --commits 0-100 facebook/react             # first 100 commits
 repo-intel --since 2024-01-01 --until 2024-12-31 .    # all of 2024 in cwd
 repo-intel --no-open -o ./stats.html tyom/repo-intel  # save without opening
+repo-intel --format json,md facebook/react            # JSON + Markdown, no HTML
+repo-intel --format html,json,md -o ./out             # all three: out.{html,json,md}
 repo-intel facebook/react --clone                     # analyse via bare clone
 ```
 
