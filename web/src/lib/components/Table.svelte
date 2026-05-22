@@ -4,10 +4,10 @@
   // lib/table.ts — names are auto-escaped by Svelte (no escapeHtml), derived
   // fields are computed here instead of read from initDashboard's mutation, and
   // the popover is wired per-row instead of via event delegation + data-idx.
-  import type { RepoData } from "../../types";
-  import type { AuthorPopover } from "../popovers";
-  import { clr } from "../theme";
-  import { authorUrl, fmt, pct } from "../format";
+  import type { RepoData } from "$types";
+  import type { AuthorPopover } from "$lib/popovers";
+  import { clr } from "$lib/theme";
+  import { authorUrl, fmt, pct } from "$lib/format";
 
   let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
     $props();

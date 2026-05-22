@@ -3,9 +3,9 @@
   // subtitle stat line. Svelte port of renderHeader() from lib/header.ts. The
   // net value is derived here rather than read from initDashboard's mutation so
   // the component stands alone; document.title is set as a side effect.
-  import type { RepoData } from "../../types";
-  import { colorAdded, colorDeleted } from "../theme";
-  import { fmt, fmtSize } from "../format";
+  import type { RepoData } from "$types";
+  import { colorAdded, colorDeleted } from "$lib/theme";
+  import { fmt, fmtSize } from "$lib/format";
 
   let { data }: { data: RepoData } = $props();
 

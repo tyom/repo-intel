@@ -2,7 +2,7 @@
   // Year filter for the contributions heatmap. The year list and active state
   // live here; selecting a mode calls onSelect, which App wires to the
   // heatmapMode state read by the Heatmap component.
-  import type { Mode, RepoData } from "../../types";
+  import type { Mode, RepoData } from "$types";
 
   let { data, onSelect }: { data: RepoData; onSelect: (mode: Mode) => void } = $props();
 

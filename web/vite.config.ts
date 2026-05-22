@@ -23,6 +23,21 @@ function injectionMarker(): Plugin {
   };
 }
 
+// Path aliases (mirrored in tsconfig.json's paths) for nicer imports:
+//   $types        → src/types.ts
+//   $lib/*        → src/lib/*
+//   $components/* → src/lib/components/*
+// Resolved against this config's location via import.meta.url so no @types/node
+// is needed.
+const abs = (p: string) => new URL(p, import.meta.url).pathname;
+
 export default defineConfig({
   plugins: [svelte(), viteSingleFile(), injectionMarker()],
+  resolve: {
+    alias: {
+      $components: abs("./src/lib/components"),
+      $lib: abs("./src/lib"),
+      $types: abs("./src/types.ts"),
+    },
+  },
 });

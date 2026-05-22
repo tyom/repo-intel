@@ -3,7 +3,7 @@
   // language. Svelte port of renderTech() from lib/header.ts. Always renders
   // (with fallbacks when data is missing), so the section no longer needs the
   // initial `hidden` + reveal dance.
-  import type { RepoData } from "../../types";
+  import type { RepoData } from "$types";
   import LangBar from "./LangBar.svelte";
 
   let { data }: { data: RepoData } = $props();

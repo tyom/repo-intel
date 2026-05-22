@@ -3,10 +3,10 @@
   // Reads the reactive commitState; portal/position actions handle the body
   // portal and viewport placement. Dismisses on outside click, scroll, or
   // Escape. Svelte port of createCommitPopover's innerHTML in lib/popovers.ts.
-  import { commitState, clearCommit } from "../popover-store.svelte";
-  import { portal, position } from "../actions";
-  import { clr } from "../theme";
-  import { fmt } from "../format";
+  import { commitState, clearCommit } from "$lib/popover-store.svelte";
+  import { portal, position } from "$lib/actions";
+  import { clr } from "$lib/theme";
+  import { fmt } from "$lib/format";
 
   const ROW_CAP = 200;
 

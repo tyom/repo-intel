@@ -5,7 +5,7 @@
 // untyped option objects.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Chart } from "./chart";
-import type { Contributor, RepoData } from "../types";
+import type { Contributor, RepoData } from "$types";
 import { clr, textPrimary, borderDefault, bgCard, colorAdded, colorDeleted } from "./theme";
 import { weekLabel } from "./format";
 import type { CommitPopover } from "./popovers";

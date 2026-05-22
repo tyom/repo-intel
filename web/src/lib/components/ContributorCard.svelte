@@ -4,10 +4,10 @@
   // canvas. Svelte port of the contributor-cards block from lib/charts.ts.
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { onMount } from "svelte";
-  import type { Contributor } from "../../types";
-  import { Chart } from "../chart";
-  import { clr } from "../theme";
-  import { fmt, weekLabel } from "../format";
+  import type { Contributor } from "$types";
+  import { Chart } from "$lib/chart";
+  import { clr } from "$lib/theme";
+  import { fmt, weekLabel } from "$lib/format";
 
   let {
     contributor,

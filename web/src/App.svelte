@@ -1,20 +1,20 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { RepoData } from "./types";
-  import type { AuthorPopover as AuthorPopoverAdapter } from "./lib/popovers";
-  import { createAuthorPopover } from "./lib/popovers";
-  import { fmtTimelineDuration } from "./lib/format";
-  import { configureCharts } from "./lib/theme";
-  import { initDashboard } from "./lib/dashboard";
-  import type { Mode } from "./types";
-  import Header from "./lib/components/Header.svelte";
-  import TechGrid from "./lib/components/TechGrid.svelte";
-  import Table from "./lib/components/Table.svelte";
-  import YearToggles from "./lib/components/YearToggles.svelte";
-  import Heatmap from "./lib/components/Heatmap.svelte";
-  import ContributorCard from "./lib/components/ContributorCard.svelte";
-  import AuthorPopover from "./lib/components/AuthorPopover.svelte";
-  import CommitPopover from "./lib/components/CommitPopover.svelte";
+  import type { RepoData } from "$types";
+  import type { AuthorPopover as AuthorPopoverAdapter } from "$lib/popovers";
+  import { createAuthorPopover } from "$lib/popovers";
+  import { fmtTimelineDuration } from "$lib/format";
+  import { configureCharts } from "$lib/theme";
+  import { initDashboard } from "$lib/dashboard";
+  import type { Mode } from "$types";
+  import Header from "$components/Header.svelte";
+  import TechGrid from "$components/TechGrid.svelte";
+  import Table from "$components/Table.svelte";
+  import YearToggles from "$components/YearToggles.svelte";
+  import Heatmap from "$components/Heatmap.svelte";
+  import ContributorCard from "$components/ContributorCard.svelte";
+  import AuthorPopover from "$components/AuthorPopover.svelte";
+  import CommitPopover from "$components/CommitPopover.svelte";
 
   let { data }: { data: RepoData } = $props();
 

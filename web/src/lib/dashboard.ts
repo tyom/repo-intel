@@ -1,7 +1,7 @@
 // Wires the dashboard together: derives the client-side computed fields, then
 // renders each section in the same order as the original template.html script.
 // Call once after the static layout (App.svelte) is in the DOM.
-import type { RepoData } from "../types";
+import type { RepoData } from "$types";
 import { buildTimeline } from "./timeline";
 import { renderCharts } from "./charts";
 import { initScrollRows, initSidebar } from "./interactions";

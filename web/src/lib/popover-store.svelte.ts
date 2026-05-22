@@ -2,7 +2,7 @@
 // (timeline lane labels, hour/dow chart bars) drive these through the thin
 // adapters in popovers.ts; the AuthorPopover / CommitPopover components read the
 // state and render it. Lives in a .svelte.ts module so it can hold $state.
-import type { Commit, Contributor } from "../types";
+import type { Commit, Contributor } from "$types";
 
 export interface AuthorPopoverState {
   c: Contributor | null;

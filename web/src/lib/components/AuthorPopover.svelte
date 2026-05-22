@@ -4,10 +4,10 @@
   // positioning are handled by the portal/position actions, so this component
   // only builds the (auto-escaped) markup. Svelte port of createAuthorPopover's
   // innerHTML in lib/popovers.ts.
-  import { authorState } from "../popover-store.svelte";
-  import { portal, position } from "../actions";
-  import { clr } from "../theme";
-  import { fmt } from "../format";
+  import { authorState } from "$lib/popover-store.svelte";
+  import { portal, position } from "$lib/actions";
+  import { clr } from "$lib/theme";
+  import { fmt } from "$lib/format";
   import LangBar from "./LangBar.svelte";
 
   const ICON_LOC =

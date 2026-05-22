@@ -4,10 +4,10 @@
   // grid is reactive markup ({mode} drives a $derived rebuild), and the tooltip
   // is a single body-portaled node positioned with the shared portal/position
   // actions, like the popovers.
-  import type { Mode, RepoData } from "../../types";
-  import { colorHeatmap, bgEmptyCell } from "../theme";
-  import { encodeBranch } from "../format";
-  import { portal, position } from "../actions";
+  import type { Mode, RepoData } from "$types";
+  import { colorHeatmap, bgEmptyCell } from "$lib/theme";
+  import { encodeBranch } from "$lib/format";
+  import { portal, position } from "$lib/actions";
 
   let { data, mode = "current" }: { data: RepoData; mode?: Mode } = $props();
 

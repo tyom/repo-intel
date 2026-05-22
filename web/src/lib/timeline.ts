@@ -2,7 +2,7 @@
 // inertia, wheel/pinch zoom, a draggable histogram minimap, tag markers, and a
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
-import type { Commit, Contributor, RepoData, Tag } from "../types";
+import type { Commit, Contributor, RepoData, Tag } from "$types";
 import { clr, colorAdded, colorDeleted } from "./theme";
 import { authorUrl, escapeHtml, fmt } from "./format";
 import { installAvatarFallback } from "./avatar";

@@ -1,5 +1,5 @@
 // Pure formatting / string helpers ported verbatim from template.html.
-import type { Contributor, RepoData } from "../types";
+import type { Contributor, RepoData } from "$types";
 
 export const fmt = (n: number): string => n.toLocaleString();
 export const pct = (n: number, t: number): string => (t ? (n / t) * 100 : 0).toFixed(1) + "%";

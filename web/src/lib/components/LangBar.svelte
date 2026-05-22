@@ -2,8 +2,8 @@
   // Stacked language bar + optional legend. Used by the Technologies grid and
   // the author popover. (Replaced the old langBarHtml() string builder, now
   // removed from lib/format.ts.)
-  import type { LanguageStat } from "../../types";
-  import { langSearchUrl } from "../format";
+  import type { LanguageStat } from "$types";
+  import { langSearchUrl } from "$lib/format";
 
   let {
     langs,

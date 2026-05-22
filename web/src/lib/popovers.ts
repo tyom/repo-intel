@@ -3,7 +3,7 @@
 // which the AuthorPopover / CommitPopover components render. The show/hide call
 // sites in timeline.ts and charts.ts stay unchanged — they still receive an
 // object with the same shape.
-import type { Commit, Contributor, RepoData } from "../types";
+import type { Commit, Contributor, RepoData } from "$types";
 import {
   setAuthor,
   clearAuthor,

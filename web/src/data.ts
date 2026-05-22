@@ -1,4 +1,4 @@
-import type { RepoData } from "./types";
+import type { RepoData } from "$types";
 
 // In a built dashboard, repo-intel.py injects `window.__DATA__` via a plain
 // <script> in <head> that runs before this module. In `bun run dev` there is no
