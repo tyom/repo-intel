@@ -14,7 +14,14 @@ jobs:
         with:
           fetch-depth: 0 # repo-intel reads full git history (local mode)
 
-      - name: Build artifact
+      # Pinned so the frontend bundle (and thus dist/repo-intel) rebuilds
+      # byte-for-byte the same as locally — the staleness check below relies on
+      # esbuild output being reproducible for a fixed Bun/dependency version.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Build artifact (frontend bundle + single-file)
         run: make build
 
       - name: Verify the committed artifact matches a fresh build

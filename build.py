@@ -2,8 +2,9 @@
 """Bundle src/repo-intel into a single-file executable.
 
 Substitutes two placeholders in repo-intel.py with their data as Python string
-literals — TEMPLATE with template.html, TECHDATA with techdata.json — then
-writes the result to the given output path with mode 0755.
+literals — TEMPLATE with the frontend bundle (web/dist/index.html), TECHDATA
+with techdata.json — then writes the result to the given output path with mode
+0755.
 """
 
 import os
@@ -21,7 +22,14 @@ def main():
 
     src_dir = Path(__file__).resolve().parent
     script = (src_dir / "repo-intel.py").read_text()
-    template = (src_dir / "template.html").read_text()
+
+    template_path = src_dir / "web" / "dist" / "index.html"
+    if not template_path.exists():
+        sys.exit(
+            f"error: {template_path} not found — run `bun install && bun run build` "
+            "in web/ (or `make build`, which does it) to produce the frontend bundle."
+        )
+    template = template_path.read_text()
 
     techdata_path = src_dir / "techdata.json"
     if not techdata_path.exists():
@@ -32,7 +40,7 @@ def main():
     techdata = techdata_path.read_text()
 
     for name, placeholder in (
-        ("template.html", TEMPLATE_PLACEHOLDER),
+        ("web/dist/index.html", TEMPLATE_PLACEHOLDER),
         ("techdata.json", TECHDATA_PLACEHOLDER),
     ):
         if script.count(placeholder) != 1:

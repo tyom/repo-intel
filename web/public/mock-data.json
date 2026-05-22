@@ -1,0 +1,101 @@
+{
+  "repoName": "repo-intel",
+  "githubBaseUrl": "https://github.com/arivera/repo-intel",
+  "defaultBranch": "main",
+  "repoSizeKb": 512,
+  "dateRange": { "start": "2025-01-04", "end": "2026-05-22" },
+  "totals": { "commits": 142, "added": 18420, "deleted": 6310, "contributors": 3 },
+  "contributors": [
+    {
+      "name": "Alex Rivera",
+      "email": "alex@example.com",
+      "login": "arivera",
+      "commits": 118,
+      "added": 16100,
+      "deleted": 5400,
+      "activeDays": 47,
+      "first": "2025-01-04",
+      "last": "2026-05-22",
+      "busiestDay": "2025-03-12",
+      "busiestCount": 11,
+      "avatarUrl": "https://github.com/arivera.png",
+      "highlight": true,
+      "languages": [
+        { "name": "Python", "pct": 62.0, "color": "#3572A5" },
+        { "name": "HTML", "pct": 28.0, "color": "#e34c26" },
+        { "name": "JavaScript", "pct": 10.0, "color": "#f1e05a" }
+      ]
+    },
+    {
+      "name": "Ada Lovelace",
+      "email": "ada@example.com",
+      "login": "ada",
+      "commits": 16,
+      "added": 1900,
+      "deleted": 700,
+      "activeDays": 9,
+      "first": "2025-06-01",
+      "last": "2025-11-20",
+      "busiestDay": "2025-09-02",
+      "busiestCount": 4,
+      "avatarUrl": "https://github.com/ada.png",
+      "highlight": false,
+      "languages": [{ "name": "Python", "pct": 100.0, "color": "#3572A5" }]
+    },
+    {
+      "name": "Grace Hopper",
+      "email": "grace@example.com",
+      "login": "grace",
+      "commits": 8,
+      "added": 420,
+      "deleted": 210,
+      "activeDays": 5,
+      "first": "2025-08-10",
+      "last": "2026-01-15",
+      "busiestDay": "2025-08-10",
+      "busiestCount": 3,
+      "avatarUrl": "https://github.com/grace.png",
+      "highlight": false,
+      "languages": [{ "name": "Markdown", "pct": 100.0, "color": "#083fa1" }]
+    }
+  ],
+  "weeks": ["2025-W01", "2025-W02", "2025-W03"],
+  "weeklyData": {
+    "alex@example.com": [5, 8, 3],
+    "ada@example.com": [0, 2, 1],
+    "grace@example.com": [0, 0, 2]
+  },
+  "dailyData": {
+    "alex@example.com": { "2025-01-04": 2, "2025-01-05": 3 },
+    "ada@example.com": { "2025-06-01": 1 },
+    "grace@example.com": { "2025-08-10": 3 }
+  },
+  "hourlyData": {
+    "alex@example.com": [0,0,0,0,0,0,0,1,3,5,8,6,4,7,9,6,5,3,2,4,6,3,1,0],
+    "ada@example.com": [0,0,0,0,0,0,0,0,1,2,1,0,0,1,2,1,0,0,0,0,0,0,0,0],
+    "grace@example.com": [0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0]
+  },
+  "dowData": {
+    "alex@example.com": [22, 25, 18, 20, 19, 8, 6],
+    "ada@example.com": [3, 4, 2, 3, 2, 1, 1],
+    "grace@example.com": [1, 2, 1, 1, 2, 0, 1]
+  },
+  "commits": [
+    { "h": "fea2f4e", "s": "Merge pull request #5 from arivera/add-build-hook", "e": "alex@example.com", "d": "2026-05-21T10:12:00", "a": 12, "l": 3 },
+    { "h": "e92ea57", "s": "Add pre-commit hook to auto-rebuild dist/repo-intel", "e": "alex@example.com", "d": "2026-05-21T09:40:00", "a": 40, "l": 1 }
+  ],
+  "tags": [
+    { "name": "v1.2.0", "date": "2026-04-01T10:00:00", "oid": "abc1234", "message": "Release 1.2.0" },
+    { "name": "v1.1.0", "date": "2026-02-01T10:00:00", "oid": "def5678", "message": "Release 1.1.0" }
+  ],
+  "repoLanguages": [
+    { "name": "Python", "pct": 58.0, "color": "#3572A5" },
+    { "name": "HTML", "pct": 30.0, "color": "#e34c26" },
+    { "name": "JavaScript", "pct": 12.0, "color": "#f1e05a" }
+  ],
+  "repoLanguagesBasis": "size",
+  "frameworks": [
+    { "language": "JavaScript", "color": "#f1e05a", "names": ["Chart.js", "Vite"] },
+    { "language": "Python", "color": "#3572A5", "names": ["Make"] }
+  ]
+}
