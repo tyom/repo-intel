@@ -34,10 +34,11 @@ jobs:
 
       - name: Validate version and compute tag
         id: tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }} # via env, never inlined into the shell
         run: |
           set -euo pipefail
-          v="${{ inputs.version }}"
-          v="${v#v}" # tolerate a leading v in the input
+          v="${INPUT_VERSION#v}" # tolerate a leading v in the input
           if ! printf '%s' "$v" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
             echo "::error::'$v' is not a valid semver (expected MAJOR.MINOR.PATCH[-prerelease])."
             exit 1
