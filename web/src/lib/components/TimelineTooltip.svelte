@@ -14,7 +14,12 @@
     const dt = new Date(d);
     if (isNaN(+dt)) return ["", ""];
     return [
-      dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+      dt.toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
       dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
     ];
   }
@@ -70,11 +75,20 @@
   }
 </script>
 
-<div class="timeline-tooltip" use:portal use:position={{ visible: tip.kind != null, place, deps: [tip.x, tip.y] }}>
+<div
+  class="timeline-tooltip"
+  use:portal
+  use:position={{ visible: tip.kind != null, place, deps: [tip.x, tip.y] }}
+>
   {#if c}
     <div class="tt-author-row">
       {#if tip.author?.avatarUrl && !imgFailed}
-        <img class="tt-avatar" src={tip.author.avatarUrl} alt="" onerror={() => (imgFailed = true)} />
+        <img
+          class="tt-avatar"
+          src={tip.author.avatarUrl}
+          alt=""
+          onerror={() => (imgFailed = true)}
+        />
       {:else}
         <span class="tt-dot" style="background:{tip.color}"></span>
       {/if}
@@ -101,14 +115,18 @@
     {#if ftypes.shown.length}
       <div class="tt-ftypes">
         {#each ftypes.shown as [name, [color, files]] (name)}
-          <span class="tt-ftype"><span class="tt-fdot" style="background:{color}"></span>{name} ×{fmt(files)}</span>
+          <span class="tt-ftype"
+            ><span class="tt-fdot" style="background:{color}"></span>{name} ×{fmt(files)}</span
+          >
         {/each}
         {#if ftypes.more > 0}<span class="tt-ftype">+{ftypes.more}</span>{/if}
       </div>
     {/if}
   {:else if tag}
     <div class="tt-author-row">
-      <span class="tt-tag-icon"></span><span class="tt-tag-kicker">TAG</span><span class="tt-tag-name">{tag.name || ""}</span>
+      <span class="tt-tag-icon"></span><span class="tt-tag-kicker">TAG</span><span
+        class="tt-tag-name">{tag.name || ""}</span
+      >
     </div>
     {#if tagMsg}<div class="tt-subject">{tagMsg}</div>{/if}
     <!-- prettier-ignore -->

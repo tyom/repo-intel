@@ -32,13 +32,7 @@
     return all;
   });
 
-  const legendShades = $derived([
-    bgEmptyCell,
-    shade(0.25),
-    shade(0.5),
-    shade(0.75),
-    colorHeatmap,
-  ]);
+  const legendShades = $derived([bgEmptyCell, shade(0.25), shade(0.5), shade(0.75), colorHeatmap]);
 
   interface Cell {
     key: string;
@@ -66,7 +60,8 @@
     }
 
     const allDates: Date[] = [];
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) allDates.push(new Date(d));
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1))
+      allDates.push(new Date(d));
 
     type Day = { date: Date; key: string; count: number; dow: number };
     const weeksArr: Day[][] = [];
@@ -131,7 +126,11 @@
   let hovered = $state<{ key: string; count: number; color: string; rect: DOMRect } | null>(null);
 
   const tipLabel = $derived(
-    hovered ? (hovered.count === 0 ? "No commits" : `${hovered.count} commit${hovered.count === 1 ? "" : "s"}`) : "",
+    hovered
+      ? hovered.count === 0
+        ? "No commits"
+        : `${hovered.count} commit${hovered.count === 1 ? "" : "s"}`
+      : "",
   );
   const tipDate = $derived(
     hovered
@@ -145,7 +144,12 @@
   );
 
   function showTip(cell: Cell, el: HTMLElement) {
-    hovered = { key: cell.key, count: cell.count, color: cell.bg, rect: el.getBoundingClientRect() };
+    hovered = {
+      key: cell.key,
+      count: cell.count,
+      color: cell.bg,
+      rect: el.getBoundingClientRect(),
+    };
   }
   // Only clear if we're still on the cell we last entered — guards against
   // out-of-order leave/enter when the pointer crosses a cell boundary fast.
@@ -221,7 +225,12 @@
   </div>
 </div>
 
-<div class="heatmap-tooltip" bind:this={tipNode} use:portal use:position={{ visible: hovered != null, place }}>
+<div
+  class="heatmap-tooltip"
+  bind:this={tipNode}
+  use:portal
+  use:position={{ visible: hovered != null, place }}
+>
   {#if hovered}
     <span class="tt-dot" style="background:{hovered.color}"></span>
     <span class="tt-date">{tipLabel}</span>

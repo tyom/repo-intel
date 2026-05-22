@@ -47,7 +47,12 @@
   }
 </script>
 
-<div class="commit-popover" bind:this={node} use:portal use:position={{ visible: commitState.open, place }}>
+<div
+  class="commit-popover"
+  bind:this={node}
+  use:portal
+  use:position={{ visible: commitState.open, place }}
+>
   {#if c}
     <div class="cp-title" style="color:{clr(commitState.colorIdx)}">{commitState.label}</div>
     <!-- prettier-ignore -->

@@ -81,13 +81,19 @@
     {#if p.location || c.email || p.websiteUrl}
       <div class="lp-meta">
         {#if p.location}
-          <div class="lp-meta-row">{@html ICON_LOC}<span class="lp-meta-text">{p.location}</span></div>
+          <div class="lp-meta-row">
+            {@html ICON_LOC}<span class="lp-meta-text">{p.location}</span>
+          </div>
         {/if}
         {#if c.email}
-          <div class="lp-meta-row">{@html ICON_MAIL}<span class="lp-meta-text">{c.email}</span></div>
+          <div class="lp-meta-row">
+            {@html ICON_MAIL}<span class="lp-meta-text">{c.email}</span>
+          </div>
         {/if}
         {#if p.websiteUrl}
-          <div class="lp-meta-row">{@html ICON_LINK}<span class="lp-meta-text">{p.websiteUrl}</span></div>
+          <div class="lp-meta-row">
+            {@html ICON_LINK}<span class="lp-meta-text">{p.websiteUrl}</span>
+          </div>
         {/if}
       </div>
     {/if}

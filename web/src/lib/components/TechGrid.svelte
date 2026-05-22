@@ -40,7 +40,9 @@
           {/each}
         </div>
       {:else}
-        <div class="tech-empty">No known frameworks detected in the repo's dependency manifests.</div>
+        <div class="tech-empty">
+          No known frameworks detected in the repo's dependency manifests.
+        </div>
       {/if}
     </div>
   </div>

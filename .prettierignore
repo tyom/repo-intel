@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build output (generated; sources live in web/src + repo-intel.py)
+dist/
+web/dist/
+/public/
+/action-out/
+
+# Generated / fixture data (not hand-edited)
+techdata.json
+web/public/mock-data.json
+
+# Lockfiles
+bun.lock
+web/bun.lock

@@ -12,6 +12,12 @@ web-dev: ## Run the frontend dev server with HMR (reads web/public/mock-data.jso
 web-check: ## Type-check the frontend (svelte-check); does not build
 	cd web && bun install --frozen-lockfile && bun run check
 
+format: ## Format the whole repo with Prettier
+	@bun install --frozen-lockfile >/dev/null && bunx prettier --write .
+
+format-check: ## Check formatting with Prettier (CI); does not write
+	@bun install --frozen-lockfile >/dev/null && bunx prettier --check .
+
 build: web-build ## Build the single-file artifact into dist/repo-intel
 	python3 build.py dist/repo-intel
 
@@ -25,4 +31,4 @@ install-hooks: ## Point git at the tracked .githooks/ (auto-rebuilds dist on com
 	git config core.hooksPath .githooks
 	@echo "core.hooksPath -> .githooks"
 
-.PHONY: help web-build web-dev web-check build techdata dev install-hooks
+.PHONY: help web-build web-dev web-check format format-check build techdata dev install-hooks

@@ -6,3 +6,5 @@ __pycache__/
 # Frontend build products & deps (sources are tracked under web/src etc.)
 web/node_modules/
 web/dist/
+# Repo-root dev tooling deps (Prettier; see package.json)
+/node_modules/

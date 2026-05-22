@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0 # required — repo-intel reads full git history
       - uses: tyom/repo-intel@v1 # moves with v1.x; pin @v1.0.0 to lock a version
         with:
-          contributors: '10' # optional, top N
+          contributors: "10" # optional, top N
           output: public # optional, dir for index.html
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -206,15 +206,15 @@ repo-intel facebook/react --clone                     # analyse via bare clone
 
 ## Development
 
-| File                  | Purpose                                                                           |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `repo-intel.py`       | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled              |
-| `web/`                | Frontend app (Svelte 5 + Vite + TypeScript). `bun run build` → `web/dist/index.html` |
-| `web/src/lib/`        | Dashboard engine: heatmap, timeline, charts, popovers, table (one module each)    |
-| `techdata.json`       | Generated language + framework detection data (committed; embedded at build)      |
-| `gen_techdata.py`     | Regenerates `techdata.json` from GitHub Linguist + a curated framework map        |
-| `build.py`            | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`       |
-| `dist/repo-intel`     | The built single-file artifact (committed; this is what curl/Action/Homebrew use) |
+| File              | Purpose                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled                 |
+| `web/`            | Frontend app (Svelte 5 + Vite + TypeScript). `bun run build` → `web/dist/index.html` |
+| `web/src/lib/`    | Dashboard engine: heatmap, timeline, charts, popovers, table (one module each)       |
+| `techdata.json`   | Generated language + framework detection data (committed; embedded at build)         |
+| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map           |
+| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`          |
+| `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use)    |
 
 The frontend is built with [Bun](https://bun.sh). It compiles to a single
 self-contained `web/dist/index.html` (all JS + CSS inlined, Chart.js bundled, no

@@ -28,9 +28,12 @@ export function escapeHtml(s: unknown): string {
   return String(s).replace(
     /[&<>"']/g,
     (m) =>
-      (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[
-        m
-      ],
+      (
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<
+          string,
+          string
+        >
+      )[m],
   );
 }
 
@@ -66,7 +69,8 @@ export function fmtTimelineDuration(start: string, end: string): string {
     return pl(Math.max(1, days), "day");
   }
   if (totalMonths < 12) return pl(totalMonths, "month");
-  if (years < 10) return months === 0 ? pl(years, "year") : `${pl(years, "year")} and ${pl(months, "month")}`;
+  if (years < 10)
+    return months === 0 ? pl(years, "year") : `${pl(years, "year")} and ${pl(months, "month")}`;
   return pl(years, "year");
 }
 

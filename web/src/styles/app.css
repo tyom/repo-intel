@@ -14,15 +14,28 @@
   --color-heatmap: #39d353;
   --scrollbar-thumb: #30363d;
   --scrollbar-thumb-hover: #484f58;
-  --bg-popover: rgba(13, 17, 23, 0.97); /* floating popover/tooltip surface (--bg-primary + alpha) */
-  --bg-tooltip: rgba(0, 0, 0, 0.8); /* compact heatmap tooltip */
-  --grid-line: rgba(255, 255, 255, 0.06); /* timeline month/day grid + ticks (CSS + canvas) */
-  --selection-fill: rgba(88, 166, 255, 0.22); /* timeline drag-to-zoom rectangle */
+  /* floating popover/tooltip surface (--bg-primary + alpha) */
+  --bg-popover: rgba(13, 17, 23, 0.97);
+  /* compact heatmap tooltip */
+  --bg-tooltip: rgba(0, 0, 0, 0.8);
+  /* timeline month/day grid + ticks (CSS + canvas) */
+  --grid-line: rgba(255, 255, 255, 0.06);
+  /* timeline drag-to-zoom rectangle */
+  --selection-fill: rgba(88, 166, 255, 0.22);
   --selection-stroke: rgba(88, 166, 255, 0.95);
-  --accent-weekend: 240, 170, 90; /* weekend tint, raw r,g,b — alpha applied per use */
+  /* weekend tint, raw r,g,b — alpha applied per use */
+  --accent-weekend: 240, 170, 90;
   /* Chart series palette (read by theme.ts via --c1..--c10). */
-  --c1: #818cf8; --c2: #fb923c; --c3: #34d399; --c4: #f472b6; --c5: #22d3ee;
-  --c6: #c084fc; --c7: #fbbf24; --c8: #4ade80; --c9: #38bdf8; --c10: #e879f9;
+  --c1: #818cf8;
+  --c2: #fb923c;
+  --c3: #34d399;
+  --c4: #f472b6;
+  --c5: #22d3ee;
+  --c6: #c084fc;
+  --c7: #fbbf24;
+  --c8: #4ade80;
+  --c9: #38bdf8;
+  --c10: #e879f9;
 }
 
 *,
@@ -37,7 +50,10 @@ html {
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   margin: 0;
@@ -76,7 +92,10 @@ body {
       border-radius: 4px;
       font-size: 0.78rem;
       border-left: 2px solid transparent;
-      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      transition:
+        color 0.15s,
+        background 0.15s,
+        border-color 0.15s;
 
       &:hover {
         color: var(--text-primary);
@@ -258,8 +277,20 @@ table {
   user-select: none;
 
   &.can-scroll-left.can-scroll-right {
-    mask-image: linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
   }
   &.can-scroll-left:not(.can-scroll-right) {
     mask-image: linear-gradient(to right, transparent 0, black 24px);

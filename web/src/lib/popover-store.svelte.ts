@@ -97,7 +97,13 @@ export const timelineTipState: TimelineTipState = $state({
 // Reassign the content fields only when the hovered bundle changes (cheap
 // reposition on every mousemove otherwise) — this replaces the old tooltipHash
 // guard and avoids re-triggering the component's $derived rebuild.
-export function setCommitTip(c: TimelineBundle, author: Contributor, color: string, x: number, y: number): void {
+export function setCommitTip(
+  c: TimelineBundle,
+  author: Contributor,
+  color: string,
+  x: number,
+  y: number,
+): void {
   if (timelineTipState.kind !== "commit" || timelineTipState.c?.h !== c.h) {
     timelineTipState.kind = "commit";
     timelineTipState.c = c;

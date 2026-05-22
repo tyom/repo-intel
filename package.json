@@ -1,0 +1,13 @@
+{
+  "name": "repo-intel-tooling",
+  "private": true,
+  "description": "Repo-root dev tooling (Prettier). The frontend app lives in web/.",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3",
+    "prettier-plugin-svelte": "^3.4.0"
+  }
+}

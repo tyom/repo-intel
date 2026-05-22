@@ -7,9 +7,7 @@ export async function loadData(): Promise<RepoData> {
   if (window.__DATA__) return window.__DATA__;
   const res = await fetch("/mock-data.json");
   if (!res.ok) {
-    throw new Error(
-      `No window.__DATA__ and failed to load mock-data.json (HTTP ${res.status}).`,
-    );
+    throw new Error(`No window.__DATA__ and failed to load mock-data.json (HTTP ${res.status}).`);
   }
   return (await res.json()) as RepoData;
 }

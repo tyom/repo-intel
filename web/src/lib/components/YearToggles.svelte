@@ -32,8 +32,11 @@
       onclick={() => select("current")}>Current</button
     >
     {#each years as y}
-      <button class="year-toggle" class:active={active === y} type="button" onclick={() => select(y)}
-        >{y}</button
+      <button
+        class="year-toggle"
+        class:active={active === y}
+        type="button"
+        onclick={() => select(y)}>{y}</button
       >
     {/each}
   {/if}

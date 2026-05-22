@@ -35,7 +35,11 @@ interface Position {
   idx: number;
 }
 
-export function buildTimeline(D: RepoData, authorPopover: AuthorPopover, tooltip: TimelineTooltip): void {
+export function buildTimeline(
+  D: RepoData,
+  authorPopover: AuthorPopover,
+  tooltip: TimelineTooltip,
+): void {
   const contributors = D.contributors;
   const commits = D.commits || [];
   const labelsDiv = document.getElementById("timelineLabels");
@@ -204,7 +208,8 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover, tooltip
     if (Math.abs(currentPxPerDay - initialPxPerDay) < 1e-4) return;
     const startPxPerDay = currentPxPerDay;
     const endPxPerDay = initialPxPerDay;
-    const anchorFrac = currentWidth > 0 ? (scrollDiv.scrollLeft + canvasViewW / 2) / currentWidth : 0.5;
+    const anchorFrac =
+      currentWidth > 0 ? (scrollDiv.scrollLeft + canvasViewW / 2) / currentWidth : 0.5;
     const duration = 320;
     const startTime = performance.now();
     const ease = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -338,7 +343,8 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover, tooltip
       const labelX = mode === "hour" ? x : (x + nextX) / 2;
       const yr = cur.getFullYear();
       if (labelX >= -60 && labelX <= width + 60) {
-        let label: string | number, cls = "";
+        let label: string | number,
+          cls = "";
         if (mode === "hour") {
           if (cur.getHours() === 0) {
             label = cur.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -624,7 +630,15 @@ export function buildTimeline(D: RepoData, authorPopover: AuthorPopover, tooltip
       }
       const y = d.idx * laneHeight + laneHeight / 2 + offset;
       groups[d.idx].push(xCanvas - w / 2, y - h / 2, w, h);
-      positions.push({ x: xCanvas, y, hw: w / 2, hh: h / 2, c: d.c, color: clr(d.idx), idx: d.idx });
+      positions.push({
+        x: xCanvas,
+        y,
+        hw: w / 2,
+        hh: h / 2,
+        c: d.c,
+        color: clr(d.idx),
+        idx: d.idx,
+      });
     }
 
     ctx.globalAlpha = 0.78;

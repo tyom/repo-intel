@@ -21,6 +21,10 @@ jobs:
         with:
           bun-version: 1.3.10
 
+      # Fail fast on formatting drift before the heavier type-check/build.
+      - name: Check formatting (Prettier)
+        run: make format-check
+
       # Type-check the frontend (svelte-check) — vite build strips types without
       # checking them, so without this a type regression would slip through.
       - name: Type-check frontend
