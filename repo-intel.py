@@ -1729,8 +1729,6 @@ def build_data(
     repo_langs = {}
     authors = {}
     daily_by_author = defaultdict(lambda: defaultdict(int))
-    hourly_by_author = defaultdict(lambda: [0] * 24)
-    dow_by_author = defaultdict(lambda: [0] * 7)
     weekly_by_author = defaultdict(lambda: defaultdict(int))
     all_dates, all_weeks = set(), set()
     total_added = total_deleted = total_commits = 0
@@ -1745,7 +1743,7 @@ def build_data(
             continue
         total_commits += 1
         d_key = dt.strftime("%Y-%m-%d")
-        wk, hr, dow = iso_week_label(dt), dt.hour, dt.weekday()
+        wk = iso_week_label(dt)
         email, name = meta["email"], meta["name"]
         a, d = line_stats.get(h, [0, 0])
         total_added += a
@@ -1786,8 +1784,6 @@ def build_data(
             rec["last"] = d_key
 
         daily_by_author[email][d_key] += 1
-        hourly_by_author[email][hr] += 1
-        dow_by_author[email][dow] += 1
         weekly_by_author[email][wk] += 1
         all_dates.add(d_key)
         all_weeks.add(wk)
@@ -1829,8 +1825,6 @@ def build_data(
         for r in top
     }
     daily_data = {r["email"]: dict(daily_by_author[r["email"]]) for r in top}
-    hourly_data = {r["email"]: hourly_by_author[r["email"]] for r in top}
-    dow_data = {r["email"]: dow_by_author[r["email"]] for r in top}
 
     commits_list = []
     for h, meta in commits_meta.items():
@@ -1879,8 +1873,6 @@ def build_data(
         "weeks": weeks_sorted,
         "weeklyData": weekly_data,
         "dailyData": daily_data,
-        "hourlyData": hourly_data,
-        "dowData": dow_data,
         "commits": commits_list,
         "tags": tags or [],
         "repoLanguages": repo_languages or top_languages(repo_langs),

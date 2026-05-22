@@ -335,9 +335,10 @@ table {
   .card {
     flex-shrink: 0;
   }
-  /* Pattern cards run wider than the default card to give the hour/dow bars room. */
+  /* Pattern cards run wider than the default card to give the punch-card grid
+     room for all 24 hour columns. */
   .pattern-card {
-    min-width: 380px;
+    min-width: 560px;
   }
 }
 

@@ -103,8 +103,6 @@ export interface RepoData {
   weeks: string[];
   weeklyData: Record<string, number[]>;
   dailyData: Record<string, Record<string, number>>;
-  hourlyData: Record<string, number[]>;
-  dowData: Record<string, number[]>;
   commits: Commit[];
   tags: Tag[];
   repoLanguages: LanguageStat[];

@@ -1,79 +1,92 @@
 <script lang="ts">
-  // One contributor's commit-time pattern card: an ECharts bar chart whose bars
-  // open the commit-bucket popover. Handles the hour-of-day and day-of-week
-  // variants (kind), rendered via {#each} in App from the hourlyData / dowData
-  // maps. Svelte port of renderChartCards() in lib/charts.ts.
+  // One contributor's commit-pattern punch card: an ECharts scatter chart laying
+  // commit density across hour-of-day (x) and day-of-week (y). Dot size encodes
+  // the per-cell commit count (scaled to this author's busiest cell). Clicking a
+  // cell opens the commit-bucket popover. Rendered via {#each} in App from the
+  // per-author point map (buildPunchPoints).
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import type { Contributor } from "$types";
   import type { EChartsType, EChartsCoreOption } from "echarts/core";
   import type { CommitPopover } from "$lib/popovers";
+  import type { PunchPoint } from "$lib/popovers";
   import { echart } from "$lib/actions";
   import { clr } from "$lib/theme";
 
   let {
     contributor,
     index,
-    values,
-    kind,
+    points,
     commitPopover,
     linksEnabled,
   }: {
     contributor: Contributor;
     index: number;
-    values: number[];
-    kind: "hour" | "dow";
+    points: PunchPoint[];
     commitPopover: CommitPopover | undefined;
     linksEnabled: boolean;
   } = $props();
 
   const color = $derived(clr(index));
 
+  const HOURS = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
   const option: EChartsCoreOption = $derived.by(() => {
-    const labels =
-      kind === "hour"
-        ? Array.from({ length: 24 }, (_, i) => `${i}:00`)
-        : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    // Weekend bars (Sat/Sun) are dimmed; hour bars share one tint.
-    const barColor = (i: number): string =>
-      kind === "dow" && i >= 5 ? color + "30" : color + "90";
+    // Scale dot radius to this author's busiest cell so light contributors
+    // still read — an absolute scale would render their cells as dust.
+    const max = points.reduce((m, p) => Math.max(m, p[2]), 0) || 1;
     return {
-      // axisPointer "none": keep the floating tooltip, drop the dashed column line.
-      tooltip: { trigger: "axis", axisPointer: { type: "none" } },
-      grid: { left: 6, right: 6, top: 40, bottom: 22 },
+      tooltip: {
+        trigger: "item",
+        formatter: (p: any): string => {
+          const [h, dow, n] = p.value as PunchPoint;
+          return `${DAYS[dow]} ${h}:00 · ${n} commit${n === 1 ? "" : "s"}`;
+        },
+      },
+      grid: { left: 4, right: 10, top: 40, bottom: 4, containLabel: true },
       xAxis: {
         type: "category",
-        data: labels,
+        data: HOURS,
         axisTick: { show: false },
-        axisLabel: { fontSize: 9, interval: kind === "hour" ? 3 : 0 },
+        axisLabel: { fontSize: 9, interval: 3 },
       },
-      yAxis: { type: "value", show: false, min: 0 },
+      yAxis: {
+        // inverse so Monday sits on top, matching GitHub-style punch cards.
+        type: "category",
+        data: DAYS,
+        inverse: true,
+        axisTick: { show: false },
+        axisLabel: { fontSize: 9 },
+      },
       series: [
         {
-          type: "bar",
-          itemStyle: { borderRadius: kind === "hour" ? 2 : 3 },
-          data: values.map((v, i) => ({ value: v, itemStyle: { color: barColor(i) } })),
+          type: "scatter",
+          symbolSize: (val: number[]): number => 4 + (val[2] / max) * 14,
+          itemStyle: { color: color + "cc" },
+          data: points,
         },
       ],
     };
   });
 
   function onReady(chart: EChartsType): void {
-    // Listen on the whole canvas (zrender), not the bar graphic, so a click
-    // anywhere in a column opens its bucket — matching the axis-triggered hover
-    // area instead of forcing a pixel-perfect hit on the thin bar.
+    // Listen on the whole canvas (zrender) and snap the click to the nearest
+    // grid cell, so a click near a dot opens its bucket without demanding a
+    // pixel-perfect hit on the symbol.
     chart.getZr().on("click", (e: any) => {
       if (!commitPopover || !linksEnabled) return;
       const x = e.offsetX as number;
       const y = e.offsetY as number;
       if (!chart.containPixel("grid", [x, y])) return;
-      const idx = Math.round(chart.convertFromPixel({ xAxisIndex: 0 }, x) as number);
-      if (idx < 0 || idx >= values.length) return;
-      const list = commitPopover.commitsInBucket(contributor.email, kind, idx);
+      const hour = Math.round(chart.convertFromPixel({ xAxisIndex: 0 }, x) as number);
+      const dow = Math.round(chart.convertFromPixel({ yAxisIndex: 0 }, y) as number);
+      if (hour < 0 || hour > 23 || dow < 0 || dow > 6) return;
+      const list = commitPopover.commitsInCell(contributor.email, hour, dow);
       if (!list.length) return;
-      // Pixel of the bar's top within the chart, then offset by the canvas rect.
-      const px = chart.convertToPixel({ seriesIndex: 0 }, [idx, values[idx]]) as number[];
+      // Pixel of the cell within the chart, then offset by the canvas rect.
+      const px = chart.convertToPixel({ seriesIndex: 0 }, [hour, dow]) as number[];
       const rect = chart.getDom().getBoundingClientRect();
-      const label = kind === "hour" ? `${idx}:00–${idx}:59` : commitPopover.dowFull[idx];
+      const label = `${commitPopover.dowFull[dow]} ${hour}:00–${hour}:59`;
       commitPopover.show(
         { x: rect.left + px[0], top: rect.top + px[1], bottom: rect.bottom },
         contributor,
@@ -97,7 +110,7 @@
   }
   .ec {
     width: 100%;
-    height: 160px;
+    height: 280px;
 
     &.clickable {
       cursor: pointer;

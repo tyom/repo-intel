@@ -3,10 +3,11 @@
 // dropping everything else (graph, sunburst, radar, geo, …) from the bundle.
 //
 // In use: line (weekly stacked area + contributor sparklines), bar (add/del,
-// net-per-commit, hour/dow patterns), pie (commit share), treemap (languages by
-// contributor). Add a series here when a new chart needs it.
+// net-per-commit), pie (commit share), treemap (languages by contributor),
+// scatter (commit-pattern punch cards). Add a series here when a new chart
+// needs it.
 import * as echarts from "echarts/core";
-import { LineChart, BarChart, PieChart, TreemapChart } from "echarts/charts";
+import { LineChart, BarChart, PieChart, TreemapChart, ScatterChart } from "echarts/charts";
 import { GridComponent, TooltipComponent, LegendComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
@@ -17,6 +18,7 @@ echarts.use([
   BarChart,
   PieChart,
   TreemapChart,
+  ScatterChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,

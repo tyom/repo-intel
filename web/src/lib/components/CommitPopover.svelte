@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Commit-bucket popover, opened by clicking a bar in the hour/dow charts.
+  // Commit-bucket popover, opened by clicking a cell in the commit-pattern punch cards.
   // Reads the reactive commitState; portal/position actions handle the body
   // portal and viewport placement. Dismisses on outside click, scroll, or
   // Escape. Svelte port of createCommitPopover's innerHTML in lib/popovers.ts.

@@ -110,7 +110,7 @@ export function position(node: HTMLElement, params: PositionParams) {
 }
 
 // Horizontal drag-to-pan (with inertia + edge fade masks) for a .scroll-row strip
-// — the hour/dow pattern rows. Was initScrollRows() in interactions.ts, now a
+// — the contributor / pattern card rows. Was initScrollRows() in interactions.ts, now a
 // per-element action so each row owns its own listeners and cleanup.
 export function dragScroll(row: HTMLElement) {
   let isDown = false,

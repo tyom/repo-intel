@@ -1,5 +1,5 @@
 // Reactive state for the body-portaled popovers + the timeline hover tooltip.
-// The imperative consumers (timeline lane labels & canvas, hour/dow chart bars)
+// The imperative consumers (timeline lane labels & canvas, punch-card cells)
 // drive these through the thin adapters in popovers.ts; the AuthorPopover /
 // CommitPopover / TimelineTooltip components read the state and render it. Lives
 // in a .svelte.ts module so it can hold $state.
