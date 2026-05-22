@@ -3,10 +3,18 @@
   import type { RepoData } from "./types";
   import type { AuthorPopover } from "./lib/popovers";
   import { createAuthorPopover } from "./lib/popovers";
+  import { fmtTimelineDuration } from "./lib/format";
   import { initDashboard } from "./lib/dashboard";
+  import Header from "./lib/components/Header.svelte";
   import Table from "./lib/components/Table.svelte";
 
   let { data }: { data: RepoData } = $props();
+
+  // The timeline heading gains a ": <duration>" suffix when the span is known.
+  const timelineDur = $derived(fmtTimelineDuration(data.dateRange.start, data.dateRange.end));
+  const timelineHeading = $derived(
+    timelineDur ? `Commit timeline: ${timelineDur}` : "Commit timeline",
+  );
 
   // The author popover (shared by the table and the timeline lane labels) is a
   // body-appended singleton, so it's created on mount and handed to both the
@@ -22,10 +30,7 @@
 </script>
 
 <div class="container">
-  <!-- svelte-ignore a11y_missing_content -->
-  <!-- Title and subtitle are populated at runtime by renderHeader(). -->
-  <h1 id="title"></h1>
-  <p class="subtitle" id="subtitle"></p>
+  <Header {data} />
   <div class="layout">
     <aside class="sidebar">
       <nav>
@@ -51,7 +56,7 @@
       </div>
       <div class="section" id="commit-timeline">
         <div class="card">
-          <h2 class="timeline-h">Commit timeline</h2>
+          <h2 class="timeline-h">{timelineHeading}</h2>
           <div class="timeline-hint">
             Drag to draw a zoom window (drag to pan once zoomed in) · Drag the histogram below to
             jump · Shift-scroll or pinch to zoom · Hover for details · Hover tag dots to mark a

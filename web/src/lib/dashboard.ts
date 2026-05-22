@@ -3,7 +3,7 @@
 // Call once after the static layout (App.svelte) is in the DOM.
 import type { RepoData } from "../types";
 import { configureCharts } from "./theme";
-import { renderHeader, renderTech } from "./header";
+import { renderTech } from "./header";
 import { initHeatmap } from "./heatmap";
 import { buildTimeline } from "./timeline";
 import { renderCharts } from "./charts";
@@ -23,7 +23,6 @@ export function initDashboard(D: RepoData, authorPopover: AuthorPopover): void {
   });
 
   configureCharts();
-  renderHeader(D);
 
   const allDaily: Record<string, number> = {};
   Object.values(D.dailyData).forEach((d) => {
