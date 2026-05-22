@@ -243,39 +243,11 @@ table {
   }
 }
 
-/* .contributor-card lives in ContributorCard.svelte. */
+/* .contributor-card lives in ContributorCard.svelte;
+   .pattern-card in PatternCard.svelte; .chart-resettable / .chart-reset-btn in
+   OverallCharts.svelte. */
 
-/* === Chart reset affordance (charts.ts) === */
-.chart-resettable {
-  position: relative;
-
-  &.has-hidden .chart-reset-btn {
-    opacity: 1;
-  }
-}
-
-.chart-reset-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  background: var(--bg-badge);
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  color: var(--text-muted);
-  font-size: 0.65rem;
-  padding: 2px 8px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
-
-  &:hover {
-    color: var(--text-primary);
-    border-color: var(--text-muted);
-  }
-}
-
-/* === Horizontal scroll rows (interactions.ts) === */
+/* === Horizontal scroll rows (dragScroll action; runtime-toggled classes) === */
 .scroll-row {
   display: flex;
   gap: 12px;

@@ -1,8 +1,8 @@
 <script lang="ts">
   // Page header: repo title (linked to GitHub when there's a base URL) and the
   // subtitle stat line. Svelte port of renderHeader() from lib/header.ts. The
-  // net value is derived here rather than read from initDashboard's mutation so
-  // the component stands alone; document.title is set as a side effect.
+  // net value is derived here so the component stands alone; document.title is
+  // set as a side effect.
   import type { RepoData } from "$types";
   import { colorAdded, colorDeleted } from "$lib/theme";
   import { fmt, fmtSize } from "$lib/format";
@@ -30,4 +30,13 @@
   {:else}{titleText}{/if}
 </h1>
 <!-- Single line so the literal spaces between the colored +/- spans are preserved. -->
-<p class="subtitle" id="subtitle">{data.dateRange.start} — {data.dateRange.end} · {fmt(totals.commits)} commits · <span style="color:{colorAdded}">+{fmt(totals.added)}</span> <span style="color:{colorDeleted}">-{fmt(totals.deleted)}</span> (net {#if net > 0}<span style="color:{colorAdded}">+{fmt(net)}</span>{:else if net < 0}<span style="color:{colorDeleted}">{fmt(net)}</span>{:else}{fmt(net)}{/if}) · {fmt(contribCount)} contributor{contribCount === 1 ? "" : "s"}{#if sizeStr}{" "}· {sizeStr}{/if}</p>
+<p class="subtitle" id="subtitle">
+  {data.dateRange.start} — {data.dateRange.end} · {fmt(totals.commits)} commits ·
+  <span style="color:{colorAdded}">+{fmt(totals.added)}</span>
+  <span style="color:{colorDeleted}">-{fmt(totals.deleted)}</span>
+  (net {#if net > 0}<span style="color:{colorAdded}">+{fmt(net)}</span>{:else if net < 0}<span
+      style="color:{colorDeleted}">{fmt(net)}</span
+    >{:else}{fmt(net)}{/if}) · {fmt(contribCount)} contributor{contribCount === 1
+    ? ""
+    : "s"}{#if sizeStr}{" "}· {sizeStr}{/if}
+</p>

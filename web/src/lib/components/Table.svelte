@@ -1,9 +1,9 @@
 <script lang="ts">
   // Summary table: per-contributor row + "Top N" subtotal + grand totals, with
-  // the shared author popover on hover. Svelte port of the old renderTable() in
-  // lib/table.ts — names are auto-escaped by Svelte (no escapeHtml), derived
-  // fields are computed here instead of read from initDashboard's mutation, and
-  // the popover is wired per-row instead of via event delegation + data-idx.
+  // the shared author popover on hover. Svelte port of the old renderTable() —
+  // names are auto-escaped by Svelte (no escapeHtml), net/lc/avgPerDay are
+  // computed here, and the popover is wired per-row instead of via event
+  // delegation + data-idx.
   import type { RepoData } from "$types";
   import type { AuthorPopover } from "$lib/popovers";
   import { clr } from "$lib/theme";
@@ -15,8 +15,7 @@
   const totals = $derived(data.totals);
   const totalNet = $derived(data.totals.added - data.totals.deleted);
 
-  // Per-row view models. net/lc/avgPerDay mirror deriveContributor in
-  // dashboard.ts but are computed locally so this component stands alone.
+  // Per-row view models, with net/lc/avgPerDay derived locally.
   const rows = $derived(
     data.contributors.map((c, i) => {
       const net = c.added - c.deleted;

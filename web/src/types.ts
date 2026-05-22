@@ -40,10 +40,6 @@ export interface Contributor {
   highlight: boolean;
   languages: LanguageStat[];
   profile?: ContributorProfile;
-  // Computed client-side after load (see deriveContributor):
-  net?: number;
-  lc?: number;
-  avgPerDay?: number;
 }
 
 export interface Totals {
@@ -51,7 +47,6 @@ export interface Totals {
   added: number;
   deleted: number;
   contributors: number;
-  net?: number; // computed client-side
 }
 
 export interface DateRange {
