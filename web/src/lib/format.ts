@@ -2,7 +2,7 @@
 import type { Contributor, LanguageStat, RepoData } from "../types";
 
 export const fmt = (n: number): string => n.toLocaleString();
-export const pct = (n: number, t: number): string => ((n / t) * 100).toFixed(1) + "%";
+export const pct = (n: number, t: number): string => (t ? (n / t) * 100 : 0).toFixed(1) + "%";
 
 export function fmtSize(kb: number): string {
   if (!kb || kb <= 0) return "";
