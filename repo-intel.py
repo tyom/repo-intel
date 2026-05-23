@@ -1019,8 +1019,9 @@ def collect_local(cwd=None, suppress_current_user=False):
         "branch_count": count_branches(cwd=cwd),
         # Whole-repo merge count for the header's "(N merges)" note. The stats
         # pipeline runs --no-merges, so the headline total is rebuilt as
-        # no-merge commits + this. Like branch_count/file_count, it is not
-        # filter-aware: under --since/--until it stays whole-history.
+        # no-merge commits + this. It can't be filtered (merges aren't in
+        # commits_meta to recount), so main() drops it under any --since/--until/
+        # --commits filter rather than inflate the now-filtered headline.
         "merge_count": int(git("rev-list", "--merges", "--count", "HEAD", cwd=cwd).strip() or 0),
         # HEAD's commit date (includes merges) for the header's "updated N ago".
         # Whole-repo like the counts above; the browser renders it relative to now.
@@ -2311,6 +2312,13 @@ def main():
         )
         if not commits_meta:
             sys.exit("error: no commits match the given filters")
+        # The merge tally is whole-history (collected before filtering, and
+        # merges aren't in commits_meta to recount), so adding it to the now
+        # date/subset-filtered authored total would inflate the "N commits"
+        # headline. Drop it under any filter — the headline then reads as just
+        # the commits in range.
+        if extras:
+            extras.pop("merge_count", None)
 
     tags = filter_tags_to_range(tags, commits_meta)
 

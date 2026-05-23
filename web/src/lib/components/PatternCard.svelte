@@ -33,6 +33,9 @@
   } = $props();
 
   const color = $derived(clr(index));
+  // "#" means a local-only repo (no GitHub base): render a non-navigating label,
+  // dropping target/rel along with the href so they aren't left dangling.
+  const href = $derived(url === "#" ? undefined : url);
 
   const HOURS = Array.from({ length: 24 }, (_, i) => `${i}:00`);
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -146,9 +149,9 @@
     <a
       class="title-link"
       style="color:{color}"
-      href={url === "#" ? undefined : url}
-      target="_blank"
-      rel="noopener"
+      {href}
+      target={href ? "_blank" : undefined}
+      rel={href ? "noopener" : undefined}
       onmouseenter={(e) => authorPopover?.show(index, e.currentTarget)}
       onmouseleave={() => authorPopover?.hide()}>{contributor.name}</a
     >

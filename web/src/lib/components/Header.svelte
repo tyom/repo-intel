@@ -82,29 +82,29 @@
     </div>
   {/if}
 </div>
+<!-- A subtitle stat: a link to its GitHub page when there is one, plain text
+     otherwise. Kept on one line (prettier-ignore) so no stray whitespace leaks
+     into the space-sensitive subtitle below. -->
+<!-- prettier-ignore -->
+{#snippet stat(url: string | null, label: string)}{#if url}<a href={url} target="_blank" rel="noopener noreferrer">{label}</a>{:else}{label}{/if}{/snippet}
+
 <!-- Single line so the literal spaces between the colored +/- spans are preserved. -->
 <p class="subtitle" id="subtitle">
-  {data.dateRange.start} — {data.dateRange.end} · {#if commitsUrl}<a
-      href={commitsUrl}
-      target="_blank"
-      rel="noopener noreferrer">{commitsLabel}</a
-    >{:else}{commitsLabel}{/if}{#if mergeCount > 0}{" "}({fmt(mergeCount)} merge{mergeCount === 1
-      ? ""
-      : "s"}){/if} ·
+  {data.dateRange.start} — {data.dateRange.end} · {@render stat(
+    commitsUrl,
+    commitsLabel,
+  )}{#if mergeCount > 0}{" "}({fmt(mergeCount)} merge{mergeCount === 1 ? "" : "s"}){/if} ·
   <span style="color:{colorAdded}">+{fmt(totals.added)}</span>
   <span style="color:{colorDeleted}">-{fmt(totals.deleted)}</span>
   (net {#if net > 0}<span style="color:{colorAdded}">+{fmt(net)}</span>{:else if net < 0}<span
       style="color:{colorDeleted}">{fmt(net)}</span
-    >{:else}{fmt(net)}{/if}) · {#if contributorsUrl}<a
-      href={contributorsUrl}
-      target="_blank"
-      rel="noopener noreferrer">{contribLabel}</a
-    >{:else}{contribLabel}{/if}{#if branchCount != null}{" "}· {#if branchesUrl}<a
-        href={branchesUrl}
-        target="_blank"
-        rel="noopener noreferrer">{branchLabel}</a
-      >{:else}{branchLabel}{/if}{/if}{#if fileCount != null}{" "}· {fmt(fileCount)} files{/if}{#if sizeStr}{" "}·
-    {sizeStr}{/if}
+    >{:else}{fmt(net)}{/if}) · {@render stat(
+    contributorsUrl,
+    contribLabel,
+  )}{#if branchCount != null}{" "}· {@render stat(
+      branchesUrl,
+      branchLabel,
+    )}{/if}{#if fileCount != null}{" "}· {fmt(fileCount)} files{/if}{#if sizeStr}{" "}· {sizeStr}{/if}
 </p>
 
 <style>

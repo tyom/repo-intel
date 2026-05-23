@@ -6,7 +6,7 @@
   // through the `echart` action (div + setOption + auto-resize + dispose).
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
-  import { authorUrl, fmtBytes, weekLabel } from "$lib/format";
+  import { authorUrl, escapeHtml, fmtBytes, weekLabel } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
   import {
     bgCard,
@@ -488,7 +488,7 @@
           const head = arr[0]?.axisValueLabel ?? "";
           const rows = arr
             .filter((p: any) => p.value)
-            .map((p: any) => `${p.marker}${dispName(p.seriesName)}: ${p.value}`)
+            .map((p: any) => `${p.marker}${escapeHtml(dispName(p.seriesName))}: ${p.value}`)
             .join("<br>");
           return rows ? (head ? `${head}<br>${rows}` : rows) : head;
         },
@@ -539,7 +539,7 @@
       // isn't an email, so dispName falls through to it unchanged.
       tooltip: {
         trigger: "item",
-        formatter: (p: any) => `${dispName(p.name)}: ${p.value} (${p.percent}%)`,
+        formatter: (p: any) => `${escapeHtml(dispName(p.name))}: ${p.value} (${p.percent}%)`,
       },
       // ECharts' own legend is hidden; the HTML legend beside it drives selection.
       legend: { show: false },
@@ -620,7 +620,7 @@
           const rows = arr
             .map((p: any) => `${p.marker}${p.seriesName}: ${abs(p.value)}`)
             .join("<br>");
-          return `${dispName(arr[0]?.axisValue ?? "")}<br>${rows}`;
+          return `${escapeHtml(dispName(arr[0]?.axisValue ?? ""))}<br>${rows}`;
         },
       },
       grid: { left: 124, right: 64, top: 16, bottom: 24 },
@@ -722,7 +722,7 @@
         formatter: (p: any) => {
           const [commits, med, total] = p.value as [number, number, number];
           return (
-            `${p.data.name}<br>${commits.toLocaleString()} commits` +
+            `${escapeHtml(p.data.name)}<br>${commits.toLocaleString()} commits` +
             `<br>median ${med.toLocaleString()} lines/commit` +
             `<br>${total.toLocaleString()} lines total`
           );
