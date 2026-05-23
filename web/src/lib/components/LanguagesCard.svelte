@@ -7,6 +7,7 @@
   // lanes and churn axis use.
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
+  import { authorUrl, langSearchUrl } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
   import { tileInnerBorder } from "$lib/chart-helpers";
   import { bgCard, clr, contrastText } from "$lib/theme";
@@ -27,13 +28,34 @@
   // list; guard the private access so a future ECharts bump degrades to a stray
   // pointer cursor instead of throwing and breaking the treemap mount.
   function onReady(chart: EChartsType): void {
-    const useDefaultCursor = (): void => {
-      const list = (chart.getZr() as any)?.storage?.getDisplayList?.();
-      if (!list) return;
-      for (const el of list) el.cursor = "default";
-    };
-    chart.on("finished", useDefaultCursor);
-    useDefaultCursor();
+    if (data.githubBaseUrl) {
+      // Links active. GitHub code search has no author filter, so a cell can't link
+      // to (author × language); we split the two dimensions across the cell instead:
+      // the header strip → this author's commit log, each language tile → a repo-wide
+      // search for that language. Contributor containers fall back to zrender's pointer
+      // (they're all clickable); language tiles set their own cursor per-node below
+      // (pointer when the search resolves, default for the inert Other/Tools tiles).
+      // Open the clicked node's url.
+      chart.on("click", (p: any) => {
+        const url = p?.data?.url;
+        if (url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
+      });
+    } else {
+      // Local-only repo (no GitHub base): nothing is clickable, but ECharts' treemap
+      // forces a pointer cursor on every node (and the root background) and ignores
+      // series.cursor, so override it to the default after each render — `finished`
+      // fires on the initial draw and on every redraw/resize. zrender exposes no public
+      // per-node cursor API, so we reach into the display list; guard the private access
+      // so a future ECharts bump degrades to a stray pointer cursor instead of throwing
+      // and breaking the treemap mount.
+      const useDefaultCursor = (): void => {
+        const list = (chart.getZr() as any)?.storage?.getDisplayList?.();
+        if (!list) return;
+        for (const el of list) el.cursor = "default";
+      };
+      chart.on("finished", useDefaultCursor);
+      useDefaultCursor();
+    }
 
     // Only the contributor containers carry an `idx` (the language tiles don't),
     // so hovering a leaf tile hides the popover. We anchor a zero-size rect at the
@@ -135,6 +157,9 @@
             // popover — which carries their commit share, so the header strip
             // stays a plain (often-truncation-prone) name.
             idx: i,
+            // Header strip → this author's commit log ("#" when local-only, which
+            // the click handler ignores).
+            url: authorUrl(data, c),
             // Container fill = contributor colour (shows in the language gaps);
             // matching border frames the whole section.
             itemStyle: { color: base, borderColor: base, borderWidth: 3 },
@@ -145,9 +170,14 @@
             upperLabel: { color: contrastText(base) },
             children: langs.map((l) => {
               const color = l.color || base;
+              // Tile → repo-wide code search for the language ("" for buckets GitHub
+              // can't resolve — Other/Tools — which then stay inert / default-cursor).
+              const url = langSearchUrl(data.githubBaseUrl, l.name);
               return {
                 name: l.name,
                 value: l.pct,
+                url,
+                cursor: url ? "pointer" : "default",
                 itemStyle: { color, borderColor: tileInnerBorder, borderWidth: 1 },
                 label: { color: contrastText(color) },
               };

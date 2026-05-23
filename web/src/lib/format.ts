@@ -125,10 +125,23 @@ export function authorUrl(D: RepoData, c: Contributor): string {
   return `${D.githubBaseUrl}/commits/${encodeBranch(D.defaultBranch)}?author=${encodeURIComponent(c.email)}`;
 }
 
-// GitHub code-search URL for a language within a repo, or '' when there's no
-// GitHub base (local-only repo) or the bucket isn't a real language ("Other").
+// Synthetic buckets (see SYNTHETIC_COLORS in gen_techdata.py) aren't real GitHub
+// languages, so `language:` can't resolve them. Map the ones with a clean extension
+// set to a `path:` glob (grouped so the repo: scope covers every clause); the rest
+// (e.g. "Tools" — a grab-bag of Dockerfiles/Makefiles/lockfiles) have no tidy query.
+const SYNTHETIC_PATH_QUERY: Record<string, string> = {
+  "Gettext Catalog": "(path:*.po OR path:*.pot)",
+};
+const UNLINKED_BUCKETS = new Set(["Other", "Tools"]);
+
+// GitHub code-search URL for a language within a repo, or '' when there's no GitHub
+// base (local-only repo) or the bucket has no resolvable query.
 export function langSearchUrl(base: string | null | undefined, name: string): string {
   const m = /^(https?:\/\/[^/]+)\/(.+?)\/?$/.exec(base || "");
-  if (!m || name === "Other") return "";
-  return `${m[1]}/search?q=${encodeURIComponent(`repo:${m[2]} language:${name}`)}&type=code`;
+  if (!m || UNLINKED_BUCKETS.has(name)) return "";
+  const [, origin, repo] = m;
+  // Multi-word names must be quoted, or GitHub reads only the first word as the
+  // language (e.g. `language:Common Lisp` → `language:Common` + loose "Lisp").
+  const query = SYNTHETIC_PATH_QUERY[name] ?? `language:${/\s/.test(name) ? `"${name}"` : name}`;
+  return `${origin}/search?q=${encodeURIComponent(`repo:${repo} ${query}`)}&type=code`;
 }

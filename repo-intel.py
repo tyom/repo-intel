@@ -460,7 +460,7 @@ def classify_path(field, present=None, shebang=None):
     return OTHER_LANG
 
 
-def top_languages(langs, limit=6):
+def top_languages(langs, limit=10):
     """Build a sorted language-bar list from {name: [added, deleted, files]}.
 
     Ranks by lines touched (added + deleted); languages past `limit` collapse
