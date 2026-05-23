@@ -216,15 +216,17 @@ repo-intel facebook/react --clone                     # analyse via bare clone
 
 ## Development
 
-| File              | Purpose                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------ |
-| `repo-intel.py`   | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled                 |
-| `web/`            | Frontend app (Svelte 5 + Vite + TypeScript). `bun run build` → `web/dist/index.html` |
-| `web/src/lib/`    | Dashboard engine: heatmap, timeline, charts, popovers, table (one module each)       |
-| `techdata.json`   | Generated language + framework detection data (committed; embedded at build)         |
-| `gen_techdata.py` | Regenerates `techdata.json` from GitHub Linguist + a curated framework map           |
-| `build.py`        | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`          |
-| `dist/repo-intel` | The built single-file artifact (committed; this is what curl/Action/Homebrew use)    |
+| File                      | Purpose                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `repo-intel.py`           | The script. Holds `TEMPLATE` + `TECHDATA` placeholders until bundled                               |
+| `web/`                    | Frontend app (Svelte 5 + Vite + TypeScript). `bun run build` → `web/dist/index.html`               |
+| `web/src/App.svelte`      | Root component — composes the dashboard from the `lib/components/` pieces                          |
+| `web/src/lib/components/` | Dashboard UI as Svelte components — heatmap, table, charts, cards, popovers (one `.svelte` each)   |
+| `web/src/lib/`            | Shared engine helpers: ECharts registration, the canvas timeline, popover state, theme, formatting |
+| `techdata.json`           | Generated language + framework detection data (committed; embedded at build)                       |
+| `gen_techdata.py`         | Regenerates `techdata.json` from GitHub Linguist + a curated framework map                         |
+| `build.py`                | Substitutes the `TEMPLATE` / `TECHDATA` lines with their data as a `repr()`                        |
+| `dist/repo-intel`         | The built single-file artifact (committed; this is what curl/Action/Homebrew use)                  |
 
 The frontend is built with [Bun](https://bun.sh). It compiles to a single
 self-contained `web/dist/index.html` (all JS + CSS inlined, Apache ECharts
@@ -238,6 +240,8 @@ make web-dev         # frontend dev server with HMR (renders web/public/mock-dat
 make build           # rebuild the frontend bundle + dist/repo-intel
 make techdata        # regenerate techdata.json from Linguist (needs network)
 make dev ARGS="3 facebook/react"   # build frontend, then run from source live
+make format          # format the whole repo (Prettier + Ruff)
+make check           # run all static checks — Prettier + Ruff + svelte-check (mirrors CI)
 ```
 
 `make web-dev` runs Vite's dev server with hot-reload against
