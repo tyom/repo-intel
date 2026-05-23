@@ -16,7 +16,7 @@ web-dev: ## Run the frontend dev server with HMR (reads web/public/mock-data.jso
 web-check: ## Type-check the frontend (svelte-check); does not build
 	cd web && bun install --frozen-lockfile && bun run check
 
-format: ## Format the whole repo with Prettier
+format: py-format ## Format the whole repo (Prettier + Ruff)
 	@bun install --frozen-lockfile >/dev/null && bunx prettier --write .
 
 format-check: ## Check formatting with Prettier (CI); does not write
@@ -30,6 +30,8 @@ py-format: ## Format the Python sources with Ruff
 
 py-format-check: ## Check Python formatting with Ruff (CI); does not write
 	@$(RUFF) format --check .
+
+check: format-check py-lint py-format-check web-check ## Run all static checks (mirrors CI gates)
 
 build: web-build ## Build the single-file artifact into dist/repo-intel
 	python3 build.py dist/repo-intel
@@ -50,4 +52,4 @@ gc: ## Repack git history (committed dist/repo-intel deltas down to ~nothing)
 	after=$$(git count-objects -vH | awk '/size-pack:/{print $$2 $$3}'); \
 	echo "pack: $$before -> $$after"
 
-.PHONY: help web-build web-dev web-check format format-check py-lint py-format py-format-check build techdata dev install-hooks gc
+.PHONY: help web-build web-dev web-check format format-check py-lint py-format py-format-check check build techdata dev install-hooks gc
