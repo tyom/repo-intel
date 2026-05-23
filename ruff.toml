@@ -1,0 +1,16 @@
+# Ruff config — Python linting + formatting. Dev/CI only; never shipped.
+# repo-intel stays stdlib-only and single-file, so Ruff is not a runtime dep.
+line-length = 100        # matches Prettier's printWidth on the web side
+target-version = "py39"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4"]
+# Line length is enforced by `ruff format`, not the linter — the formatter
+# can't wrap strings/comments, so E501 would only nag about lines it can't fix.
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# The HELP constant intentionally sits above the imports so the file opens
+# like a man page (see the top of repo-intel.py). The imports are plain
+# module-level imports, not lazy/conditional, so E402 here isn't a real smell.
+"repo-intel.py" = ["E402"]

@@ -25,6 +25,12 @@ jobs:
       - name: Check formatting (Prettier)
         run: make format-check
 
+      # uv provides `uvx`, which the Makefile uses to run a pinned Ruff.
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Lint Python (Ruff)
+        run: make py-lint
+
       # Type-check the frontend (svelte-check) — vite build strips types without
       # checking them, so without this a type regression would slip through.
       - name: Type-check frontend

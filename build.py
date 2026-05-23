@@ -44,7 +44,10 @@ def main():
         ("techdata.json", TECHDATA_PLACEHOLDER),
     ):
         if script.count(placeholder) != 1:
-            sys.exit(f"error: expected exactly one {placeholder!r} line in repo-intel.py")
+            sys.exit(
+                f"error: expected exactly one {name} placeholder "
+                f"({placeholder!r}) in repo-intel.py"
+            )
 
     bundled = (
         script

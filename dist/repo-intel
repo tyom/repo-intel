@@ -70,6 +70,7 @@ Cache:
   file per repo. Re-runs only fetch new commits.
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -944,10 +945,8 @@ def collect_local(cwd=None, suppress_current_user=False):
 
     current_email = ""
     if not suppress_current_user:
-        try:
+        with contextlib.suppress(subprocess.CalledProcessError):
             current_email = git("config", "user.email", cwd=cwd).strip().lower()
-        except subprocess.CalledProcessError:
-            pass
 
     log = git(
         # -c core.quotePath=false: keep non-ASCII paths raw so log paths match
