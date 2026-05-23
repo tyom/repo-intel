@@ -1,6 +1,6 @@
 <script lang="ts">
   // The repo-wide ECharts charts: weekly-commits line (stacked area), commit-share
-  // pie, lines added-vs-deleted bar, net-lines-per-commit bar, and a languages-by-
+  // pie, lines added-vs-deleted bar, commit-style scatter, and a languages-by-
   // contributor treemap. The line and pie carry a "Reset" affordance that reappears
   // once the legend hides a series; Reset re-selects every series. Each chart mounts
   // through the `echart` action (div + setOption + auto-resize + dispose).
@@ -556,6 +556,15 @@
       .filter((r) => !r.c.login.endsWith("[bot]"))
       .sort((a, b) => b.c.added + b.c.deleted - (a.c.added + a.c.deleted));
     const abs = (v: number) => Math.abs(v).toLocaleString();
+    // Force a symmetric x-axis sized to the single largest bar (added or deleted),
+    // with ~8% headroom rounded to hundreds. Left to its own devices ECharts scales
+    // each direction independently — the bigger added totals stretched the right
+    // out to ~1,500 while the shorter deleted side stayed tight, so the longest
+    // deleted bar's outside label collided with the contributor name in the gutter.
+    // A symmetric range with headroom keeps every value label inside the plot, away
+    // from the names, and reclaims the dead space on the right.
+    const churnPeak = Math.max(1, ...addDelRows.map((r) => Math.max(r.c.added, r.c.deleted)));
+    const churnAxisMax = Math.ceil((churnPeak * 1.08) / 100) * 100;
     // One rich-text style per row for its identity-coloured dot; the name shares a
     // single muted style. Keyed by row position (d0, d1, …), which is what the
     // axisLabel formatter receives as its index.
@@ -574,9 +583,14 @@
           return `${dispName(arr[0]?.axisValue ?? "")}<br>${rows}`;
         },
       },
-      grid: { left: 120, right: 56, top: 16, bottom: 24 },
+      grid: { left: 124, right: 64, top: 16, bottom: 24 },
       // Deleted lives on the negative side, so strip the minus sign from ticks.
-      xAxis: { type: "value", axisLabel: { formatter: (v: number) => abs(v) } },
+      xAxis: {
+        type: "value",
+        min: -churnAxisMax,
+        max: churnAxisMax,
+        axisLabel: { formatter: (v: number) => abs(v) },
+      },
       yAxis: {
         type: "category",
         inverse: true,
@@ -629,24 +643,103 @@
       ],
     };
 
-    const ratio: EChartsCoreOption = {
-      tooltip: { trigger: "axis" },
-      grid: { left: 44, right: 14, top: 48, bottom: 40 },
-      xAxis: {
-        type: "category",
-        data: contributors.map((c) => c.name),
-        axisLabel: { rotate: 35, fontSize: 10 },
+    // Commit style: how each contributor commits their work. x = how many commits
+    // they made; y = the median size (churn = added + deleted) of those commits.
+    // Upper-left = commits rarely but dumps a large diff each time; lower-right =
+    // commits often and small (steady, incremental). Median (not mean) is the
+    // honest "typical commit" — it ignores the one giant merge that would drag a
+    // mean upward, so it separates "consistently small" from "small but
+    // occasionally huge". Bubble area encodes total lines touched (overall
+    // footprint); colour is the person's identity colour (clr).
+    //
+    // Bots are dropped (a Renovate/CI account commits nothing like a human and only
+    // stretches the axes). Both axes are log: commit counts and sizes span orders
+    // of magnitude, so a linear scale would crush everyone into one corner. Per-
+    // commit churn comes from data.commits (keyed by author email c.e), which holds
+    // every commit by the displayed contributors.
+    const median = (xs: number[]): number => {
+      if (!xs.length) return 0;
+      const s = [...xs].sort((a, b) => a - b);
+      const m = s.length >> 1;
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    };
+    const churnByEmail = new Map<string, number[]>();
+    for (const k of data.commits) {
+      const arr = churnByEmail.get(k.e);
+      if (arr) arr.push(k.a + k.l);
+      else churnByEmail.set(k.e, [k.a + k.l]);
+    }
+    const styleRows = contributors
+      .map((c, origIdx) => ({ c, origIdx }))
+      .filter((r) => !r.c.login.endsWith("[bot]"));
+    const styleMax = Math.max(1, ...styleRows.map((r) => r.c.added + r.c.deleted));
+    // The busiest contributor sits hard against the right edge; flip just their
+    // label to the left so the longest name can't clip off the plot.
+    const styleMaxCommits = Math.max(0, ...styleRows.map((r) => r.c.commits));
+    const commitStyle: EChartsCoreOption = {
+      tooltip: {
+        trigger: "item",
+        formatter: (p: any) => {
+          const [commits, med, total] = p.value as [number, number, number];
+          return (
+            `${p.data.name}<br>${commits.toLocaleString()} commits` +
+            `<br>median ${med.toLocaleString()} lines/commit` +
+            `<br>${total.toLocaleString()} lines total`
+          );
+        },
       },
-      yAxis: { type: "value" },
+      grid: { left: 58, right: 20, top: 48, bottom: 46 },
+      xAxis: {
+        type: "log",
+        min: 1,
+        name: "commits",
+        nameLocation: "middle",
+        nameGap: 26,
+        nameTextStyle: { color: textMuted, fontSize: 10 },
+        axisLabel: { fontSize: 10 },
+        splitLine: { lineStyle: { color: borderDefault, opacity: 0.4 } },
+      },
+      yAxis: {
+        type: "log",
+        name: "median lines / commit",
+        nameLocation: "middle",
+        nameGap: 40,
+        nameTextStyle: { color: textMuted, fontSize: 10 },
+        axisLabel: { fontSize: 10 },
+        splitLine: { lineStyle: { color: borderDefault, opacity: 0.4 } },
+      },
       series: [
         {
-          type: "bar",
+          type: "scatter",
           cursor: "default",
-          // Net lines per commit, derived here (was the c.lc mutation in dashboard.ts).
-          data: contributors.map((c, i) => ({
-            value: c.commits ? +((c.added - c.deleted) / c.commits).toFixed(1) : 0,
-            itemStyle: { color: clr(i) },
-          })),
+          // value = [commits, median churn, total churn]; total is the 3rd element
+          // so symbolSize can read it directly. Log axes reject 0, so the median is
+          // floored at 1 — a contributor whose typical commit is empty/merge-only
+          // plots on the baseline rather than vanishing.
+          data: styleRows.map((r) => {
+            const med = median(churnByEmail.get(r.c.email) ?? []);
+            const total = r.c.added + r.c.deleted;
+            return {
+              value: [r.c.commits, Math.max(1, med), total],
+              name: r.c.name,
+              itemStyle: { color: clr(r.origIdx), opacity: 0.85 },
+              label: { position: r.c.commits === styleMaxCommits ? "left" : "right" },
+            };
+          }),
+          symbolSize: (val: number[]) => 8 + 34 * Math.sqrt(val[2] / styleMax),
+          // Names are hover-only: with several contributors landing on the same
+          // (commits, size) corner, always-on labels pile up and the chart reads as
+          // noise. Default state is just the identity-coloured bubbles; hovering one
+          // reveals its name (plus the full tooltip). The per-item position above
+          // flips the busiest contributor's label left so it can't clip the edge.
+          label: {
+            show: false,
+            position: "right",
+            formatter: (p: any) => p.data.name,
+            fontSize: 10,
+            color: textPrimary,
+          },
+          emphasis: { focus: "self", scale: 1.15, label: { show: true } },
         },
       ],
     };
@@ -744,7 +837,7 @@
       ? fileTreemap(data.diskByPath, "on disk, all history")
       : null;
 
-    return { timeline, pie, addDel, ratio, treemap, headFiles, histFiles };
+    return { timeline, pie, addDel, commitStyle, treemap, headFiles, histFiles };
   });
 
   // The option backing the combined files card, picked by the active tab.
@@ -812,8 +905,8 @@
     <div class="ec ec-churn" use:echart={{ option: opts.addDel, onReady: onChurnReady }}></div>
   </div>
   <div class="card chart-card">
-    <div class="chart-title">Net lines per commit</div>
-    <div class="ec" use:echart={{ option: opts.ratio }}></div>
+    <div class="chart-title">Commit style</div>
+    <div class="ec" use:echart={{ option: opts.commitStyle }}></div>
   </div>
   {#if hasLangData}
     <div class="card chart-card span-2">
