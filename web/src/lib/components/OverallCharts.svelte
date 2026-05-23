@@ -6,7 +6,7 @@
   // through the `echart` action (div + setOption + auto-resize + dispose).
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
-  import { fmtBytes, weekLabel } from "$lib/format";
+  import { authorUrl, fmtBytes, weekLabel } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
   import {
     bgCard,
@@ -37,6 +37,10 @@
   // to a display name for tooltips.
   const nameByEmail = $derived(new Map(data.contributors.map((c) => [c.email, c.name] as const)));
   const dispName = (email: string): string => nameByEmail.get(email) ?? email;
+  // Email → original contributor index, so the churn chart's axis-label hover can
+  // resolve the right person (and their clr() colour / popover) even after that
+  // chart filters bots and re-sorts its own local copy.
+  const emailToOrig = $derived(new Map(data.contributors.map((c, i) => [c.email, i] as const)));
 
   // Legend rows for the weekly-commits line and the commit-share pie. The pie
   // gains a non-author "Others" row when the top-N don't cover every commit
@@ -276,6 +280,48 @@
     pieChart = c;
     c.on("legendselectchanged", (p: any) => (pieSel = { ...p.selected }));
   }
+  // The churn chart's y-axis labels carry the same author popover as the timeline
+  // lanes. ECharts axis labels are canvas, not DOM, so triggerEvent surfaces one
+  // mouseover/mouseout per label with the category value (the unique email); we
+  // anchor the popover to the cursor via a synthetic rect, which is all
+  // authorPopover.show reads off the element.
+  function onChurnReady(c: EChartsType): void {
+    c.on("mouseover", (p: any) => {
+      if (p.componentType !== "yAxis" || p.targetType !== "axisLabel") return;
+      const idx = emailToOrig.get(p.value);
+      if (idx == null) return;
+      // Anchor at the cursor when the native event rode along; otherwise fall
+      // back to the label's row centre via the chart geometry (as PatternCard
+      // does for its punch-card cells), so the popover lands regardless.
+      let x: number, y: number;
+      const ev = p.event?.event as MouseEvent | undefined;
+      if (ev) {
+        x = ev.clientX;
+        y = ev.clientY;
+      } else {
+        const py = c.convertToPixel({ yAxisIndex: 0 }, p.value) as number;
+        if (py == null || Number.isNaN(py)) return;
+        const dom = c.getDom().getBoundingClientRect();
+        x = dom.left + 24;
+        y = dom.top + py;
+      }
+      const rect = { left: x, right: x, top: y, bottom: y, width: 0, height: 0, x, y } as DOMRect;
+      authorPopover?.show(idx, { getBoundingClientRect: () => rect } as Element);
+    });
+    c.on("mouseout", (p: any) => {
+      if (p.componentType === "yAxis" && p.targetType === "axisLabel") authorPopover?.hide();
+    });
+    // triggerEvent gives the labels a pointer cursor, so make them behave like the
+    // timeline lane labels: click opens the contributor's commits. Local-only repos
+    // have no GitHub base (authorUrl → "#"), so there's nothing to open.
+    c.on("click", (p: any) => {
+      if (p.componentType !== "yAxis" || p.targetType !== "axisLabel") return;
+      const idx = emailToOrig.get(p.value);
+      if (idx == null) return;
+      const url = authorUrl(data, data.contributors[idx]);
+      if (url !== "#") window.open(url, "_blank", "noopener");
+    });
+  }
   function toggleTimeline(key: string): void {
     timelineChart?.dispatchAction({ type: "legendToggleSelect", name: key });
   }
@@ -490,30 +536,95 @@
       ],
     };
 
+    // Diverging horizontal bars: deleted extends left of the zero axis, added
+    // right, so each person's net balance reads as whichever side is longer.
+    // Bots (the `[bot]` logins repo-intel.py skips for profiles) are dropped —
+    // a Renovate/CI account churning tens of thousands of lines is noise here
+    // and only flattens the human contributors' scale. Sorted by total churn
+    // (added + deleted) so the busiest sit at the top (yAxis is inverted, since
+    // ECharts otherwise draws the first category at the bottom). Local copy: the
+    // shared `contributors` is index-keyed for the line/pie colours, so sorting
+    // or filtering it in place would corrupt them. Linear scale with per-bar
+    // labels keeps even a one-pixel bar legible despite the heavy skew.
+    // Rows carry their original contributor index so the axis label can show the
+    // person's identity colour (clr) and dot, matching every other chart, and the
+    // hover popover can resolve the right person. Categories are keyed by email
+    // (unique) — two people sharing a display name would otherwise collapse into
+    // one band.
+    const addDelRows = contributors
+      .map((c, origIdx) => ({ c, origIdx }))
+      .filter((r) => !r.c.login.endsWith("[bot]"))
+      .sort((a, b) => b.c.added + b.c.deleted - (a.c.added + a.c.deleted));
+    const abs = (v: number) => Math.abs(v).toLocaleString();
+    // One rich-text style per row for its identity-coloured dot; the name shares a
+    // single muted style. Keyed by row position (d0, d1, …), which is what the
+    // axisLabel formatter receives as its index.
+    const dotRich = Object.fromEntries(
+      addDelRows.map((r, i) => [`d${i}`, { color: clr(r.origIdx), fontSize: 12 }]),
+    );
     const addDel: EChartsCoreOption = {
-      tooltip: { trigger: "axis" },
-      legend: { top: 42, itemWidth: 10, itemHeight: 10 },
-      grid: { left: 56, right: 14, top: 76, bottom: 40 },
-      xAxis: {
-        type: "category",
-        data: contributors.map((c) => c.name),
-        axisLabel: { rotate: 35, fontSize: 10 },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        formatter: (ps: any) => {
+          const arr = Array.isArray(ps) ? ps : [ps];
+          const rows = arr
+            .map((p: any) => `${p.marker}${p.seriesName}: ${abs(p.value)}`)
+            .join("<br>");
+          return `${dispName(arr[0]?.axisValue ?? "")}<br>${rows}`;
+        },
       },
-      yAxis: { type: "value", min: 0 },
+      grid: { left: 120, right: 56, top: 16, bottom: 24 },
+      // Deleted lives on the negative side, so strip the minus sign from ticks.
+      xAxis: { type: "value", axisLabel: { formatter: (v: number) => abs(v) } },
+      yAxis: {
+        type: "category",
+        inverse: true,
+        triggerEvent: true,
+        data: addDelRows.map((r) => r.c.email),
+        axisLabel: {
+          margin: 10,
+          formatter: (email: string, i: number) =>
+            `{d${i}|●}{n|${nameByEmail.get(email) ?? email}}`,
+          rich: {
+            ...dotRich,
+            n: { color: textMuted, fontSize: 10, padding: [0, 0, 0, 5] },
+          },
+        },
+      },
       series: [
         {
           name: "Added",
           type: "bar",
+          stack: "churn",
           cursor: "default",
-          data: contributors.map((c) => c.added),
+          data: addDelRows.map((r) => r.c.added),
           itemStyle: { color: colorAdded },
+          label: {
+            show: true,
+            position: "right",
+            fontSize: 9,
+            color: textMuted,
+            textBorderWidth: 0,
+            formatter: (p: any) => (p.value ? abs(p.value) : ""),
+          },
         },
         {
           name: "Deleted",
           type: "bar",
+          stack: "churn",
           cursor: "default",
-          data: contributors.map((c) => c.deleted),
+          // Negated so the bar grows left from zero; tooltip/label/ticks re-abs.
+          data: addDelRows.map((r) => -r.c.deleted),
           itemStyle: { color: colorDeleted },
+          label: {
+            show: true,
+            position: "left",
+            fontSize: 9,
+            color: textMuted,
+            textBorderWidth: 0,
+            formatter: (p: any) => (p.value ? abs(p.value) : ""),
+          },
         },
       ],
     };
@@ -694,8 +805,11 @@
     <button class="chart-reset-btn" onclick={resetPie}>Reset</button>
   </div>
   <div class="card chart-card">
-    <div class="chart-title">Lines added vs deleted</div>
-    <div class="ec" use:echart={{ option: opts.addDel }}></div>
+    <div class="chart-title">
+      Lines <span class="title-sq" style="background:{colorAdded}"></span>added vs
+      <span class="title-sq" style="background:{colorDeleted}"></span>deleted
+    </div>
+    <div class="ec ec-churn" use:echart={{ option: opts.addDel, onReady: onChurnReady }}></div>
   </div>
   <div class="card chart-card">
     <div class="chart-title">Net lines per commit</div>
@@ -760,6 +874,21 @@
   }
   .ec-tree {
     height: 320px;
+  }
+  /* Horizontal diverging bars need a row of vertical space each; give the churn
+     chart a little more height than the default so ~10 contributors stay legible. */
+  .ec-churn {
+    height: 300px;
+  }
+  /* Small colour keys inline in the churn title, standing in for a legend: green
+     for added, red for deleted, beside the words they label. */
+  .title-sq {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin: 0 5px 0 9px;
+    border-radius: 2px;
+    vertical-align: middle;
   }
   .span-2 {
     grid-column: 1 / -1;
