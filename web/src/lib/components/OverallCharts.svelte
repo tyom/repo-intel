@@ -960,7 +960,9 @@
   {/if}
   {#if hasFiles && filesOption}
     <div class="card chart-card span-2">
-      <div class="chart-title chart-title-opaque">Largest files</div>
+      <div class="chart-title chart-title-opaque">
+        Largest files {activeFilesTab === "head" ? "in HEAD" : "in Git history"}
+      </div>
       <div class="files-tabs">
         {#if hasHeadFiles}
           <button
