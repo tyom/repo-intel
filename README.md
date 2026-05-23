@@ -137,7 +137,8 @@ repo-intel [N] [REPO] [options]
 - `REPO` — `owner/repo`, `https://github.com/owner/repo`, or
   `remote:owner/repo`. Omit to use the cwd's git repo.
 
-Run `repo-intel --help` for the full flag reference.
+Run `repo-intel --help` for the full flag reference, or `repo-intel --version`
+(`-v`) to print the version.
 
 ### Modes
 

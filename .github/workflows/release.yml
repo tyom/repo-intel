@@ -34,6 +34,8 @@ jobs:
         run: echo "TAG=${TAG_INPUT}" >> "$GITHUB_ENV"
 
       - name: Build artifact (frontend bundle + single-file)
+        env:
+          REPO_INTEL_VERSION: ${{ env.TAG }} # bakes the tag into the released binary
         run: make build
 
       - name: Create release and attach the single-file artifact
@@ -57,7 +59,14 @@ jobs:
           curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/repo-intel" -o /tmp/repo-intel
           chmod +x /tmp/repo-intel
           /tmp/repo-intel --help >/dev/null
-          echo "Published artifact runs."
+          # The published binary must report the tag's version (no leading v).
+          got="$(/tmp/repo-intel --version)"
+          want="repo-intel ${TAG#v}"
+          if [ "$got" != "$want" ]; then
+            echo "::error::version mismatch — got '$got', expected '$want'"
+            exit 1
+          fi
+          echo "Published artifact runs and reports ${got}."
 
       - name: Update the floating major tag (e.g. v1)
         if: ${{ !contains(inputs.tag || github.ref_name, '-') }} # skip prereleases like v1.0.0-rc1

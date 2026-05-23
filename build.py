@@ -13,6 +13,7 @@ from pathlib import Path
 
 TEMPLATE_PLACEHOLDER = 'TEMPLATE = "__TEMPLATE_PLACEHOLDER__"'
 TECHDATA_PLACEHOLDER = 'TECHDATA = "__TECHDATA_PLACEHOLDER__"'
+VERSION_PLACEHOLDER = 'VERSION = "0.0.0-dev"'
 
 
 def main():
@@ -51,6 +52,19 @@ def main():
     bundled = script.replace(TEMPLATE_PLACEHOLDER, f"TEMPLATE = {template!r}").replace(
         TECHDATA_PLACEHOLDER, f"TECHDATA = {techdata!r}"
     )
+
+    # Bake the version only when given one (release builds pass the tag via
+    # $REPO_INTEL_VERSION). Without it the sentinel is left untouched, so the
+    # committed dist/repo-intel rebuilds byte-for-byte — CI gates that.
+    version = os.environ.get("REPO_INTEL_VERSION", "").strip().lstrip("v")
+    if version:
+        if bundled.count(VERSION_PLACEHOLDER) != 1:
+            sys.exit(
+                f"error: expected exactly one version sentinel ({VERSION_PLACEHOLDER!r}) "
+                "in repo-intel.py"
+            )
+        bundled = bundled.replace(VERSION_PLACEHOLDER, f"VERSION = {version!r}")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(bundled, encoding="utf-8")
     out_path.chmod(0o755)
