@@ -12,6 +12,7 @@
     buildPunchPoints,
   } from "$lib/popovers";
   import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
+  import { setAuthorTotalCommits } from "$lib/popover-store.svelte";
   import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
@@ -65,6 +66,7 @@
   // The timeline is still rendered imperatively into the container elements below
   // (it's a hand-drawn canvas); wire it once the static layout is mounted.
   onMount(() => {
+    setAuthorTotalCommits(data.totals.commits);
     authorPopover = createAuthorPopover(data.contributors);
     commitPopover = createCommitPopover(data);
     buildTimeline(data, authorPopover, createTimelineTooltip());

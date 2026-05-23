@@ -362,6 +362,46 @@
     };
     chart.on("finished", useDefaultCursor);
     useDefaultCursor();
+
+    // Hovering a contributor's name strip opens the same author popover the
+    // timeline lanes and churn axis use. Only the contributor containers carry an
+    // `idx` (the language tiles don't), so hovering a leaf tile hides it. We anchor
+    // a zero-size rect at the cursor, exactly as onChurnReady does for its
+    // canvas-rendered axis labels.
+    //
+    // The header strip is several zrender elements (the container rect + its text
+    // label), so a naive re-anchor on every `mouseover` makes the popover jump as
+    // the cursor crosses element boundaries within one strip. We therefore key on
+    // the contributor `idx` and only (re)anchor when it actually changes — moving
+    // around inside one section is a no-op, which keeps the popover still.
+    let shownIdx = -1;
+    chart.on("mouseover", (p: any) => {
+      const idx = p.data?.idx;
+      if (idx == null) {
+        // A language tile, the gap, or the root — i.e. we've left the name region.
+        if (shownIdx !== -1) {
+          authorPopover?.hide();
+          shownIdx = -1;
+        }
+        return;
+      }
+      if (idx === shownIdx) return;
+      const ev = p.event?.event as MouseEvent | undefined;
+      if (!ev) return;
+      shownIdx = idx;
+      const x = ev.clientX;
+      const y = ev.clientY;
+      const rect = { left: x, right: x, top: y, bottom: y, width: 0, height: 0, x, y } as DOMRect;
+      authorPopover?.show(idx, { getBoundingClientRect: () => rect } as Element);
+    });
+    // Leaving the chart entirely (between cards, off the canvas) closes the popover;
+    // mouseout per-element would fire mid-strip and re-trigger the jump above.
+    chart.getZr().on("globalout", () => {
+      if (shownIdx !== -1) {
+        authorPopover?.hide();
+        shownIdx = -1;
+      }
+    });
   }
 
   // Files treemaps drill by re-rooting (dispatchAction treemapRootToNode), which
@@ -807,6 +847,10 @@
             const langs = [...c.languages].sort((a, b) => b.pct - a.pct);
             return {
               name: c.name,
+              // `idx` lets the hover handler (onTreemapReady) resolve this person for
+              // the author popover — which carries their commit share, so the header
+              // strip stays a plain (often-truncated-prone) name.
+              idx: i,
               // Container fill = contributor colour (shows in the language gaps);
               // matching border frames the whole section.
               itemStyle: { color: base, borderColor: base, borderWidth: 3 },

@@ -24,6 +24,16 @@ export interface CommitPopoverState {
 
 export const authorState: AuthorPopoverState = $state({ c: null, idx: 0, anchor: null });
 
+// Repo-wide commit total, set once at startup so the popover can show each
+// contributor's share of all commits. Kept here (not on each setAuthor call)
+// because every consumer — table, timeline, churn axis, treemap — would
+// otherwise have to thread the same total through.
+export const authorMeta = $state({ totalCommits: 0 });
+
+export function setAuthorTotalCommits(total: number): void {
+  authorMeta.totalCommits = total;
+}
+
 export const commitState: CommitPopoverState = $state({
   c: null,
   colorIdx: 0,
