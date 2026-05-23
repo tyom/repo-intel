@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """repo-intel — generate a contributor stats dashboard for a git repo."""
 
+# The git tag is the single source of truth for the version. build.py bakes the
+# tag into the released artifact (from $REPO_INTEL_VERSION); a raw source
+# checkout falls back to `git describe` against this file's own directory (see
+# resolve_version). The committed dist/repo-intel keeps this "0.0.0-dev"
+# sentinel so `make build` stays byte-for-byte reproducible — CI gates that —
+# while the released asset carries the real version.
+VERSION = "0.0.0-dev"
+
 HELP = """\
 repo-intel — generate a contributor stats dashboard for a git repo.
 
 Usage:
   repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone]
   repo-intel -h | --help
+  repo-intel -v | --version
 
 Arguments:
   N       Number of top contributors to include (default: 10)
@@ -35,6 +44,7 @@ Options:
   --since DATE        Only include commits on or after DATE (YYYY-MM-DD, inclusive).
   --until DATE        Only include commits on or before DATE (YYYY-MM-DD, inclusive).
   -h, --help          Show this help message and exit.
+  -v, --version       Show the version and exit.
 
 Examples:
   repo-intel                       # local repo (cwd), top 10
@@ -194,9 +204,31 @@ def parse_formats(val, acc):
     return acc
 
 
+def resolve_version():
+    # Released builds carry the tag baked in by build.py. A raw source checkout
+    # has the sentinel, so derive from the git tag (the source of truth) using
+    # this file's own directory — cwd is the repo being analysed, not ours.
+    if VERSION != "0.0.0-dev":
+        return VERSION
+    try:
+        out = subprocess.run(
+            ["git", "describe", "--tags", "--always", "--dirty"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        return out or VERSION
+    except (OSError, subprocess.CalledProcessError):
+        return VERSION
+
+
 def parse_args(argv):
     if any(tok in ("-h", "--help") for tok in argv):
         sys.stdout.write(HELP)
+        sys.exit(0)
+    if any(tok in ("-v", "--version") for tok in argv):
+        sys.stdout.write(f"repo-intel {resolve_version()}\n")
         sys.exit(0)
     top_n, remote, output, no_open, no_cache = 10, None, None, False, False
     clone = False
