@@ -297,6 +297,22 @@ table {
   }
 }
 
+.contributions-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .last-commit {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+
+    time {
+      cursor: help;
+    }
+  }
+}
+
 /* .contributor-card lives in ContributorCard.svelte;
    .pattern-card in PatternCard.svelte; .chart-resettable / .chart-reset-btn in
    OverallCharts.svelte. */

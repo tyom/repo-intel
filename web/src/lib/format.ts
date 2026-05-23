@@ -33,6 +33,34 @@ export function fmtBytes(bytes: number): string {
   return `${s} ${units[i]}`;
 }
 
+// "12 minutes ago" / "2 days ago" / "1 year ago", relative to `now` (the
+// browser's clock at render time, so a stale report reads as old). Returns ""
+// for an unparseable timestamp.
+export function relativeTime(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const secs = Math.max(0, Math.round((now.getTime() - t) / 1000));
+  const ago = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"} ago`;
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return ago(mins, "minute");
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return ago(hours, "hour");
+  const days = Math.floor(hours / 24);
+  if (days < 7) return ago(days, "day");
+  if (days < 30) return ago(Math.floor(days / 7), "week");
+  if (days < 365) return ago(Math.floor(days / 30), "month");
+  return ago(Math.floor(days / 365), "year");
+}
+
+// Full timestamp for the hover title behind a relative time. "" when unparseable.
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString();
+}
+
 export const weekLabel = (w: string): string => {
   const [y, wn] = w.split("-W").map(Number);
   const jan4 = new Date(y, 0, 4);

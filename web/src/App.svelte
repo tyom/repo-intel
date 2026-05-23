@@ -11,7 +11,7 @@
     createTimelineTooltip,
     buildPunchPoints,
   } from "$lib/popovers";
-  import { fmtTimelineDuration } from "$lib/format";
+  import { fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
   import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
@@ -40,6 +40,10 @@
   const timelineHeading = $derived(
     timelineDur ? `Commit timeline: ${timelineDur}` : "Commit timeline",
   );
+
+  // "Last commit N ago" shown in the Contributions header.
+  const lastCommitAgo = $derived(relativeTime(data.lastCommit));
+  const lastCommitFull = $derived(fmtDateTime(data.lastCommit));
 
   // The author popover (shared by the table and the timeline lane labels) and the
   // commit-bucket popover (opened by the punch-card cells) write the shared
@@ -89,7 +93,16 @@
       <div class="section" id="contributions">
         <div class="card">
           <div class="contributions-header">
-            <h2>Contributions</h2>
+            <div class="contributions-title">
+              <h2>Contributions</h2>
+              {#if lastCommitAgo}
+                <span class="last-commit"
+                  >Last commit <time datetime={data.lastCommit} title={lastCommitFull}
+                    >{lastCommitAgo}</time
+                  ></span
+                >
+              {/if}
+            </div>
             <YearToggles {data} onSelect={(mode) => (heatmapMode = mode)} />
           </div>
           <Heatmap {data} mode={heatmapMode} />

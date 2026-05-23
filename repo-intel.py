@@ -1017,6 +1017,14 @@ def collect_local(cwd=None, suppress_current_user=False):
         "frameworks": detect_frameworks(present, cwd=cwd),
         "file_count": len(present),
         "branch_count": count_branches(cwd=cwd),
+        # Whole-repo merge count for the header's "(N merges)" note. The stats
+        # pipeline runs --no-merges, so the headline total is rebuilt as
+        # no-merge commits + this. Like branch_count/file_count, it is not
+        # filter-aware: under --since/--until it stays whole-history.
+        "merge_count": int(git("rev-list", "--merges", "--count", "HEAD", cwd=cwd).strip() or 0),
+        # HEAD's commit date (includes merges) for the header's "updated N ago".
+        # Whole-repo like the counts above; the browser renders it relative to now.
+        "last_commit_iso": git("log", "-1", "--format=%cI", cwd=cwd).strip(),
         "largest_files": head_file_sizes(cwd=cwd),
         "disk_by_path": history_disk_by_path(cwd=cwd),
     }
@@ -1120,6 +1128,33 @@ query($owner: String!, $repo: String!) {
     history = target.get("history") or {}
     total = history.get("totalCount")
     return total if isinstance(total, int) else None
+
+
+def fetch_repo_social(github_base, token):
+    """Stars / watchers / forks for a github.com repo via REST; None otherwise
+    (non-GitHub origin, offline, private repo without a token, etc.)."""
+    m = ORIGIN_RE.match(github_base or "")
+    host = (m.group("https_host") or m.group("ssh_host")) if m else ""
+    if not m or not (host == "github.com" or host.endswith(".github.com")):
+        return None
+    url = f"https://api.github.com/repos/{m.group('owner')}/{m.group('repo')}"
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "repo-intel"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=headers), timeout=5
+        ) as resp:
+            body = json.loads(resp.read().decode())
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return None
+    return {
+        "stars": body.get("stargazers_count"),
+        # REST quirk: "Watchers" in GitHub's UI is subscribers_count;
+        # watchers_count is a legacy alias of the star count.
+        "watchers": body.get("subscribers_count"),
+        "forks": body.get("forks_count"),
+    }
 
 
 def get_github_token():
@@ -1778,6 +1813,12 @@ def build_data(
     # Total branch count: a snapshot stat like file_count. None on paths that
     # can't determine it.
     branch_count = (extras or {}).get("branch_count")
+    merge_count = (extras or {}).get("merge_count") or 0
+    # HEAD commit date for "updated N ago"; fall back to the newest commit we
+    # have (the remote GraphQL path supplies no extras).
+    last_commit_iso = (extras or {}).get("last_commit_iso") or max(
+        (m.get("iso") or "" for m in commits_meta.values()), default=""
+    )
     # File-size sunbursts: blob sizes at HEAD and accumulated on-disk size per
     # path across history. None on the remote GraphQL path (no tree fetched).
     largest_files = (extras or {}).get("largest_files")
@@ -1920,8 +1961,15 @@ def build_data(
         "largestFiles": largest_files,
         "diskByPath": disk_by_path,
         "dateRange": date_range,
+        "lastCommit": last_commit_iso,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
         "totals": {
+            # Authored (no-merge) commits — equals the sum of contributors'
+            # commits, so it's the denominator for every share/percentage.
+            # Merges are tracked separately; the GitHub-comparable headline
+            # (commits + merges) is composed at display time.
             "commits": total_commits,
+            "merges": merge_count,
             "added": total_added,
             "deleted": total_deleted,
             "contributors": total_contributors,
@@ -2073,15 +2121,20 @@ def render_markdown(data):
     out.append(f"# repo-intel — {f'[{name}]({base})' if base else name}")
     out.append("")
     n_contrib = t["contributors"]
+    # Headline commit count matches GitHub (authored + merges); the per-author
+    # stats below use the merge-free t["commits"].
+    merges = t.get("merges") or 0
+    commits_all = t["commits"] + merges
+    merge_note = f" ({merges:,} merge{'' if merges == 1 else 's'})" if merges else ""
     out.append(
-        f"_{t['commits']:,} commits · {dr['start'] or '?'} — {dr['end'] or '?'} · "
+        f"_{commits_all:,} commits · {dr['start'] or '?'} — {dr['end'] or '?'} · "
         f"{n_contrib:,} contributor{'' if n_contrib == 1 else 's'}_"
     )
     out.append("")
 
     out.append("## Totals")
     out.append("")
-    out.append(f"- Commits: {t['commits']:,}")
+    out.append(f"- Commits: {commits_all:,}{merge_note}")
     out.append(f"- Lines: +{t['added']:,} / -{t['deleted']:,}")
     out.append(f"- Contributors: {t['contributors']:,}")
     out.append(f"- Default branch: `{data['defaultBranch']}`")
@@ -2271,6 +2324,10 @@ def main():
 
     enrich_contributor_profiles(data["contributors"], commits_meta, github_base, token=token)
 
+    social = fetch_repo_social(github_base, token or get_github_token())
+    if social:
+        data.update(social)
+
     multi = len(formats) > 1
     builders = {
         "html": lambda: render_html(data),
@@ -2287,7 +2344,7 @@ def main():
         print(f"Wrote {out_path}")
 
     print(
-        f"  {data['totals']['commits']} commits · "
+        f"  {data['totals']['commits'] + (data['totals'].get('merges') or 0)} commits · "
         f"{data['dateRange']['start']} — {data['dateRange']['end']} · "
         f"{data['totals']['contributors']} contributor"
         f"{'' if data['totals']['contributors'] == 1 else 's'}"
