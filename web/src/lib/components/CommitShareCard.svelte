@@ -8,9 +8,10 @@
   import { escapeHtml } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
   import { buildContribLegend, buildNameByEmail, type LegendItem } from "$lib/chart-helpers";
+  import { createLegendSelection } from "$lib/chart-legend.svelte";
   import { bgCard, borderDefault, clr, textMuted, textPrimary } from "$lib/theme";
   import type { RepoData } from "$types";
-  import type { EChartsCoreOption, EChartsType } from "echarts/core";
+  import type { EChartsCoreOption } from "echarts/core";
   import ChartLegend from "$components/ChartLegend.svelte";
 
   let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
@@ -33,26 +34,8 @@
       : contribLegend,
   );
 
-  let sel = $state<Record<string, boolean>>({});
-  let chart: EChartsType | undefined;
-
-  function onReady(c: EChartsType): void {
-    chart = c;
-    c.on("legendselectchanged", (p: any) => (sel = { ...p.selected }));
-  }
-  function toggle(key: string): void {
-    chart?.dispatchAction({ type: "legendToggleSelect", name: key });
-  }
-  function reset(): void {
-    chart?.dispatchAction({ type: "legendAllSelect" });
-    sel = {};
-  }
-  // Hovering a legend row emphasises the matching slice (keyed by email, or
-  // "Others"), so it scales out per the series' emphasis config; leaving
-  // downplays it. Highlight is addressed by slice name, the legend's toggle key.
-  function highlight(key: string, on: boolean): void {
-    chart?.dispatchAction({ type: on ? "highlight" : "downplay", name: key });
-  }
+  // Legend selection + slice highlight on row hover (the pie wires onEmphasize).
+  const legend = createLegendSelection();
 
   const option = $derived.by<EChartsCoreOption>(() => {
     const pieSlices = [
@@ -114,14 +97,14 @@
 <div class="card chart-card">
   <div class="chart-title">Commit share</div>
   <div class="pie-body">
-    <div class="ec ec-pie" use:echart={{ option, onReady }}></div>
+    <div class="ec ec-pie" use:echart={{ option, onReady: legend.onReady }}></div>
     <ChartLegend
       items={pieLegend}
-      selected={sel}
+      selected={legend.selected}
       layout="col"
-      onToggle={toggle}
-      onReset={reset}
-      onEmphasize={highlight}
+      onToggle={legend.toggle}
+      onReset={legend.reset}
+      onEmphasize={legend.highlight}
       {authorPopover}
     />
   </div>

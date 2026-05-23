@@ -8,9 +8,10 @@
   import { escapeHtml, weekLabel } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
   import { buildContribLegend, buildNameByEmail } from "$lib/chart-helpers";
+  import { createLegendSelection } from "$lib/chart-legend.svelte";
   import { clr } from "$lib/theme";
   import type { RepoData } from "$types";
-  import type { EChartsCoreOption, EChartsType } from "echarts/core";
+  import type { EChartsCoreOption } from "echarts/core";
   import ChartLegend from "$components/ChartLegend.svelte";
 
   let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
@@ -20,22 +21,9 @@
   const dispName = (email: string): string => nameByEmail.get(email) ?? email;
   const contribLegend = $derived(buildContribLegend(data.contributors));
 
-  // The chart owns the source of truth for what's hidden; we mirror its
-  // `selected` map back here so the legend can dim rows and reveal Reset.
-  let sel = $state<Record<string, boolean>>({});
-  let chart: EChartsType | undefined;
-
-  function onReady(c: EChartsType): void {
-    chart = c;
-    c.on("legendselectchanged", (p: any) => (sel = { ...p.selected }));
-  }
-  function toggle(key: string): void {
-    chart?.dispatchAction({ type: "legendToggleSelect", name: key });
-  }
-  function reset(): void {
-    chart?.dispatchAction({ type: "legendAllSelect" });
-    sel = {};
-  }
+  // Legend selection: the chart owns what's hidden, this mirrors it back so the
+  // legend can dim rows and reveal Reset.
+  const legend = createLegendSelection();
 
   const option = $derived.by<EChartsCoreOption>(() => {
     const { contributors, weeks, weeklyData } = data;
@@ -85,13 +73,13 @@
 
 <div class="card chart-card">
   <div class="chart-title">Weekly commits (stacked)</div>
-  <div class="ec" use:echart={{ option, onReady }}></div>
+  <div class="ec" use:echart={{ option, onReady: legend.onReady }}></div>
   <ChartLegend
     items={contribLegend}
-    selected={sel}
+    selected={legend.selected}
     layout="row"
-    onToggle={toggle}
-    onReset={reset}
+    onToggle={legend.toggle}
+    onReset={legend.reset}
     {authorPopover}
   />
 </div>
