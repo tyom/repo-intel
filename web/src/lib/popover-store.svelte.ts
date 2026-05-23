@@ -125,10 +125,15 @@ export function setCommitTip(
 }
 
 export function setTagTip(tags: Tag[], x: number, y: number): void {
-  // Tags in a group share a commit (oid), so the first oid + count identify it.
+  // Tags in a group share a dot, keyed by `oid || date` (timeline.ts's
+  // tagGroupKey) — lightweight tags carry no oid, so fall back to date or the
+  // stale tooltip would stick across date-keyed groups. First key + count
+  // identify the group.
+  const prevKey = timelineTipState.tags[0]?.oid || timelineTipState.tags[0]?.date;
+  const nextKey = tags[0]?.oid || tags[0]?.date;
   if (
     timelineTipState.kind !== "tag" ||
-    timelineTipState.tags[0]?.oid !== tags[0]?.oid ||
+    prevKey !== nextKey ||
     timelineTipState.tags.length !== tags.length
   ) {
     timelineTipState.kind = "tag";

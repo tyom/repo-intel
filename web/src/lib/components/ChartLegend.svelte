@@ -69,7 +69,13 @@
     </button>
   {/each}
 </div>
-<button class="chart-reset-btn" class:visible={hasHidden} onclick={onReset}>Reset</button>
+<button
+  class="chart-reset-btn"
+  class:visible={hasHidden}
+  tabindex={hasHidden ? 0 : -1}
+  aria-hidden={!hasHidden}
+  onclick={onReset}>Reset</button
+>
 
 <style>
   /* The weekly-commits legend wraps as a centered row beneath the chart. */
@@ -143,10 +149,14 @@
     padding: 2px 8px;
     cursor: pointer;
     opacity: 0;
+    /* Hidden state: invisible, untabbable (tabindex/aria-hidden on the element),
+       and inert to clicks so the zero-opacity button can't be hit. */
+    pointer-events: none;
     transition: opacity 0.2s;
 
     &.visible {
       opacity: 1;
+      pointer-events: auto;
     }
     &:hover {
       color: var(--text-primary);
