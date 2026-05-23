@@ -44,6 +44,8 @@ export interface Contributor {
 
 export interface Totals {
   commits: number;
+  /** Merge commits, additive to `commits` (not included in it); absent on the remote GraphQL path. */
+  merges?: number;
   added: number;
   deleted: number;
   contributors: number;
@@ -99,6 +101,14 @@ export interface RepoData {
   largestFiles: FileSizes | null;
   diskByPath: FileSizes | null;
   dateRange: DateRange;
+  /** ISO timestamp of the latest commit (HEAD), for the "updated N ago" note. */
+  lastCommit?: string;
+  /** ISO timestamp of when this report was generated. */
+  generatedAt?: string;
+  /** GitHub social counts; absent for non-GitHub or unreachable repos. */
+  stars?: number | null;
+  watchers?: number | null;
+  forks?: number | null;
   totals: Totals;
   contributors: Contributor[];
   weeks: string[];

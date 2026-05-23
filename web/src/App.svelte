@@ -11,7 +11,8 @@
     createTimelineTooltip,
     buildPunchPoints,
   } from "$lib/popovers";
-  import { fmtTimelineDuration } from "$lib/format";
+  import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
+  import { setAuthorTotalCommits } from "$lib/popover-store.svelte";
   import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
@@ -41,6 +42,10 @@
     timelineDur ? `Commit timeline: ${timelineDur}` : "Commit timeline",
   );
 
+  // "Last commit N ago" shown in the Contributions header.
+  const lastCommitAgo = $derived(relativeTime(data.lastCommit));
+  const lastCommitFull = $derived(fmtDateTime(data.lastCommit));
+
   // The author popover (shared by the table and the timeline lane labels) and the
   // commit-bucket popover (opened by the punch-card cells) write the shared
   // popover store rendered by <AuthorPopover/> / <CommitPopover/>. Created in
@@ -61,6 +66,7 @@
   // The timeline is still rendered imperatively into the container elements below
   // (it's a hand-drawn canvas); wire it once the static layout is mounted.
   onMount(() => {
+    setAuthorTotalCommits(data.totals.commits);
     authorPopover = createAuthorPopover(data.contributors);
     commitPopover = createCommitPopover(data);
     buildTimeline(data, authorPopover, createTimelineTooltip());
@@ -89,7 +95,16 @@
       <div class="section" id="contributions">
         <div class="card">
           <div class="contributions-header">
-            <h2>Contributions</h2>
+            <div class="contributions-title">
+              <h2>Contributions</h2>
+              {#if lastCommitAgo}
+                <span class="last-commit"
+                  >Last commit <time datetime={data.lastCommit} title={lastCommitFull}
+                    >{lastCommitAgo}</time
+                  ></span
+                >
+              {/if}
+            </div>
             <YearToggles {data} onSelect={(mode) => (heatmapMode = mode)} />
           </div>
           <Heatmap {data} mode={heatmapMode} />
@@ -119,14 +134,16 @@
       </div>
       <div class="section" id="overall">
         <h2>Overall</h2>
-        <OverallCharts {data} />
+        <OverallCharts {data} {authorPopover} />
       </div>
       <div class="section" id="commit-frequency">
         <h2>Commit frequency over time</h2>
         <div class="grid-5">
           {#each data.contributors as c, i (c.email)}
             <ContributorCard
+              {authorPopover}
               contributor={c}
+              url={authorUrl(data, c)}
               index={i}
               weeks={data.weeks}
               weekly={data.weeklyData[c.email]}
@@ -139,7 +156,9 @@
         <div class="scroll-row" use:dragScroll>
           {#each data.contributors as c, i (c.email)}
             <PatternCard
+              {authorPopover}
               contributor={c}
+              url={authorUrl(data, c)}
               index={i}
               points={punchData[c.email] ?? []}
               {commitPopover}

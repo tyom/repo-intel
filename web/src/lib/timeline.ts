@@ -2,7 +2,7 @@
 // inertia, wheel/pinch zoom, a draggable histogram minimap, tag markers, and a
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
-import type { Commit, RepoData } from "$types";
+import type { Commit, RepoData, Tag } from "$types";
 import { clr, gridLine, selectionFill, selectionStroke, accentWeekend } from "./theme";
 import { authorUrl, escapeHtml } from "./format";
 import type { AuthorPopover, TimelineTooltip } from "./popovers";
@@ -73,6 +73,16 @@ export function buildTimeline(
     return isNaN(+dt) ? 0 : +dt - +start;
   });
   const hasTags = tags.length > 0;
+  // Tags on the same commit (shared oid) land on one dot; group them so the
+  // hover tip lists all of them rather than just whichever drew on top.
+  const tagGroupKey = (t: Tag) => String(t.oid || t.date || "");
+  const tagGroups = new Map<string, Tag[]>();
+  for (const t of tags) {
+    const k = tagGroupKey(t);
+    const g = tagGroups.get(k);
+    if (g) g.push(t);
+    else tagGroups.set(k, [t]);
+  }
   const tagHeight = hasTags ? 16 : 0;
   const tagDotRadius = 3.5;
   const tagHitPad = 4;
@@ -1163,7 +1173,7 @@ export function buildTimeline(
       }
       if (hit != null) {
         tagCanvas!.style.cursor = "pointer";
-        tooltip.showTag(tags[hit], e.clientX, e.clientY);
+        tooltip.showTag(tagGroups.get(tagGroupKey(tags[hit])) ?? [tags[hit]], e.clientX, e.clientY);
       } else {
         tagCanvas!.style.cursor = "";
         tooltip.hide();

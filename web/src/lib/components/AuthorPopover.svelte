@@ -4,10 +4,10 @@
   // positioning are handled by the portal/position actions, so this component
   // only builds the (auto-escaped) markup. Svelte port of createAuthorPopover's
   // innerHTML in lib/popovers.ts.
-  import { authorState } from "$lib/popover-store.svelte";
+  import { authorState, authorMeta } from "$lib/popover-store.svelte";
   import { portal, position } from "$lib/actions";
   import { clr } from "$lib/theme";
-  import { fmt } from "$lib/format";
+  import { fmt, pct } from "$lib/format";
   import LangBar from "./LangBar.svelte";
 
   const ICON_LOC =
@@ -23,6 +23,12 @@
   const handle = $derived(c?.login ? "@" + c.login : "");
   const initial = $derived((c?.name || "?").trim().charAt(0).toUpperCase());
   const net = $derived(c ? c.added - c.deleted : 0);
+  // Share of all commits in the repo (treemap header used to carry this; it now
+  // lives here so the header strip stays a clean, untruncated name). Hidden until
+  // the total is set, and on the off chance the total is zero.
+  const commitShare = $derived(
+    c && authorMeta.totalCommits ? pct(c.commits, authorMeta.totalCommits) : null,
+  );
 
   const counts = $derived(
     c
@@ -99,7 +105,7 @@
     {/if}
     <div class="lp-divider"></div>
     <!-- prettier-ignore -->
-    <div class="lp-stats">{fmt(c.commits)} commits · {c.activeDays} active day{c.activeDays === 1 ? "" : "s"}</div>
+    <div class="lp-stats">{fmt(c.commits)} commits{#if commitShare}{" "}<span class="lp-share">({commitShare})</span>{/if} · {c.activeDays} active day{c.activeDays === 1 ? "" : "s"}</div>
     <!-- prettier-ignore -->
     <div class="lp-stats"><span class="add">+{fmt(c.added)}</span> <span class="del">-{fmt(c.deleted)}</span> (net {#if net > 0}<span class="add">+{fmt(net)}</span>{:else if net < 0}<span class="del">{fmt(net)}</span>{:else}{fmt(net)}{/if})</div>
     <div class="lp-period">{c.first} — {c.last}</div>
@@ -231,6 +237,9 @@
       }
       .del {
         color: var(--color-deleted);
+      }
+      .lp-share {
+        color: var(--text-muted);
       }
     }
     .lp-period {

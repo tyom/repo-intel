@@ -31,4 +31,10 @@ install-hooks: ## Point git at the tracked .githooks/ (auto-rebuilds dist on com
 	git config core.hooksPath .githooks
 	@echo "core.hooksPath -> .githooks"
 
-.PHONY: help web-build web-dev web-check format format-check build techdata dev install-hooks
+gc: ## Repack git history (committed dist/repo-intel deltas down to ~nothing)
+	@before=$$(git count-objects -vH | awk '/size-pack:/{print $$2 $$3}'); \
+	git gc --quiet; \
+	after=$$(git count-objects -vH | awk '/size-pack:/{print $$2 $$3}'); \
+	echo "pack: $$before -> $$after"
+
+.PHONY: help web-build web-dev web-check format format-check build techdata dev install-hooks gc

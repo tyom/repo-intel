@@ -51,14 +51,17 @@
   });
 
   // --- tag tip ---
-  const tag = $derived(tip.kind === "tag" ? tip.tag : null);
-  const tagDT = $derived(tag ? dateTime(String(tag.date ?? "")) : ["", ""]);
-  const tagOid = $derived((tag?.oid ?? "").slice(0, 7));
-  // Show the message only when it adds something beyond the tag name.
-  const tagMsg = $derived.by(() => {
-    const msg = (tag?.message ?? "").trim();
-    return msg && msg !== (tag?.name ?? "").trim() ? msg : "";
-  });
+  // One or more tags sharing the hovered commit; they share date + oid, so the
+  // meta line is taken from the first.
+  const tags = $derived(tip.kind === "tag" ? tip.tags : []);
+  const tag0 = $derived(tags[0] ?? null);
+  const tagDT = $derived(tag0 ? dateTime(String(tag0.date ?? "")) : ["", ""]);
+  const tagOid = $derived((tag0?.oid ?? "").slice(0, 7));
+  // A tag's message, only when it adds something beyond the tag name.
+  const tagMsg = (t: { name?: string; message?: string }): string => {
+    const msg = (t.message ?? "").trim();
+    return msg && msg !== (t.name ?? "").trim() ? msg : "";
+  };
 
   // Place at the cursor: 12px to the right, flipped left near the right edge,
   // vertically centred, clamped to the viewport with an 8px margin.
@@ -122,15 +125,26 @@
         {#if ftypes.more > 0}<span class="tt-ftype">+{ftypes.more}</span>{/if}
       </div>
     {/if}
-  {:else if tag}
+  {:else if tag0}
     <div class="tt-author-row">
-      <span class="tt-tag-icon"></span><span class="tt-tag-kicker">TAG</span><span
-        class="tt-tag-name">{tag.name || ""}</span
-      >
+      <span class="tt-tag-icon"></span><span class="tt-tag-kicker"
+        >{tags.length > 1 ? "TAGS" : "TAG"}</span
+      >{#if tags.length === 1}<span class="tt-tag-name">{tag0.name || ""}</span>{/if}
     </div>
-    {#if tagMsg}<div class="tt-subject">{tagMsg}</div>{/if}
+    {#if tags.length === 1}
+      {#if tagMsg(tag0)}<div class="tt-subject">{tagMsg(tag0)}</div>{/if}
+    {:else}
+      <div class="tt-tag-group">
+        {#each tags as t (t.name)}
+          <div class="tt-tag-row">
+            <span class="tt-tag-name">{t.name || ""}</span>
+            <span class="tt-tag-msg">{tagMsg(t)}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
     <!-- prettier-ignore -->
-    <div class="tt-meta">{tagDT[0] || tag.date || ""}{tagDT[1] ? " " + tagDT[1] : ""}{#if tagOid}{" · "}<span class="tt-hash">{tagOid}</span>{/if}</div>
+    <div class="tt-meta">{tagDT[0] || tag0.date || ""}{tagDT[1] ? " " + tagDT[1] : ""}{#if tagOid}{" · "}<span class="tt-hash">{tagOid}</span>{/if}</div>
   {/if}
 </div>
 
@@ -232,6 +246,32 @@
       font-family: ui-monospace, SFMono-Regular, monospace;
       font-weight: 600;
       color: var(--text-primary);
+    }
+    /* Tag rows as a 2-column table: names share a column so messages line up;
+       a hairline rule separates each row (mirrors .tt-bundle-item). */
+    .tt-tag-group {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      margin: 4px 0;
+    }
+    .tt-tag-row {
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-column: 1 / -1;
+      gap: 0 12px;
+      padding-top: 5px;
+      margin-top: 5px;
+      border-top: 1px solid var(--border-default);
+
+      &:first-child {
+        padding-top: 0;
+        margin-top: 0;
+        border-top: none;
+      }
+    }
+    .tt-tag-msg {
+      color: var(--text-muted);
+      overflow-wrap: anywhere;
     }
     .tt-tag-icon {
       display: inline-block;

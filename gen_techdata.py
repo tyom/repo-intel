@@ -41,6 +41,12 @@ EXT_OVERRIDE = {
     "r": "R", "pl": "Perl", "t": "Perl", "l": "Common Lisp", "v": "Verilog",
     "f": "Fortran", "for": "Fortran", "cls": "Apex", "pro": "Prolog",
     "ts": "TypeScript", "rs": "Rust", "cs": "C#", "sql": "SQL",
+    # Linguist's "Gettext Catalog" (.po/.pot) is type:prose and ships no color,
+    # so it'd be dropped and translation catalogs would vanish into "Other".
+    # Re-pin them under Linguist's own name with the gold GitHub falls back to
+    # for colorless languages (Primer --bgColor-attention-emphasis; see
+    # SYNTHETIC_COLORS).
+    "po": "Gettext Catalog", "pot": "Gettext Catalog",
 }
 
 # Generic extensions whose canonical Linguist owner is the colorless "Text"
@@ -141,7 +147,7 @@ CURATED_BACKEND = {
 
 # Colors for synthetic framework groups Linguist doesn't define a language for.
 # Purple keeps "Tools" distinct from the grey "Other" bucket on the same page.
-SYNTHETIC_COLORS = {"Tools": "#a371f7"}
+SYNTHETIC_COLORS = {"Tools": "#a371f7", "Gettext Catalog": "#9e6a03"}
 
 # Backend / non-JS sentinel files: basename (or sub-path) → (framework, language).
 # The "Tools" bucket surfaces build/devops tooling that's present as a config
@@ -254,12 +260,13 @@ def build_language_tables(langs):
                     ext_meta[key] = (rank, primary)
         for fn in info.get("filenames", []):
             filename_lang.setdefault(fn.lower(), eff)
+    name_color.update(SYNTHETIC_COLORS)  # synthetic buckets Linguist doesn't color;
+                                         # merged before EXT_OVERRIDE so its guard sees them
     for ext, lang in EXT_OVERRIDE.items():
         if lang in name_color:
             ext_lang[ext] = lang
     for ext in EXT_EXCLUDE:
         ext_lang.pop(ext, None)
-    name_color.update(SYNTHETIC_COLORS)  # synthetic buckets Linguist doesn't color
     return name_color, ext_lang, filename_lang
 
 

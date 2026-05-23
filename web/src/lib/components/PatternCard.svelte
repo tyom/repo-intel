@@ -7,19 +7,25 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import type { Contributor } from "$types";
   import type { EChartsType, EChartsCoreOption } from "echarts/core";
-  import type { CommitPopover } from "$lib/popovers";
+  import type { AuthorPopover, CommitPopover } from "$lib/popovers";
   import type { PunchPoint } from "$lib/popovers";
   import { echart } from "$lib/actions";
   import { clr, accentWeekend } from "$lib/theme";
 
   let {
+    authorPopover,
     contributor,
+    url,
     index,
     points,
     commitPopover,
     linksEnabled,
   }: {
+    authorPopover: AuthorPopover | undefined;
     contributor: Contributor;
+    // Author-commits URL, or "#" for a local-only repo (no GitHub base) — in
+    // which case the name renders as a non-navigating label (see the markup).
+    url: string;
     index: number;
     points: PunchPoint[];
     commitPopover: CommitPopover | undefined;
@@ -27,6 +33,9 @@
   } = $props();
 
   const color = $derived(clr(index));
+  // "#" means a local-only repo (no GitHub base): render a non-navigating label,
+  // dropping target/rel along with the href so they aren't left dangling.
+  const href = $derived(url === "#" ? undefined : url);
 
   const HOURS = Array.from({ length: 24 }, (_, i) => `${i}:00`);
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -73,7 +82,10 @@
         inverse: true,
         axisTick: { show: false },
         axisLabel: { fontSize: 9 },
-        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.06)" } },
+        // Faint, uniform row separators. Kept low because the weekend tint
+        // amplifies the Sat/Sun line that sits inside it — at higher opacity it
+        // became the chart's boldest rule, which read as a misplaced divider.
+        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.035)" } },
         // Tint the Sat/Sun rows to match the weekend shading in the contributor
         // heatmap and timeline. Under `inverse: true`, ECharts shifts the
         // splitArea colour array by one band (verified in-browser): color[i]
@@ -130,7 +142,20 @@
 </script>
 
 <div class="card pattern-card">
-  <div class="chart-title" style="color:{color}">{contributor.name}</div>
+  <!-- The title strip is pointer-events:none so chart clicks pass through; the
+       name link re-enables pointer events for itself so it can carry the same
+       author popover as the table/legends (telling apart same-named identities). -->
+  <div class="chart-title">
+    <a
+      class="title-link"
+      style="color:{color}"
+      {href}
+      target={href ? "_blank" : undefined}
+      rel={href ? "noopener" : undefined}
+      onmouseenter={(e) => authorPopover?.show(index, e.currentTarget)}
+      onmouseleave={() => authorPopover?.hide()}>{contributor.name}</a
+    >
+  </div>
   <div class="ec" class:clickable={linksEnabled} use:echart={{ option, onReady }}></div>
 </div>
 
@@ -138,6 +163,16 @@
   .pattern-card {
     position: relative;
     padding: 14px;
+  }
+  /* Re-enable pointer events for just the name (the title strip disables them so
+     chart hover/clicks pass through), and strip the default anchor styling. */
+  .title-link {
+    pointer-events: auto;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
   .ec {
     width: 100%;

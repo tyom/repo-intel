@@ -54,11 +54,12 @@
   .tech-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 48px;
     align-items: start;
 
     @media (max-width: 900px) {
       grid-template-columns: 1fr;
+      gap: 16px;
     }
   }
   .tech-bar-label {

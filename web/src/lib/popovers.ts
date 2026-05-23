@@ -110,7 +110,7 @@ export function createCommitPopover(D: RepoData): CommitPopover {
 // rebuilding when the hovered item is unchanged), hide on leave/drag/zoom.
 export interface TimelineTooltip {
   showCommit(c: TimelineBundle, author: Contributor, color: string, x: number, y: number): void;
-  showTag(tag: Tag, x: number, y: number): void;
+  showTag(tags: Tag[], x: number, y: number): void;
   hide(): void;
 }
 

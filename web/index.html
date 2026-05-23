@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Referenced as a build asset (not a public/ file) so vite-plugin-singlefile
+         inlines it as a base64 data URI — the generated dashboard is a single HTML
+         opened over file:// from /tmp, so a sibling/remote icon would never load. -->
+    <link rel="icon" type="image/png" href="./src/assets/favicon.png" sizes="96x96" />
     <title>Repo Intel</title>
     <!-- repo-intel.py replaces this marker with `window.__DATA__ = {...};`.
          The injectionMarker() Vite plugin guarantees it survives the build. -->

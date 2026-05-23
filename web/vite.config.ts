@@ -23,6 +23,37 @@ function injectionMarker(): Plugin {
   };
 }
 
+// vite-plugin-singlefile inlines JS and CSS but never image assets, so the
+// favicon would ship as a sibling hashed PNG the dashboard can't reach — the
+// generated file is opened over file:// from /tmp, with no network guarantee.
+// Fold the favicon into the single file as a base64 data URI: read its bytes
+// straight from the bundle (no fs), rewrite the <link> href, and drop the now-
+// orphaned asset. enforce:"post" so it runs after singlefile's own output.
+function inlineFavicon(): Plugin {
+  return {
+    name: "repo-intel:inline-favicon",
+    enforce: "post",
+    generateBundle(_options, bundle) {
+      const fav = Object.values(bundle).find(
+        (c) => c.type === "asset" && /favicon.*\.png$/.test(c.fileName),
+      );
+      const html = Object.values(bundle).find(
+        (c) => c.type === "asset" && c.fileName.endsWith(".html"),
+      );
+      if (fav?.type !== "asset" || html?.type !== "asset" || typeof html.source !== "string") {
+        return;
+      }
+      const bytes =
+        typeof fav.source === "string" ? new TextEncoder().encode(fav.source) : fav.source;
+      let binary = "";
+      for (const b of bytes) binary += String.fromCharCode(b);
+      const dataUri = `data:image/png;base64,${btoa(binary)}`;
+      html.source = html.source.replace(new RegExp(`\\.?/${fav.fileName}`), dataUri);
+      delete bundle[fav.fileName];
+    },
+  };
+}
+
 // Path aliases (mirrored in tsconfig.json's paths) for nicer imports:
 //   $types        → src/types.ts
 //   $lib/*        → src/lib/*
@@ -37,7 +68,7 @@ const abs = (p: string) => {
 };
 
 export default defineConfig({
-  plugins: [svelte(), viteSingleFile(), injectionMarker()],
+  plugins: [svelte(), viteSingleFile(), injectionMarker(), inlineFavicon()],
   resolve: {
     alias: {
       $components: abs("./src/lib/components"),

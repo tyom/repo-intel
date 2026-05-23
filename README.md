@@ -270,6 +270,18 @@ Pushing a `vX.Y.Z` tag by hand still works as a fallback and runs the same
 `Release` workflow — but it skips the pre-tag build gate, so prefer _Cut
 release_.
 
+**Syncing tags locally.** Because `Release` _force-moves_ the floating `vX`
+major tag onto each new release commit, a plain `git fetch --tags` refuses to
+update it (`! [rejected] vX -> vX (would clobber existing tag)`). Pull the
+realigned tags with:
+
+```sh
+git fetch --tags --force --prune origin
+```
+
+The `vX.Y.Z` tags are immutable and always fetch cleanly; only the floating
+`vX` tag needs `--force`.
+
 ### Detection data (`techdata.json`)
 
 Language detection (extension/filename → language, colors, vendored-path noise

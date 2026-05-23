@@ -24,6 +24,16 @@ export interface CommitPopoverState {
 
 export const authorState: AuthorPopoverState = $state({ c: null, idx: 0, anchor: null });
 
+// Repo-wide commit total, set once at startup so the popover can show each
+// contributor's share of all commits. Kept here (not on each setAuthor call)
+// because every consumer — table, timeline, churn axis, treemap — would
+// otherwise have to thread the same total through.
+export const authorMeta = $state({ totalCommits: 0 });
+
+export function setAuthorTotalCommits(total: number): void {
+  authorMeta.totalCommits = total;
+}
+
 export const commitState: CommitPopoverState = $state({
   c: null,
   colorIdx: 0,
@@ -77,8 +87,8 @@ export interface TimelineTipState {
   c: TimelineBundle | null;
   author: Contributor | null;
   color: string;
-  // tag
-  tag: Tag | null;
+  // tag — one or more tags sharing the hovered commit (same dot)
+  tags: Tag[];
   // cursor (viewport coords)
   x: number;
   y: number;
@@ -89,7 +99,7 @@ export const timelineTipState: TimelineTipState = $state({
   c: null,
   author: null,
   color: "",
-  tag: null,
+  tags: [],
   x: 0,
   y: 0,
 });
@@ -114,10 +124,20 @@ export function setCommitTip(
   timelineTipState.y = y;
 }
 
-export function setTagTip(tag: Tag, x: number, y: number): void {
-  if (timelineTipState.kind !== "tag" || timelineTipState.tag?.oid !== tag.oid) {
+export function setTagTip(tags: Tag[], x: number, y: number): void {
+  // Tags in a group share a dot, keyed by `oid || date` (timeline.ts's
+  // tagGroupKey) — lightweight tags carry no oid, so fall back to date or the
+  // stale tooltip would stick across date-keyed groups. First key + count
+  // identify the group.
+  const prevKey = timelineTipState.tags[0]?.oid || timelineTipState.tags[0]?.date;
+  const nextKey = tags[0]?.oid || tags[0]?.date;
+  if (
+    timelineTipState.kind !== "tag" ||
+    prevKey !== nextKey ||
+    timelineTipState.tags.length !== tags.length
+  ) {
     timelineTipState.kind = "tag";
-    timelineTipState.tag = tag;
+    timelineTipState.tags = tags;
   }
   timelineTipState.x = x;
   timelineTipState.y = y;
