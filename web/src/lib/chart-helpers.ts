@@ -28,6 +28,16 @@ export const buildEmailToOrig = (contributors: Contributor[]): Map<string, numbe
 export const buildContribLegend = (contributors: Contributor[]): LegendItem[] =>
   contributors.map((c, i) => ({ key: c.email, name: c.name, color: clr(i), idx: i }));
 
+// Contributors with their original index, minus bots. A `[bot]` login (the ones
+// repo-intel.py skips for profiles — Renovate, CI accounts) churns nothing like a
+// human and only flattens everyone else's scale, so the churn and commit-style
+// charts drop them. `origIdx` is preserved so each row still resolves the right
+// identity colour (clr) and author popover after the chart re-sorts its own copy.
+export const humanContribRows = (
+  contributors: Contributor[],
+): { c: Contributor; origIdx: number }[] =>
+  contributors.map((c, origIdx) => ({ c, origIdx })).filter((r) => !r.c.login.endsWith("[bot]"));
+
 // Half-transparent dark inner border on the treemap tiles, so each grey/brand
 // tile reads against the gap around it (shared by the languages and files
 // treemaps).

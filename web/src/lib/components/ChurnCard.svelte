@@ -7,7 +7,7 @@
   import { echart } from "$lib/actions";
   import { authorUrl, escapeHtml } from "$lib/format";
   import type { AuthorPopover } from "$lib/popovers";
-  import { buildEmailToOrig, buildNameByEmail } from "$lib/chart-helpers";
+  import { buildEmailToOrig, buildNameByEmail, humanContribRows } from "$lib/chart-helpers";
   import { clr, colorAdded, colorDeleted, textMuted } from "$lib/theme";
   import type { RepoData } from "$types";
   import type { EChartsCoreOption, EChartsType } from "echarts/core";
@@ -66,21 +66,15 @@
   }
 
   const option = $derived.by<EChartsCoreOption>(() => {
-    const { contributors } = data;
-    // Bots (the `[bot]` logins repo-intel.py skips for profiles) are dropped — a
-    // Renovate/CI account churning tens of thousands of lines is noise here and
-    // only flattens the human contributors' scale. Sorted by total churn (added +
-    // deleted) so the busiest sit at the top (yAxis is inverted, since ECharts
-    // otherwise draws the first category at the bottom). Local copy: the shared
-    // `contributors` is index-keyed for the line/pie colours, so sorting or
-    // filtering it in place would corrupt them. Rows carry their original index so
-    // the axis label can show the person's identity colour (clr) and dot, and the
-    // hover popover can resolve the right person. Categories are keyed by email
-    // (unique) — two people sharing a display name would otherwise collapse.
-    const addDelRows = contributors
-      .map((c, origIdx) => ({ c, origIdx }))
-      .filter((r) => !r.c.login.endsWith("[bot]"))
-      .sort((a, b) => b.c.added + b.c.deleted - (a.c.added + a.c.deleted));
+    // Bots dropped (see humanContribRows), sorted by total churn (added +
+    // deleted) so the busiest sit at the top — the yAxis is inverted, since
+    // ECharts otherwise draws the first category at the bottom. Categories are
+    // keyed by the (unique) email — two people sharing a display name would
+    // otherwise collapse — and each row keeps its original index for the axis
+    // label's identity colour/dot and the hover popover.
+    const addDelRows = humanContribRows(data.contributors).sort(
+      (a, b) => b.c.added + b.c.deleted - (a.c.added + a.c.deleted),
+    );
     const abs = (v: number) => Math.abs(v).toLocaleString();
     // Force a symmetric x-axis sized to the single largest bar (added or deleted),
     // with ~8% headroom rounded to hundreds. Left to its own devices ECharts scales

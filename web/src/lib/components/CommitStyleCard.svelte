@@ -10,6 +10,7 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
   import { escapeHtml } from "$lib/format";
+  import { humanContribRows } from "$lib/chart-helpers";
   import { borderDefault, clr, textMuted, textPrimary } from "$lib/theme";
   import type { RepoData } from "$types";
   import type { EChartsCoreOption } from "echarts/core";
@@ -17,10 +18,8 @@
   let { data }: { data: RepoData } = $props();
 
   const option = $derived.by<EChartsCoreOption>(() => {
-    const { contributors } = data;
-    // Bots are dropped (a Renovate/CI account commits nothing like a human and
-    // only stretches the axes). Both axes are log: commit counts and sizes span
-    // orders of magnitude, so a linear scale would crush everyone into one corner.
+    // Both axes are log: commit counts and sizes span orders of magnitude, so a
+    // linear scale would crush everyone into one corner.
     // Per-commit churn comes from data.commits (keyed by author email c.e), which
     // holds every commit by the displayed contributors.
     const median = (xs: number[]): number => {
@@ -35,9 +34,9 @@
       if (arr) arr.push(k.a + k.l);
       else churnByEmail.set(k.e, [k.a + k.l]);
     }
-    const styleRows = contributors
-      .map((c, origIdx) => ({ c, origIdx }))
-      .filter((r) => !r.c.login.endsWith("[bot]"));
+    // Bots dropped — a Renovate/CI account commits nothing like a human and only
+    // stretches the axes (see humanContribRows).
+    const styleRows = humanContribRows(data.contributors);
     const styleMax = Math.max(1, ...styleRows.map((r) => r.c.added + r.c.deleted));
     // The busiest contributor sits hard against the right edge; flip just their
     // label to the left so the longest name can't clip off the plot.
