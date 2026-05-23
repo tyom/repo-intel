@@ -1,5 +1,11 @@
 name: Cut release
 
+# Surfaces the version in the Actions run list, e.g. "Cut release v1.2.3"
+# instead of the default "Cut release #1". inputs.version may omit the leading
+# v, so the title shows exactly what was typed — the canonical tag still lives
+# in the job summary below.
+run-name: Cut release ${{ inputs.version }}
+
 # One-button release: validate main, build + smoke-test the exact commit, and
 # only then create and push the tag. The tag is pushed with the default
 # GITHUB_TOKEN, which by design does NOT re-trigger release.yml's `push: tags`
@@ -83,6 +89,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag" -m "repo-intel ${tag}"
           git push origin "$tag"
+
+      - name: Summarise the release
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          {
+            echo "## Released ${tag} :rocket:"
+            echo ""
+            echo "- **Tag:** \`${tag}\` (from commit \`${GITHUB_SHA:0:7}\` on \`main\`)"
+            echo "- **Release:** ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     needs: gate-and-tag
