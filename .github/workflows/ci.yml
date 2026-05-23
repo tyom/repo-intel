@@ -31,6 +31,9 @@ jobs:
       - name: Lint Python (Ruff)
         run: make py-lint
 
+      - name: Check Python formatting (Ruff)
+        run: make py-format-check
+
       # Type-check the frontend (svelte-check) — vite build strips types without
       # checking them, so without this a type regression would slip through.
       - name: Type-check frontend

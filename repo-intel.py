@@ -91,9 +91,7 @@ ORIGIN_RE = re.compile(
     r"^(?:https?://(?P<https_host>[^/]+)/|git@(?P<ssh_host>[^:]+):)"
     r"(?P<owner>[^/]+)/(?P<repo>.+?)(?:\.git)?/?$"
 )
-CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "repo-intel"
-)
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "repo-intel"
 
 
 def parse_iso_instant(s):
@@ -138,8 +136,7 @@ def save_cache(slug, nodes, complete):
     cache_path(slug).write_text(json.dumps({"nodes": nodes, "complete": complete}))
 
 
-def needs_older_fetch(have_count, cached_oldest_date, prev_complete,
-                      commits_filter, since, until):
+def needs_older_fetch(have_count, cached_oldest_date, prev_complete, commits_filter, since, until):
     """Should we paginate below the oldest cached commit after top-fetch?
 
     have_count: len(new_nodes) + len(cached_nodes) after the top-fetch.
@@ -191,9 +188,7 @@ def parse_formats(val, acc):
         if not name:
             continue
         if name not in VALID_FORMATS:
-            raise ValueError(
-                f"--format must be one of {', '.join(VALID_FORMATS)} (got {name!r})"
-            )
+            raise ValueError(f"--format must be one of {', '.join(VALID_FORMATS)} (got {name!r})")
         if name not in acc:
             acc.append(name)
     return acc
@@ -217,7 +212,7 @@ def parse_args(argv):
                 sys.exit(2)
             return argv[i + 1], 2
         if tok.startswith(name + "="):
-            return tok[len(name) + 1:], 1
+            return tok[len(name) + 1 :], 1
         return None, 0
 
     while i < len(argv):
@@ -297,8 +292,7 @@ def parse_args(argv):
         sys.exit(2)
     if not formats:
         formats = ["html"]
-    return (top_n, remote, output, no_open, no_cache, clone,
-            commits_filter, since, until, formats)
+    return (top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until, formats)
 
 
 def login_from_email(email):
@@ -349,11 +343,11 @@ def _load_techdata():
 
 _TECH = _load_techdata()
 _LANG = _TECH.get("lang", {})
-EXT_LANG = _LANG.get("ext", {})            # extension (no dot, lower) -> language
+EXT_LANG = _LANG.get("ext", {})  # extension (no dot, lower) -> language
 FILENAME_LANG = _LANG.get("filename", {})  # lowercased filename -> language
-NAME_COLOR = _LANG.get("color", {})        # language -> hex color
-FW_DEPS = _TECH.get("fw_deps", {})         # {ecosystem: {dependency: framework}}
-FW_SENTINELS_JS = _TECH.get("fw_sentinels_js", [])     # [[basename, framework]]
+NAME_COLOR = _LANG.get("color", {})  # language -> hex color
+FW_DEPS = _TECH.get("fw_deps", {})  # {ecosystem: {dependency: framework}}
+FW_SENTINELS_JS = _TECH.get("fw_sentinels_js", [])  # [[basename, framework]]
 FW_SENTINELS_OTHER = _TECH.get("fw_sentinels_other", [])  # [[path, framework, lang]]
 
 
@@ -377,11 +371,22 @@ _VENDOR_RE = _compile_vendor(_TECH.get("vendor", []))
 
 # Lockfiles Linguist classifies as *generated* (handled in code, not vendor.yml)
 # — kept as a small supplement so they don't dominate the language bar.
-NOISE_BASENAMES = frozenset({
-    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
-    "composer.lock", "cargo.lock", "gemfile.lock", "poetry.lock", "go.sum",
-    "pdm.lock", "uv.lock", "flake.lock",
-})
+NOISE_BASENAMES = frozenset(
+    {
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "npm-shrinkwrap.json",
+        "composer.lock",
+        "cargo.lock",
+        "gemfile.lock",
+        "poetry.lock",
+        "go.sum",
+        "pdm.lock",
+        "uv.lock",
+        "flake.lock",
+    }
+)
 
 # Shebang interpreter → language, for extensionless scripts Linguist can't name
 # from a path alone (e.g. `bin/deploy` with `#!/usr/bin/env bash`). A small
@@ -389,11 +394,24 @@ NOISE_BASENAMES = frozenset({
 # stripped (`python3` → `python`) before lookup. Names must be real Linguist
 # languages so they pick up a color.
 SHEBANG_LANG = {
-    "sh": "Shell", "bash": "Shell", "zsh": "Shell", "dash": "Shell",
-    "ksh": "Shell", "fish": "fish", "python": "Python", "ruby": "Ruby",
-    "node": "JavaScript", "perl": "Perl", "awk": "Awk", "gawk": "Awk",
-    "lua": "Lua", "php": "PHP", "rscript": "R", "tclsh": "Tcl",
-    "groovy": "Groovy", "osascript": "AppleScript",
+    "sh": "Shell",
+    "bash": "Shell",
+    "zsh": "Shell",
+    "dash": "Shell",
+    "ksh": "Shell",
+    "fish": "fish",
+    "python": "Python",
+    "ruby": "Ruby",
+    "node": "JavaScript",
+    "perl": "Perl",
+    "awk": "Awk",
+    "gawk": "Awk",
+    "lua": "Lua",
+    "php": "PHP",
+    "rscript": "R",
+    "tclsh": "Tcl",
+    "groovy": "Groovy",
+    "osascript": "AppleScript",
 }
 
 
@@ -425,8 +443,8 @@ def numstat_newpath(field):
     lo = field.find("{")
     hi = field.find("}", lo) if lo != -1 else -1
     if lo != -1 and hi != -1 and " => " in field[lo:hi]:
-        new = field[lo + 1:hi].split(" => ", 1)[1]
-        return field[:lo] + new + field[hi + 1:]
+        new = field[lo + 1 : hi].split(" => ", 1)[1]
+        return field[:lo] + new + field[hi + 1 :]
     return field.split(" => ", 1)[1]
 
 
@@ -453,7 +471,7 @@ def classify_path(field, present=None, shebang=None):
         return FILENAME_LANG[base]
     dot = base.rfind(".")
     if dot > 0:
-        lang = EXT_LANG.get(base[dot + 1:])
+        lang = EXT_LANG.get(base[dot + 1 :])
         if lang:
             return lang
     if shebang and path in shebang:  # extensionless/unknown but has a #! line
@@ -489,13 +507,15 @@ def top_languages(langs, limit=10):
             existing["lines"] += overflow
             existing["pct"] = round(existing["lines"] * 100 / total, 1)
         else:
-            out.append({
-                "name": OTHER_LANG,
-                "lines": overflow,
-                "files": 0,
-                "pct": round(overflow * 100 / total, 1),
-                "color": OTHER_COLOR,
-            })
+            out.append(
+                {
+                    "name": OTHER_LANG,
+                    "lines": overflow,
+                    "files": 0,
+                    "pct": round(overflow * 100 / total, 1),
+                    "color": OTHER_COLOR,
+                }
+            )
     return out
 
 
@@ -522,9 +542,7 @@ def _head_first_line(path, cwd=None):
     """First line of `path` at HEAD, decoded leniently, or "". Reads bytes so a
     stray binary doesn't crash the utf-8 decode `git(text=True)` would attempt."""
     try:
-        out = subprocess.run(
-            ["git", "show", f"HEAD:{path}"], cwd=cwd, capture_output=True
-        ).stdout
+        out = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=cwd, capture_output=True).stdout
     except OSError:
         return ""
     nl = out.find(b"\n")
@@ -650,11 +668,13 @@ def _frameworks_from_files(paths, read_file):
 
     groups = []
     for lang in sorted(found, key=lambda L: (-len(found[L]), L)):
-        groups.append({
-            "language": lang,
-            "color": NAME_COLOR.get(lang, OTHER_COLOR),
-            "names": found[lang][:15],
-        })
+        groups.append(
+            {
+                "language": lang,
+                "color": NAME_COLOR.get(lang, OTHER_COLOR),
+                "names": found[lang][:15],
+            }
+        )
     return groups
 
 
@@ -694,9 +714,7 @@ def ensure_bare_clone(owner, repo, no_cache):
         )
     elif not no_cache:
         print("  updating cached bare clone…", file=sys.stderr)
-        subprocess.run(
-            ["git", "fetch", "--quiet", "origin"], cwd=clone_dir, check=False
-        )
+        subprocess.run(["git", "fetch", "--quiet", "origin"], cwd=clone_dir, check=False)
     _CLONE_REFRESHED.add(clone_dir)
     return clone_dir
 
@@ -784,7 +802,9 @@ def head_file_sizes(cwd=None, limit=40):
         # the run — the trap _head_first_line documents and sidesteps the same way.
         out = subprocess.run(
             ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "-l", "HEAD"],
-            cwd=cwd, capture_output=True, check=True,
+            cwd=cwd,
+            capture_output=True,
+            check=True,
         ).stdout.decode("utf-8", "replace")
     except (subprocess.CalledProcessError, OSError):
         return None
@@ -817,7 +837,8 @@ def history_disk_by_path(cwd=None, limit=40):
         # once — this walks every reachable object and can be huge on big repos.
         revs = subprocess.Popen(
             ["git", "-c", "core.quotePath=false", "rev-list", "--objects", "--all"],
-            cwd=cwd, stdout=subprocess.PIPE,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
         )
         # `%(rest)` echoes the path rev-list appended after each blob's oid.
         # No text=True: read bytes and decode each line leniently, so a non-UTF-8
@@ -825,7 +846,9 @@ def history_disk_by_path(cwd=None, limit=40):
         # decode and abort the run — same trap _head_first_line sidesteps.
         cat = subprocess.Popen(
             ["git", "cat-file", "--batch-check=%(objecttype) %(objectsize:disk) %(rest)"],
-            cwd=cwd, stdin=revs.stdout, stdout=subprocess.PIPE,
+            cwd=cwd,
+            stdin=revs.stdout,
+            stdout=subprocess.PIPE,
         )
         # Drop our handle so rev-list gets SIGPIPE if cat-file exits early.
         revs.stdout.close()
@@ -873,8 +896,12 @@ def count_branches(cwd=None):
     the union covers both. None when no refs resolve."""
     try:
         out = git(
-            "for-each-ref", "--format=%(refname)",
-            "refs/heads", "refs/remotes", cwd=cwd, quiet=True,
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/heads",
+            "refs/remotes",
+            cwd=cwd,
+            quiet=True,
         )
     except subprocess.CalledProcessError:
         return None
@@ -882,11 +909,11 @@ def count_branches(cwd=None):
     for line in out.splitlines():
         ref = line.strip()
         if ref.startswith("refs/heads/"):
-            names.add(ref[len("refs/heads/"):])
+            names.add(ref[len("refs/heads/") :])
         elif ref.startswith("refs/remotes/"):
             # refs/remotes/<remote>/<branch> — drop the remote and skip the
             # symbolic origin/HEAD pointer so it isn't counted as a branch.
-            _, _, branch = ref[len("refs/remotes/"):].partition("/")
+            _, _, branch = ref[len("refs/remotes/") :].partition("/")
             if branch and branch != "HEAD":
                 names.add(branch)
     return len(names) or None
@@ -951,8 +978,11 @@ def collect_local(cwd=None, suppress_current_user=False):
     log = git(
         # -c core.quotePath=false: keep non-ASCII paths raw so log paths match
         # the `present` set from the HEAD tree below (both feed classify_path).
-        "-c", "core.quotePath=false",
-        "log", "--no-merges", "-M",
+        "-c",
+        "core.quotePath=false",
+        "log",
+        "--no-merges",
+        "-M",
         "--format=%H\x1f%s\x1f%aE\x1f%aN\x1f%aI",
         "--numstat",
         cwd=cwd,
@@ -1246,9 +1276,7 @@ def fetch_user_profiles(logins, token):
         "repositories(privacy: PUBLIC, ownerAffiliations: OWNER) { totalCount }"
     )
     var_decls = ", ".join(f"$l{i}: String!" for i in range(len(unique)))
-    fragments = " ".join(
-        f"u{i}: user(login: $l{i}) {{ {fields} }}" for i in range(len(unique))
-    )
+    fragments = " ".join(f"u{i}: user(login: $l{i}) {{ {fields} }}" for i in range(len(unique)))
     query = f"query({var_decls}) {{ {fragments} }}"
     variables = {f"l{i}": login for i, login in enumerate(unique)}
 
@@ -1332,12 +1360,14 @@ query($owner: String!, $repo: String!, $cursor: String) {
                 continue
             if not oid or not date:
                 continue
-            tags.append({
-                "name": node.get("name") or "",
-                "oid": oid,
-                "date": date,
-                "message": (message.splitlines() or [""])[0],
-            })
+            tags.append(
+                {
+                    "name": node.get("name") or "",
+                    "oid": oid,
+                    "date": date,
+                    "message": (message.splitlines() or [""])[0],
+                }
+            )
         page = refs.get("pageInfo") or {}
         if not page.get("hasNextPage"):
             break
@@ -1362,10 +1392,19 @@ def gh_rest_get(path, token):
 
 # Manifests _frameworks_from_files actually parses (so we only fetch those
 # blobs). tsconfig.json / sentinels are presence-only — covered by the tree.
-_REMOTE_MANIFEST_BASES = frozenset({
-    "package.json", "composer.json", "pyproject.toml", "pipfile",
-    "setup.py", "setup.cfg", "gemfile", "go.mod", "cargo.toml",
-})
+_REMOTE_MANIFEST_BASES = frozenset(
+    {
+        "package.json",
+        "composer.json",
+        "pyproject.toml",
+        "pipfile",
+        "setup.py",
+        "setup.cfg",
+        "gemfile",
+        "go.mod",
+        "cargo.toml",
+    }
+)
 
 
 def _remote_manifest_paths(paths):
@@ -1384,7 +1423,7 @@ def fetch_blob_texts(owner, repo, paths, token):
     out = {}
     paths = list(paths)
     for start in range(0, len(paths), 50):
-        chunk = paths[start:start + 50]
+        chunk = paths[start : start + 50]
         var_decls = ", ".join(f"$p{i}: String!" for i in range(len(chunk)))
         frags = " ".join(
             f"b{i}: object(expression: $p{i}) {{ ... on Blob {{ text }} }}"
@@ -1429,8 +1468,7 @@ def fetch_frameworks_remote(owner, repo, token):
         # GitHub caps the recursive tree at ~100k entries / 7MB; deep manifests
         # past the cap are dropped, so detection may miss frameworks silently.
         print(
-            "  warning: repo tree truncated by GitHub — framework detection "
-            "may be incomplete",
+            "  warning: repo tree truncated by GitHub — framework detection may be incomplete",
             file=sys.stderr,
         )
     paths = [e["path"] for e in (tree.get("tree") or []) if e.get("type") == "blob"]
@@ -1478,8 +1516,9 @@ query($owner: String!, $repo: String!) {
     return top_languages(langs)
 
 
-def _paginate_history(fetch_page, cached_oids, last_n, since,
-                      have_count_baseline, label, skip_first=False):
+def _paginate_history(
+    fetch_page, cached_oids, last_n, since, have_count_baseline, label, skip_first=False
+):
     """Walk a Commit.history connection page by page.
 
     fetch_page(cursor) -> history dict, or None when the anchor object is gone.
@@ -1635,8 +1674,12 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         sys.exit("error: GitHub fetch failed after repeated retries; aborting.")
 
     new_nodes, top_reason = _paginate_history(
-        top_fetch_page, cached_oids, last_n, since,
-        have_count_baseline=len(cached_nodes), label="new",
+        top_fetch_page,
+        cached_oids,
+        last_n,
+        since,
+        have_count_baseline=len(cached_nodes),
+        label="new",
     )
 
     if top_reason == "fetch_failed":
@@ -1660,12 +1703,15 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
     bottom_reason = None
     have_count = len(new_nodes) + len(cached_nodes)
     cached_oldest_date = (
-        ((cached_nodes[-1].get("author") or {}).get("date") or "")[:10]
-        if cached_nodes else ""
+        ((cached_nodes[-1].get("author") or {}).get("date") or "")[:10] if cached_nodes else ""
     )
     if needs_older_fetch(
-        have_count, cached_oldest_date, loaded_complete,
-        commits_filter, since, until,
+        have_count,
+        cached_oldest_date,
+        loaded_complete,
+        commits_filter,
+        since,
+        until,
     ):
         anchor_oid = cached_nodes[-1]["oid"]
 
@@ -1684,8 +1730,13 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
             return obj.get("history") or {"nodes": [], "pageInfo": {}}
 
         older_nodes, bottom_reason = _paginate_history(
-            bottom_fetch_page, cached_oids, last_n, since,
-            have_count_baseline=have_count, label="older", skip_first=True,
+            bottom_fetch_page,
+            cached_oids,
+            last_n,
+            since,
+            have_count_baseline=have_count,
+            label="older",
+            skip_first=True,
         )
         if bottom_reason == "anchor_null":
             print(
@@ -1759,12 +1810,15 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
 
 def apply_filters(commits_meta, line_stats, commits_filter, since, until):
     if since or until:
+
         def in_range(m):
             d = (m.get("iso") or "")[:10]
             return bool(d) and (not since or d >= since) and (not until or d <= until)
+
         commits_meta = {h: m for h, m in commits_meta.items() if in_range(m)}
     if commits_filter:
         epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
         def _ts(h):
             iso = commits_meta[h].get("iso") or ""
             if not iso:
@@ -1773,11 +1827,12 @@ def apply_filters(commits_meta, line_stats, commits_filter, since, until):
                 return datetime.fromisoformat(iso.replace("Z", "+00:00"))
             except ValueError:
                 return epoch
+
         ordered = sorted(commits_meta, key=_ts)
         if commits_filter[0] == "last":
-            keep = set(ordered[-commits_filter[1]:])
+            keep = set(ordered[-commits_filter[1] :])
         else:
-            keep = set(ordered[commits_filter[1]:commits_filter[2]])
+            keep = set(ordered[commits_filter[1] : commits_filter[2]])
         commits_meta = {h: m for h, m in commits_meta.items() if h in keep}
     line_stats = {h: line_stats[h] for h in commits_meta if h in line_stats}
     return commits_meta, line_stats
@@ -1925,8 +1980,7 @@ def build_data(
 
     weeks_sorted = sorted(all_weeks)
     weekly_data = {
-        r["email"]: [weekly_by_author[r["email"]].get(w, 0) for w in weeks_sorted]
-        for r in top
+        r["email"]: [weekly_by_author[r["email"]].get(w, 0) for w in weeks_sorted] for r in top
     }
     daily_data = {r["email"]: dict(daily_by_author[r["email"]]) for r in top}
 
@@ -1946,17 +2000,18 @@ def build_data(
         cl = lang_stats.get(h)
         if cl:
             ftypes = sorted(
-                ([name, NAME_COLOR.get(name, OTHER_COLOR), files]
-                 for name, (_, _, files) in cl.items()),
-                key=lambda x: x[2], reverse=True,
+                (
+                    [name, NAME_COLOR.get(name, OTHER_COLOR), files]
+                    for name, (_, _, files) in cl.items()
+                ),
+                key=lambda x: x[2],
+                reverse=True,
             )
             entry["f"] = ftypes[:4]
         commits_list.append(entry)
 
     date_range = (
-        {"start": min(all_dates), "end": max(all_dates)}
-        if all_dates
-        else {"start": "", "end": ""}
+        {"start": min(all_dates), "end": max(all_dates)} if all_dates else {"start": "", "end": ""}
     )
     return {
         "repoName": repo_name,
@@ -2024,9 +2079,7 @@ def enrich_contributor_profiles(contributors, commits_meta, github_base, token=N
 
     missing = [c for c in contributors if not c.get("login")]
     if missing:
-        sample = _sample_oids_per_email(
-            commits_meta, {c["email"] for c in missing}
-        )
+        sample = _sample_oids_per_email(commits_meta, {c["email"] for c in missing})
         resolved = fetch_logins_for_commits(
             origin.group("owner"), origin.group("repo"), sample, token
         )
@@ -2220,8 +2273,9 @@ def render_markdown(data):
 
 
 def main():
-    (top_n, remote, output, no_open, no_cache, clone,
-     commits_filter, since, until, formats) = parse_args(sys.argv[1:])
+    (top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until, formats) = (
+        parse_args(sys.argv[1:])
+    )
 
     token = None
     if remote:
@@ -2277,13 +2331,9 @@ def main():
         )
     else:
         try:
-            subprocess.check_output(
-                ["git", "rev-parse", "--git-dir"], stderr=subprocess.DEVNULL
-            )
+            subprocess.check_output(["git", "rev-parse", "--git-dir"], stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError:
-            sys.exit(
-                "error: not in a git repository (and no owner/repo argument given)"
-            )
+            sys.exit("error: not in a git repository (and no owner/repo argument given)")
         (
             repo_name,
             github_base,
@@ -2306,9 +2356,7 @@ def main():
         commits_meta, line_stats = apply_filters(
             commits_meta, line_stats, commits_filter, since, until
         )
-        print(
-            f"  filtered: {len(commits_meta)}/{total_before} commits", file=sys.stderr
-        )
+        print(f"  filtered: {len(commits_meta)}/{total_before} commits", file=sys.stderr)
         if not commits_meta:
             sys.exit("error: no commits match the given filters")
         # The merge tally is whole-history (collected before filtering, and

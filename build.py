@@ -45,14 +45,11 @@ def main():
     ):
         if script.count(placeholder) != 1:
             sys.exit(
-                f"error: expected exactly one {name} placeholder "
-                f"({placeholder!r}) in repo-intel.py"
+                f"error: expected exactly one {name} placeholder ({placeholder!r}) in repo-intel.py"
             )
 
-    bundled = (
-        script
-        .replace(TEMPLATE_PLACEHOLDER, f"TEMPLATE = {template!r}")
-        .replace(TECHDATA_PLACEHOLDER, f"TECHDATA = {techdata!r}")
+    bundled = script.replace(TEMPLATE_PLACEHOLDER, f"TEMPLATE = {template!r}").replace(
+        TECHDATA_PLACEHOLDER, f"TECHDATA = {techdata!r}"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(bundled, encoding="utf-8")

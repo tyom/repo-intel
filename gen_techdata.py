@@ -25,8 +25,12 @@ import sys
 import urllib.request
 from pathlib import Path
 
-LANGUAGES_YML = "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/languages.yml"
-VENDOR_YML = "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/vendor.yml"
+LANGUAGES_YML = (
+    "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/languages.yml"
+)
+VENDOR_YML = (
+    "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/vendor.yml"
+)
 
 OUT = Path(__file__).resolve().parent / "techdata.json"
 
@@ -37,16 +41,30 @@ TYPE_RANK = {"programming": 0, "markup": 1, "data": 2, "prose": 3, "": 4}
 # (e.g. `.md` → "GCC Machine Description"). This tiebreaker layer pins the few
 # that users actually notice; the chosen name must be a real Linguist language.
 EXT_OVERRIDE = {
-    "md": "Markdown", "markdown": "Markdown", "h": "C", "m": "Objective-C",
-    "r": "R", "pl": "Perl", "t": "Perl", "l": "Common Lisp", "v": "Verilog",
-    "f": "Fortran", "for": "Fortran", "cls": "Apex", "pro": "Prolog",
-    "ts": "TypeScript", "rs": "Rust", "cs": "C#", "sql": "SQL",
+    "md": "Markdown",
+    "markdown": "Markdown",
+    "h": "C",
+    "m": "Objective-C",
+    "r": "R",
+    "pl": "Perl",
+    "t": "Perl",
+    "l": "Common Lisp",
+    "v": "Verilog",
+    "f": "Fortran",
+    "for": "Fortran",
+    "cls": "Apex",
+    "pro": "Prolog",
+    "ts": "TypeScript",
+    "rs": "Rust",
+    "cs": "C#",
+    "sql": "SQL",
     # Linguist's "Gettext Catalog" (.po/.pot) is type:prose and ships no color,
     # so it'd be dropped and translation catalogs would vanish into "Other".
     # Re-pin them under Linguist's own name with the gold GitHub falls back to
     # for colorless languages (Primer --bgColor-attention-emphasis; see
     # SYNTHETIC_COLORS).
-    "po": "Gettext Catalog", "pot": "Gettext Catalog",
+    "po": "Gettext Catalog",
+    "pot": "Gettext Catalog",
 }
 
 # Generic extensions whose canonical Linguist owner is the colorless "Text"
@@ -59,89 +77,172 @@ EXT_EXCLUDE = {"txt"}
 # Curated web/npm dependency → framework display name. Vercel/Netlify answer a
 # different question (deploy presets), so this is maintained directly.
 CURATED_WEB = {
-    "react": "React", "react-dom": "React", "next": "Next.js",
-    "vue": "Vue", "nuxt": "Nuxt", "@angular/core": "Angular",
-    "svelte": "Svelte", "@sveltejs/kit": "SvelteKit",
-    "solid-js": "SolidJS", "preact": "Preact", "astro": "Astro",
-    "gatsby": "Gatsby", "@remix-run/react": "Remix",
-    "express": "Express", "koa": "Koa", "fastify": "Fastify",
-    "@nestjs/core": "NestJS", "@hapi/hapi": "hapi",
-    "electron": "Electron", "react-native": "React Native",
-    "expo": "Expo", "@ionic/core": "Ionic",
-    "vite": "Vite", "webpack": "webpack", "rollup": "Rollup",
-    "esbuild": "esbuild", "parcel": "Parcel",
-    "tailwindcss": "Tailwind CSS", "bootstrap": "Bootstrap",
-    "@mui/material": "MUI", "@chakra-ui/react": "Chakra UI",
+    "react": "React",
+    "react-dom": "React",
+    "next": "Next.js",
+    "vue": "Vue",
+    "nuxt": "Nuxt",
+    "@angular/core": "Angular",
+    "svelte": "Svelte",
+    "@sveltejs/kit": "SvelteKit",
+    "solid-js": "SolidJS",
+    "preact": "Preact",
+    "astro": "Astro",
+    "gatsby": "Gatsby",
+    "@remix-run/react": "Remix",
+    "express": "Express",
+    "koa": "Koa",
+    "fastify": "Fastify",
+    "@nestjs/core": "NestJS",
+    "@hapi/hapi": "hapi",
+    "electron": "Electron",
+    "react-native": "React Native",
+    "expo": "Expo",
+    "@ionic/core": "Ionic",
+    "vite": "Vite",
+    "webpack": "webpack",
+    "rollup": "Rollup",
+    "esbuild": "esbuild",
+    "parcel": "Parcel",
+    "tailwindcss": "Tailwind CSS",
+    "bootstrap": "Bootstrap",
+    "@mui/material": "MUI",
+    "@chakra-ui/react": "Chakra UI",
     "styled-components": "styled-components",
-    "jest": "Jest", "vitest": "Vitest", "mocha": "Mocha",
-    "playwright": "Playwright", "@playwright/test": "Playwright",
-    "cypress": "Cypress", "puppeteer": "Puppeteer", "testcafe": "TestCafe",
+    "jest": "Jest",
+    "vitest": "Vitest",
+    "mocha": "Mocha",
+    "playwright": "Playwright",
+    "@playwright/test": "Playwright",
+    "cypress": "Cypress",
+    "puppeteer": "Puppeteer",
+    "testcafe": "TestCafe",
     "@testing-library/react": "Testing Library",
     "@testing-library/vue": "Testing Library",
     "@testing-library/dom": "Testing Library",
-    "eslint": "ESLint", "prettier": "Prettier", "@biomejs/biome": "Biome",
+    "eslint": "ESLint",
+    "prettier": "Prettier",
+    "@biomejs/biome": "Biome",
     # Storybook ships across many scoped packages; the framework adapters below
     # cover both apps that embed it and addons that declare it as a peer dep.
-    "storybook": "Storybook", "@storybook/react": "Storybook",
-    "@storybook/vue3": "Storybook", "@storybook/angular": "Storybook",
-    "@storybook/svelte": "Storybook", "@storybook/html": "Storybook",
-    "@storybook/web-components": "Storybook", "@storybook/preact": "Storybook",
+    "storybook": "Storybook",
+    "@storybook/react": "Storybook",
+    "@storybook/vue3": "Storybook",
+    "@storybook/angular": "Storybook",
+    "@storybook/svelte": "Storybook",
+    "@storybook/html": "Storybook",
+    "@storybook/web-components": "Storybook",
+    "@storybook/preact": "Storybook",
     # Monorepo / task runners.
-    "turbo": "Turborepo", "nx": "Nx", "@nx/workspace": "Nx",
+    "turbo": "Turborepo",
+    "nx": "Nx",
+    "@nx/workspace": "Nx",
     # Transpilers.
-    "@swc/core": "SWC", "@babel/core": "Babel",
-    "redux": "Redux", "@reduxjs/toolkit": "Redux", "zustand": "Zustand",
-    "@apollo/client": "Apollo", "graphql": "GraphQL",
-    "@trpc/server": "tRPC", "@trpc/client": "tRPC",
-    "prisma": "Prisma", "@prisma/client": "Prisma",
-    "drizzle-orm": "Drizzle", "typeorm": "TypeORM",
-    "mongoose": "Mongoose", "sequelize": "Sequelize",
-    "three": "three.js", "d3": "D3", "chart.js": "Chart.js",
+    "@swc/core": "SWC",
+    "@babel/core": "Babel",
+    "redux": "Redux",
+    "@reduxjs/toolkit": "Redux",
+    "zustand": "Zustand",
+    "@apollo/client": "Apollo",
+    "graphql": "GraphQL",
+    "@trpc/server": "tRPC",
+    "@trpc/client": "tRPC",
+    "prisma": "Prisma",
+    "@prisma/client": "Prisma",
+    "drizzle-orm": "Drizzle",
+    "typeorm": "TypeORM",
+    "mongoose": "Mongoose",
+    "sequelize": "Sequelize",
+    "three": "three.js",
+    "d3": "D3",
+    "chart.js": "Chart.js",
 }
 
 # Web/JS sentinel files: basename → framework (assigned to the JS/TS bucket).
 CURATED_SENTINELS_JS = [
-    ["next.config.js", "Next.js"], ["next.config.ts", "Next.js"],
-    ["next.config.mjs", "Next.js"], ["nuxt.config.js", "Nuxt"],
-    ["nuxt.config.ts", "Nuxt"], ["svelte.config.js", "Svelte"],
-    ["astro.config.mjs", "Astro"], ["vue.config.js", "Vue"],
-    ["gatsby-config.js", "Gatsby"], ["angular.json", "Angular"],
+    ["next.config.js", "Next.js"],
+    ["next.config.ts", "Next.js"],
+    ["next.config.mjs", "Next.js"],
+    ["nuxt.config.js", "Nuxt"],
+    ["nuxt.config.ts", "Nuxt"],
+    ["svelte.config.js", "Svelte"],
+    ["astro.config.mjs", "Astro"],
+    ["vue.config.js", "Vue"],
+    ["gatsby-config.js", "Gatsby"],
+    ["angular.json", "Angular"],
 ]
 
 # Backend frameworks Vercel/Netlify don't cover — keyed by language, then
 # dependency name → display name. Matched as whole words in manifest text.
 CURATED_BACKEND = {
     "Python": {
-        "django": "Django", "djangorestframework": "Django REST",
-        "flask": "Flask", "fastapi": "FastAPI", "starlette": "Starlette",
-        "tornado": "Tornado", "aiohttp": "aiohttp", "sanic": "Sanic",
-        "pyramid": "Pyramid", "sqlalchemy": "SQLAlchemy", "pydantic": "Pydantic",
-        "celery": "Celery", "scrapy": "Scrapy", "numpy": "NumPy",
-        "pandas": "pandas", "scipy": "SciPy", "scikit-learn": "scikit-learn",
-        "tensorflow": "TensorFlow", "torch": "PyTorch", "keras": "Keras",
-        "transformers": "Transformers", "matplotlib": "Matplotlib",
-        "pytest": "pytest", "click": "Click", "typer": "Typer",
-        "requests": "Requests", "httpx": "HTTPX",
+        "django": "Django",
+        "djangorestframework": "Django REST",
+        "flask": "Flask",
+        "fastapi": "FastAPI",
+        "starlette": "Starlette",
+        "tornado": "Tornado",
+        "aiohttp": "aiohttp",
+        "sanic": "Sanic",
+        "pyramid": "Pyramid",
+        "sqlalchemy": "SQLAlchemy",
+        "pydantic": "Pydantic",
+        "celery": "Celery",
+        "scrapy": "Scrapy",
+        "numpy": "NumPy",
+        "pandas": "pandas",
+        "scipy": "SciPy",
+        "scikit-learn": "scikit-learn",
+        "tensorflow": "TensorFlow",
+        "torch": "PyTorch",
+        "keras": "Keras",
+        "transformers": "Transformers",
+        "matplotlib": "Matplotlib",
+        "pytest": "pytest",
+        "click": "Click",
+        "typer": "Typer",
+        "requests": "Requests",
+        "httpx": "HTTPX",
     },
     "Ruby": {
-        "rails": "Rails", "sinatra": "Sinatra", "hanami": "Hanami",
-        "rspec": "RSpec", "sidekiq": "Sidekiq", "puma": "Puma", "devise": "Devise",
+        "rails": "Rails",
+        "sinatra": "Sinatra",
+        "hanami": "Hanami",
+        "rspec": "RSpec",
+        "sidekiq": "Sidekiq",
+        "puma": "Puma",
+        "devise": "Devise",
     },
     "Go": {
-        "github.com/gin-gonic/gin": "Gin", "github.com/labstack/echo": "Echo",
-        "github.com/gofiber/fiber": "Fiber", "github.com/gorilla/mux": "Gorilla",
-        "gorm.io/gorm": "GORM", "github.com/spf13/cobra": "Cobra",
-        "github.com/go-chi/chi": "chi", "google.golang.org/grpc": "gRPC",
+        "github.com/gin-gonic/gin": "Gin",
+        "github.com/labstack/echo": "Echo",
+        "github.com/gofiber/fiber": "Fiber",
+        "github.com/gorilla/mux": "Gorilla",
+        "gorm.io/gorm": "GORM",
+        "github.com/spf13/cobra": "Cobra",
+        "github.com/go-chi/chi": "chi",
+        "google.golang.org/grpc": "gRPC",
     },
     "Rust": {
-        "actix-web": "Actix Web", "axum": "Axum", "rocket": "Rocket",
-        "warp": "warp", "tokio": "Tokio", "serde": "Serde", "diesel": "Diesel",
-        "tonic": "Tonic", "clap": "clap", "bevy": "Bevy", "tauri": "Tauri",
+        "actix-web": "Actix Web",
+        "axum": "Axum",
+        "rocket": "Rocket",
+        "warp": "warp",
+        "tokio": "Tokio",
+        "serde": "Serde",
+        "diesel": "Diesel",
+        "tonic": "Tonic",
+        "clap": "clap",
+        "bevy": "Bevy",
+        "tauri": "Tauri",
     },
     "PHP": {
-        "laravel/framework": "Laravel", "symfony/symfony": "Symfony",
-        "symfony/framework-bundle": "Symfony", "slim/slim": "Slim",
-        "cakephp/cakephp": "CakePHP", "yiisoft/yii2": "Yii",
+        "laravel/framework": "Laravel",
+        "symfony/symfony": "Symfony",
+        "symfony/framework-bundle": "Symfony",
+        "slim/slim": "Slim",
+        "cakephp/cakephp": "CakePHP",
+        "yiisoft/yii2": "Yii",
     },
 }
 
@@ -197,8 +298,7 @@ def parse_languages_yml(text):
             m = re.match(r'^(?:"([^"]+)"|\'([^\']+)\'|([^:]+)):\s*$', raw)
             if m:
                 name = m.group(1) or m.group(2) or m.group(3)
-                cur = {"type": "", "color": "", "group": "",
-                       "extensions": [], "filenames": []}
+                cur = {"type": "", "color": "", "group": "", "extensions": [], "filenames": []}
                 langs[name] = cur
                 listkey = None
             else:
@@ -206,12 +306,12 @@ def parse_languages_yml(text):
             continue
         if cur is None:
             continue
-        item = re.match(r'^  - (.*)$', raw)
+        item = re.match(r"^  - (.*)$", raw)
         if item and listkey:
             val = item.group(1).strip().strip('"').strip("'")
             cur[listkey].append(val)
             continue
-        prop = re.match(r'^  (\w+):\s*(.*)$', raw)
+        prop = re.match(r"^  (\w+):\s*(.*)$", raw)
         if prop:
             key, val = prop.group(1), prop.group(2).strip()
             if key in ("extensions", "filenames") and val == "":
@@ -261,7 +361,7 @@ def build_language_tables(langs):
         for fn in info.get("filenames", []):
             filename_lang.setdefault(fn.lower(), eff)
     name_color.update(SYNTHETIC_COLORS)  # synthetic buckets Linguist doesn't color;
-                                         # merged before EXT_OVERRIDE so its guard sees them
+    # merged before EXT_OVERRIDE so its guard sees them
     for ext, lang in EXT_OVERRIDE.items():
         if lang in name_color:
             ext_lang[ext] = lang
@@ -273,7 +373,7 @@ def build_language_tables(langs):
 def parse_vendor_yml(text):
     out = []
     for line in text.splitlines():
-        m = re.match(r'^- (.*)$', line)
+        m = re.match(r"^- (.*)$", line)
         if m:
             out.append(m.group(1).strip())
     return out
@@ -283,8 +383,7 @@ def main():
     print("fetching Linguist languages.yml…", file=sys.stderr)
     langs = parse_languages_yml(fetch(LANGUAGES_YML))
     name_color, ext_lang, filename_lang = build_language_tables(langs)
-    print(f"  {len(name_color)} colored languages, {len(ext_lang)} extensions",
-          file=sys.stderr)
+    print(f"  {len(name_color)} colored languages, {len(ext_lang)} extensions", file=sys.stderr)
 
     print("fetching Linguist vendor.yml…", file=sys.stderr)
     vendor = parse_vendor_yml(fetch(VENDOR_YML))
