@@ -7,19 +7,25 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import type { Contributor } from "$types";
   import type { EChartsType, EChartsCoreOption } from "echarts/core";
-  import type { CommitPopover } from "$lib/popovers";
+  import type { AuthorPopover, CommitPopover } from "$lib/popovers";
   import type { PunchPoint } from "$lib/popovers";
   import { echart } from "$lib/actions";
   import { clr, accentWeekend } from "$lib/theme";
 
   let {
+    authorPopover,
     contributor,
+    url,
     index,
     points,
     commitPopover,
     linksEnabled,
   }: {
+    authorPopover: AuthorPopover | undefined;
     contributor: Contributor;
+    // Author-commits URL, or "#" for a local-only repo (no GitHub base) — in
+    // which case the name renders as a non-navigating label (see the markup).
+    url: string;
     index: number;
     points: PunchPoint[];
     commitPopover: CommitPopover | undefined;
@@ -133,7 +139,20 @@
 </script>
 
 <div class="card pattern-card">
-  <div class="chart-title" style="color:{color}">{contributor.name}</div>
+  <!-- The title strip is pointer-events:none so chart clicks pass through; the
+       name link re-enables pointer events for itself so it can carry the same
+       author popover as the table/legends (telling apart same-named identities). -->
+  <div class="chart-title">
+    <a
+      class="title-link"
+      style="color:{color}"
+      href={url === "#" ? undefined : url}
+      target="_blank"
+      rel="noopener"
+      onmouseenter={(e) => authorPopover?.show(index, e.currentTarget)}
+      onmouseleave={() => authorPopover?.hide()}>{contributor.name}</a
+    >
+  </div>
   <div class="ec" class:clickable={linksEnabled} use:echart={{ option, onReady }}></div>
 </div>
 
@@ -141,6 +160,16 @@
   .pattern-card {
     position: relative;
     padding: 14px;
+  }
+  /* Re-enable pointer events for just the name (the title strip disables them so
+     chart hover/clicks pass through), and strip the default anchor styling. */
+  .title-link {
+    pointer-events: auto;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
   .ec {
     width: 100%;

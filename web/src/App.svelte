@@ -11,7 +11,7 @@
     createTimelineTooltip,
     buildPunchPoints,
   } from "$lib/popovers";
-  import { fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
+  import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
   import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
@@ -132,14 +132,16 @@
       </div>
       <div class="section" id="overall">
         <h2>Overall</h2>
-        <OverallCharts {data} />
+        <OverallCharts {data} {authorPopover} />
       </div>
       <div class="section" id="commit-frequency">
         <h2>Commit frequency over time</h2>
         <div class="grid-5">
           {#each data.contributors as c, i (c.email)}
             <ContributorCard
+              {authorPopover}
               contributor={c}
+              url={authorUrl(data, c)}
               index={i}
               weeks={data.weeks}
               weekly={data.weeklyData[c.email]}
@@ -152,7 +154,9 @@
         <div class="scroll-row" use:dragScroll>
           {#each data.contributors as c, i (c.email)}
             <PatternCard
+              {authorPopover}
               contributor={c}
+              url={authorUrl(data, c)}
               index={i}
               points={punchData[c.email] ?? []}
               {commitPopover}

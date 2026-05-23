@@ -7,6 +7,7 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
   import { fmtBytes, weekLabel } from "$lib/format";
+  import type { AuthorPopover } from "$lib/popovers";
   import {
     bgCard,
     bgPrimary,
@@ -20,7 +21,41 @@
   import type { FileSizes, RepoData } from "$types";
   import type { EChartsCoreOption, EChartsType } from "echarts/core";
 
-  let { data }: { data: RepoData } = $props();
+  let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
+    $props();
+
+  // Contributors are aggregated by email, so one person who committed under
+  // several addresses (old work emails, a noreply alias) shows up as several
+  // rows that all share one display name. ECharts keys legend selection by the
+  // series/slice name, so identical names would collapse into a single legend
+  // entry and toggle together. We therefore name every series/slice by its
+  // (unique) email under the hood, hide ECharts' own legend, and render our own
+  // HTML legend below — plain names, one entry per identity, each with the same
+  // author popover the timeline lanes use, so duplicate names are told apart on
+  // hover rather than by cluttering the label. `nameByEmail` maps the email back
+  // to a display name for tooltips.
+  const nameByEmail = $derived(new Map(data.contributors.map((c) => [c.email, c.name] as const)));
+  const dispName = (email: string): string => nameByEmail.get(email) ?? email;
+
+  // Legend rows for the weekly-commits line and the commit-share pie. The pie
+  // gains a non-author "Others" row when the top-N don't cover every commit
+  // (see the pie option); it toggles like the rest but has no popover.
+  type LegendItem = { key: string; name: string; color: string; idx: number };
+  const contribLegend = $derived<LegendItem[]>(
+    data.contributors.map((c, i) => ({ key: c.email, name: c.name, color: clr(i), idx: i })),
+  );
+  // Commits not covered by the top-N contributors → the pie's "Others" slice.
+  // Single source of truth so the slice and its legend row can't drift apart.
+  const othersCommits = $derived(
+    data.totals.commits - data.contributors.reduce((acc, c) => acc + c.commits, 0),
+  );
+  // The pie's legend mirrors its slices: the contributors plus the "Others"
+  // remainder (idx -1 → no popover) when the top-N don't cover every commit.
+  const pieLegend = $derived<LegendItem[]>(
+    othersCommits > 0
+      ? [...contribLegend, { key: "Others", name: "Others", color: borderDefault, idx: -1 }]
+      : contribLegend,
+  );
 
   // Hide the languages treemap entirely when no contributor has a language mix,
   // rather than rendering an empty chart.
@@ -215,29 +250,49 @@
   // languages treemap, which shares this border).
   const tileInnerBorder = "rgba(0, 0, 0, 0.6)";
 
-  // The Reset button shows (via .has-hidden on the card) once the legend has
-  // hidden at least one series, and re-selects everything when clicked.
-  let timelineHasHidden = $state(false);
-  let pieHasHidden = $state(false);
+  // Our HTML legends drive ECharts' (hidden) legend selection by dispatching
+  // legendToggleSelect/legendAllSelect. The chart still owns the source of truth
+  // for what's hidden — we mirror its `selected` map back into Svelte state so a
+  // legend row dims when its series is off, and the Reset button shows once
+  // anything is hidden. Keyed by the series name (the contributor's email, or
+  // "Others" on the pie). A missing key means selected (the initial state).
+  let timelineSel = $state<Record<string, boolean>>({});
+  let pieSel = $state<Record<string, boolean>>({});
   let timelineChart: EChartsType | undefined;
   let pieChart: EChartsType | undefined;
 
-  const someHidden = (p: any): boolean => Object.values(p.selected).some((v) => v === false);
+  const isHidden = (sel: Record<string, boolean>, key: string): boolean => sel[key] === false;
+  const anyHidden = (sel: Record<string, boolean>): boolean =>
+    Object.values(sel).some((v) => v === false);
+  const timelineHasHidden = $derived(anyHidden(timelineSel));
+  const pieHasHidden = $derived(anyHidden(pieSel));
+
   function onTimelineReady(c: EChartsType): void {
     timelineChart = c;
-    c.on("legendselectchanged", (p: any) => (timelineHasHidden = someHidden(p)));
+    c.on("legendselectchanged", (p: any) => (timelineSel = { ...p.selected }));
   }
   function onPieReady(c: EChartsType): void {
     pieChart = c;
-    c.on("legendselectchanged", (p: any) => (pieHasHidden = someHidden(p)));
+    c.on("legendselectchanged", (p: any) => (pieSel = { ...p.selected }));
+  }
+  function toggleTimeline(key: string): void {
+    timelineChart?.dispatchAction({ type: "legendToggleSelect", name: key });
+  }
+  function togglePie(key: string): void {
+    pieChart?.dispatchAction({ type: "legendToggleSelect", name: key });
   }
   function resetTimeline(): void {
     timelineChart?.dispatchAction({ type: "legendAllSelect" });
-    timelineHasHidden = false;
+    timelineSel = {};
   }
   function resetPie(): void {
     pieChart?.dispatchAction({ type: "legendAllSelect" });
-    pieHasHidden = false;
+    pieSel = {};
+  }
+  // Author popover on legend hover, mirroring the timeline lane labels. The
+  // "Others" pie row has idx < 0 (no contributor), so it gets no popover.
+  function legendEnter(e: MouseEvent, idx: number): void {
+    if (idx >= 0) authorPopover?.show(idx, e.currentTarget as Element);
   }
 
   // ECharts' treemap view forces a pointer cursor on every node (and on the root
@@ -328,20 +383,27 @@
   // All five chart options, derived from data (data is set once at mount, but
   // $derived keeps the reads reactive and avoids capturing only the initial value).
   const opts = $derived.by(() => {
-    const { contributors, totals, weeks, weeklyData } = data;
-    // Top-N commit subtotal, so the pie's "Others" slice is the remainder.
-    const subC = contributors.reduce((acc, c) => acc + c.commits, 0);
+    const { contributors, weeks, weeklyData } = data;
 
     const timeline: EChartsCoreOption = {
-      tooltip: { trigger: "axis" },
-      legend: {
-        top: 42,
-        type: "scroll",
-        itemWidth: 10,
-        itemHeight: 10,
-        textStyle: { fontSize: 10 },
+      // Series are named by email (unique), so map back to the display name and
+      // drop zero-commit weeks to keep the stacked tooltip readable.
+      tooltip: {
+        trigger: "axis",
+        formatter: (ps: any) => {
+          const arr = Array.isArray(ps) ? ps : [ps];
+          const head = arr[0]?.axisValueLabel ?? "";
+          const rows = arr
+            .filter((p: any) => p.value)
+            .map((p: any) => `${p.marker}${dispName(p.seriesName)}: ${p.value}`)
+            .join("<br>");
+          return rows ? (head ? `${head}<br>${rows}` : rows) : head;
+        },
       },
-      grid: { left: 36, right: 14, top: 76, bottom: 34 },
+      // ECharts' own legend is hidden; the HTML legend below drives selection.
+      legend: { show: false },
+      // No built-in legend to clear up top now — just the floating title strip.
+      grid: { left: 36, right: 14, top: 38, bottom: 34 },
       xAxis: {
         type: "category",
         boundaryGap: false,
@@ -350,7 +412,7 @@
       },
       yAxis: { type: "value", min: 0 },
       series: contributors.map((c, i) => ({
-        name: c.name,
+        name: c.email,
         type: "line",
         stack: "total",
         smooth: true,
@@ -367,38 +429,30 @@
     };
 
     const pie: EChartsCoreOption = {
-      tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-      legend: {
-        type: "scroll",
-        orient: "vertical",
-        right: 8,
-        top: "middle",
-        itemWidth: 10,
-        itemHeight: 10,
-        textStyle: { fontSize: 11 },
+      // Slices are named by email (unique); map back for the tooltip. "Others"
+      // isn't an email, so dispName falls through to it unchanged.
+      tooltip: {
+        trigger: "item",
+        formatter: (p: any) => `${dispName(p.name)}: ${p.value} (${p.percent}%)`,
       },
+      // ECharts' own legend is hidden; the HTML legend beside it drives selection.
+      legend: { show: false },
       series: [
         {
           type: "pie",
           cursor: "default",
           radius: ["50%", "72%"],
-          center: ["42%", "56%"],
+          center: ["50%", "50%"],
           data: [
             ...contributors.map((c, i) => ({
-              name: c.name,
+              name: c.email,
               value: c.commits,
               itemStyle: { color: clr(i) },
             })),
             // Only show "Others" when the top-N contributors don't cover every
             // commit; otherwise it's a 0-value slice cluttering the legend.
-            ...(totals.commits - subC > 0
-              ? [
-                  {
-                    name: "Others",
-                    value: totals.commits - subC,
-                    itemStyle: { color: borderDefault },
-                  },
-                ]
+            ...(othersCommits > 0
+              ? [{ name: "Others", value: othersCommits, itemStyle: { color: borderDefault } }]
               : []),
           ],
           itemStyle: { borderColor: bgCard, borderWidth: 2 },
@@ -559,15 +613,46 @@
   const filesOption = $derived(activeFilesTab === "head" ? opts.headFiles : opts.histFiles);
 </script>
 
+<!-- One legend entry per identity: a colour swatch + the plain name. Hover
+     opens the same author popover the timeline lanes use (so people committing
+     under several emails are told apart on hover, not in the label); click
+     toggles the matching series via ECharts' hidden legend. -->
+{#snippet legendItem(item: LegendItem, hidden: boolean, toggle: (key: string) => void)}
+  <button
+    type="button"
+    class="legend-item"
+    class:hidden
+    aria-pressed={!hidden}
+    onmouseenter={(e) => legendEnter(e, item.idx)}
+    onmouseleave={() => authorPopover?.hide()}
+    onclick={() => toggle(item.key)}
+  >
+    <span class="legend-dot" style="background:{item.color}"></span>
+    <span class="legend-name">{item.name}</span>
+  </button>
+{/snippet}
+
 <div class="grid-2">
   <div class="card chart-card chart-resettable" class:has-hidden={timelineHasHidden}>
     <div class="chart-title">Weekly commits (stacked)</div>
     <div class="ec" use:echart={{ option: opts.timeline, onReady: onTimelineReady }}></div>
+    <div class="chart-legend chart-legend-row">
+      {#each contribLegend as item (item.key)}
+        {@render legendItem(item, isHidden(timelineSel, item.key), toggleTimeline)}
+      {/each}
+    </div>
     <button class="chart-reset-btn" onclick={resetTimeline}>Reset</button>
   </div>
   <div class="card chart-card chart-resettable" class:has-hidden={pieHasHidden}>
     <div class="chart-title">Commit share</div>
-    <div class="ec" use:echart={{ option: opts.pie, onReady: onPieReady }}></div>
+    <div class="pie-body">
+      <div class="ec ec-pie" use:echart={{ option: opts.pie, onReady: onPieReady }}></div>
+      <div class="chart-legend chart-legend-col">
+        {#each pieLegend as item (item.key)}
+          {@render legendItem(item, isHidden(pieSel, item.key), togglePie)}
+        {/each}
+      </div>
+    </div>
     <button class="chart-reset-btn" onclick={resetPie}>Reset</button>
   </div>
   <div class="card chart-card">
@@ -640,6 +725,72 @@
   }
   .span-2 {
     grid-column: 1 / -1;
+  }
+
+  /* The commit-share donut and its legend sit side by side; the donut takes the
+     remaining width while the legend column scrolls if there are many people. */
+  .pie-body {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .ec-pie {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+  }
+  .chart-legend-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-shrink: 0;
+    max-width: 45%;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  /* The weekly-commits legend wraps as a centered row beneath the chart. */
+  .chart-legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 4px;
+    margin-top: 6px;
+  }
+  /* One legend entry: swatch + plain name. Mirrors the timeline lane labels —
+     hover opens the author popover, click toggles the series (dimmed when off). */
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 2px 5px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-badge);
+    }
+    &.hidden {
+      opacity: 0.4;
+    }
+  }
+  .legend-dot {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+  .legend-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   /* The files treemap hugs the top edge, so the default translucent + blurred
      title strip would smear the tiles beneath it. Give this card's header a flat
