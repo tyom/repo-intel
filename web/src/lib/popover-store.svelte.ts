@@ -77,8 +77,8 @@ export interface TimelineTipState {
   c: TimelineBundle | null;
   author: Contributor | null;
   color: string;
-  // tag
-  tag: Tag | null;
+  // tag — one or more tags sharing the hovered commit (same dot)
+  tags: Tag[];
   // cursor (viewport coords)
   x: number;
   y: number;
@@ -89,7 +89,7 @@ export const timelineTipState: TimelineTipState = $state({
   c: null,
   author: null,
   color: "",
-  tag: null,
+  tags: [],
   x: 0,
   y: 0,
 });
@@ -114,10 +114,15 @@ export function setCommitTip(
   timelineTipState.y = y;
 }
 
-export function setTagTip(tag: Tag, x: number, y: number): void {
-  if (timelineTipState.kind !== "tag" || timelineTipState.tag?.oid !== tag.oid) {
+export function setTagTip(tags: Tag[], x: number, y: number): void {
+  // Tags in a group share a commit (oid), so the first oid + count identify it.
+  if (
+    timelineTipState.kind !== "tag" ||
+    timelineTipState.tags[0]?.oid !== tags[0]?.oid ||
+    timelineTipState.tags.length !== tags.length
+  ) {
     timelineTipState.kind = "tag";
-    timelineTipState.tag = tag;
+    timelineTipState.tags = tags;
   }
   timelineTipState.x = x;
   timelineTipState.y = y;
