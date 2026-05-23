@@ -1231,7 +1231,10 @@ def fetch_user_profiles(logins, token):
     unique = []
     seen = set()
     for login in logins:
-        if login and login not in seen:
+        # Bot accounts (e.g. "github-actions[bot]") are GraphQL Bot nodes, not
+        # User nodes — user(login:) can never resolve them, so querying just
+        # yields a NOT_FOUND error. Skip them rather than emit a noisy warning.
+        if login and login not in seen and not login.endswith("[bot]"):
             seen.add(login)
             unique.append(login)
     if not unique:
@@ -1254,8 +1257,12 @@ def fetch_user_profiles(logins, token):
     except urllib.error.URLError as exc:
         print(f"  warning: profile fetch failed: {exc}", file=sys.stderr)
         return {}
-    if "errors" in body:
-        print(f"  warning: profile fetch errors: {body['errors']}", file=sys.stderr)
+    # NOT_FOUND just means a login no longer resolves (deleted/renamed account);
+    # the per-alias `if not node: continue` below already skips those. Only warn
+    # about other errors (auth, rate limits) that signal a real fetch problem.
+    real_errors = [e for e in body.get("errors", []) if e.get("type") != "NOT_FOUND"]
+    if real_errors:
+        print(f"  warning: profile fetch errors: {real_errors}", file=sys.stderr)
     data = body.get("data") or {}
     out = {}
     for i, login in enumerate(unique):
