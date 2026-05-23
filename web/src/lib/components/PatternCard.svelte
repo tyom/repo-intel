@@ -73,7 +73,10 @@
         inverse: true,
         axisTick: { show: false },
         axisLabel: { fontSize: 9 },
-        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.06)" } },
+        // Faint, uniform row separators. Kept low because the weekend tint
+        // amplifies the Sat/Sun line that sits inside it — at higher opacity it
+        // became the chart's boldest rule, which read as a misplaced divider.
+        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.035)" } },
         // Tint the Sat/Sun rows to match the weekend shading in the contributor
         // heatmap and timeline. Under `inverse: true`, ECharts shifts the
         // splitArea colour array by one band (verified in-browser): color[i]
