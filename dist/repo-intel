@@ -501,11 +501,14 @@ def classify_path(field, present=None, shebang=None):
         return None
     if base in FILENAME_LANG:  # Dockerfile, Makefile, Rakefile, …
         return FILENAME_LANG[base]
-    dot = base.rfind(".")
-    if dot > 0:
+    # Longest dotted suffix first, so multi-part Linguist extensions like
+    # "pc.in" or "blade.php" win over the bare "in"/"php" fallback.
+    dot = base.find(".", 1)
+    while dot > 0:
         lang = EXT_LANG.get(base[dot + 1 :])
         if lang:
             return lang
+        dot = base.find(".", dot + 1)
     if shebang and path in shebang:  # extensionless/unknown but has a #! line
         return shebang[path]
     return OTHER_LANG
