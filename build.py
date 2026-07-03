@@ -49,8 +49,11 @@ def main():
                 f"error: expected exactly one {name} placeholder ({placeholder!r}) in repo-intel.py"
             )
 
-    bundled = script.replace(TEMPLATE_PLACEHOLDER, f"TEMPLATE = {template!r}").replace(
-        TECHDATA_PLACEHOLDER, f"TECHDATA = {techdata!r}"
+    # ascii() (not repr): CPython <=3.9's tokenizer chokes on multi-byte UTF-8
+    # split across its read-buffer boundary on very long lines, so the baked
+    # literals must stay pure ASCII for the dist to run on macOS system python.
+    bundled = script.replace(TEMPLATE_PLACEHOLDER, f"TEMPLATE = {ascii(template)}").replace(
+        TECHDATA_PLACEHOLDER, f"TECHDATA = {ascii(techdata)}"
     )
 
     # Bake the version only when given one (release builds pass the tag via
