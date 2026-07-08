@@ -86,8 +86,48 @@ export function buildTimeline(
   const tagHeight = hasTags ? 16 : 0;
   const tagDotRadius = 3.5;
   const tagHitPad = 4;
+  const prs = D.pullRequests || [];
+  const prMsList = prs.map((p) => {
+    const dt = new Date(p.mergedAt);
+    return isNaN(+dt) ? 0 : +dt - +start;
+  });
+  // When the PR was opened, for the open→merge span; null when unknown.
+  const prOpenMsList = prs.map((p) => {
+    const dt = new Date(p.createdAt);
+    return isNaN(+dt) ? null : +dt - +start;
+  });
+  const hasPrs = prs.length > 0;
+  // Overlapping open→merge spans stack onto separate rows (greedy interval
+  // partitioning by open time, capped — beyond the cap, overflow PRs share the
+  // row that frees up earliest and may overlap again).
+  const prRowCap = 4;
+  const prRowH = 14;
+  const prRow = new Array<number>(prs.length).fill(0);
+  let prRowCount = hasPrs ? 1 : 0;
+  {
+    const startMs = prs.map((_, i) => prOpenMsList[i] ?? prMsList[i]);
+    const order = prs.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
+    const rowEnd: number[] = [];
+    for (const i of order) {
+      let r = rowEnd.findIndex((end) => end <= startMs[i]);
+      if (r === -1) {
+        if (rowEnd.length < prRowCap) {
+          r = rowEnd.length;
+          rowEnd.push(0);
+        } else {
+          r = rowEnd.indexOf(Math.min(...rowEnd));
+        }
+      }
+      prRow[i] = r;
+      rowEnd[r] = Math.max(rowEnd[r], prMsList[i]);
+    }
+    prRowCount = Math.max(1, rowEnd.length);
+  }
+  const prHeight = hasPrs ? prRowCount * prRowH : 0;
+  const prColor = "rgba(137,87,229,0.9)"; // GitHub merged-PR purple
   const histTagStripH = hasTags ? 6 : 0;
-  const histHeight = histBarsHeight + histTagStripH;
+  const histPrStripH = hasPrs ? 6 : 0;
+  const histHeight = histBarsHeight + histTagStripH + histPrStripH;
   const yearsBarHeight = 18;
   const height = contributors.length * laneHeight;
 
@@ -98,13 +138,16 @@ export function buildTimeline(
   const maxPxPerDay = Math.min(10000, maxInnerPx / totalDays);
 
   let labelsHtml = `<div style="height:${axisHeight}px;flex-shrink:0;"></div>`;
+  labelsHtml += `<div class="years-label" style="height:${yearsBarHeight}px;"></div>`;
   contributors.forEach((c, i) => {
     labelsHtml += `<a class="lane-label" data-idx="${i}" href="${authorUrl(D, c)}" target="_blank" rel="noopener" style="height:${laneHeight}px;"><span class="dot" style="background:${clr(i)}"></span><span>${escapeHtml(c.name)}</span></a>`;
   });
   if (hasTags) {
     labelsHtml += `<div style="height:${tagHeight}px;"></div>`;
   }
-  labelsHtml += `<div class="years-label" style="height:${yearsBarHeight}px;"></div>`;
+  if (hasPrs) {
+    labelsHtml += `<div style="height:${prHeight}px;"></div>`;
+  }
   labelsHtml += `<div class="histogram-label" style="height:${histHeight}px;"><button class="timeline-reset-btn" id="timelineReset" type="button">Reset zoom</button></div>`;
   labelsDiv.innerHTML = labelsHtml;
 
@@ -168,10 +211,21 @@ export function buildTimeline(
     innerDiv.appendChild(tagCanvas);
   }
 
+  let prCanvas: HTMLCanvasElement | null = null,
+    prctx: CanvasRenderingContext2D | null = null;
+  if (hasPrs) {
+    prCanvas = document.createElement("canvas");
+    prCanvas.className = "timeline-canvas timeline-tags";
+    prctx = prCanvas.getContext("2d");
+    innerDiv.appendChild(prCanvas);
+  }
+
+  // Sits directly under the month axis (the axis itself is inserted at the top
+  // of innerDiv by rebuildAxis), grouping the time scales together.
   const yearsBar = document.createElement("div");
   yearsBar.className = "timeline-years";
   yearsBar.style.height = yearsBarHeight + "px";
-  innerDiv.appendChild(yearsBar);
+  innerDiv.insertBefore(yearsBar, canvas);
 
   const histCanvas = document.createElement("canvas");
   histCanvas.className = "timeline-canvas timeline-histogram";
@@ -189,12 +243,23 @@ export function buildTimeline(
   let positions: Position[] = [];
   let hoveredHash: string | null = null;
   let hoveredTagIdx: number | null = null;
+  let hoveredPrIdx: number | null = null;
   let selecting = false,
     selStartX = 0,
     selCurX = 0,
     selMoved = false;
   const resetBtn = document.getElementById("timelineReset") as HTMLButtonElement | null;
   let lastRangeText = "";
+
+  // Inner x for a marker (commit square, tag/PR dot), inset from the
+  // timeline's ends by a dot radius so edge graphics aren't clipped in half.
+  // Mid-scroll markers still leave the viewport naturally — only the domain
+  // edges get the safe area.
+  const markerEdgePad = tagDotRadius + 1.5;
+  function markerX(tMs: number): number {
+    const x = (tMs / totalMs) * currentWidth;
+    return Math.max(markerEdgePad, Math.min(currentWidth - markerEdgePad, x));
+  }
 
   function updateResetBtn(): void {
     if (!resetBtn) return;
@@ -403,6 +468,13 @@ export function buildTimeline(
       tagCanvas.style.height = tagHeight + "px";
     }
 
+    if (prCanvas) {
+      prCanvas.width = Math.round(canvasViewW * dpr);
+      prCanvas.height = Math.round(prHeight * dpr);
+      prCanvas.style.width = canvasViewW + "px";
+      prCanvas.style.height = prHeight + "px";
+    }
+
     histCanvas.width = Math.round(canvasViewW * dpr);
     histCanvas.height = Math.round(histHeight * dpr);
     histCanvas.style.width = canvasViewW + "px";
@@ -594,8 +666,19 @@ export function buildTimeline(
     drawYearLines(ctx, height);
 
     if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
-      const tMs = tagMsList[hoveredTagIdx];
-      const xCanvas = (tMs / totalMs) * currentWidth - sl;
+      const xCanvas = markerX(tagMsList[hoveredTagIdx]) - sl;
+      if (xCanvas >= -1 && xCanvas <= canvasViewW + 1) {
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(xCanvas) + 0.5, 0);
+        ctx.lineTo(Math.round(xCanvas) + 0.5, height);
+        ctx.stroke();
+      }
+    }
+
+    if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
+      const xCanvas = markerX(prMsList[hoveredPrIdx]) - sl;
       if (xCanvas >= -1 && xCanvas <= canvasViewW + 1) {
         ctx.strokeStyle = "rgba(255,255,255,0.55)";
         ctx.lineWidth = 1;
@@ -628,7 +711,7 @@ export function buildTimeline(
     for (let i = lo; i < drawables.length; i++) {
       const d = drawables[i];
       if (d.tMs > slotMsHi) break;
-      const xCanvas = (d.tMs / totalMs) * currentWidth - sl;
+      const xCanvas = markerX(d.tMs) - sl;
       if (xCanvas < -8 || xCanvas > canvasViewW + 8) continue;
       const sizeFactor = 0.18 + Math.min(0.82, d.lineLog * d.lineLog * 0.07);
       const w = baseW;
@@ -685,6 +768,7 @@ export function buildTimeline(
     }
 
     drawTags();
+    drawPrs();
     drawHistogram();
     updateRangeText();
     updateResetBtn();
@@ -703,8 +787,7 @@ export function buildTimeline(
     tagctx.lineWidth = 1;
     let hoveredX: number | null = null;
     for (let i = 0; i < tags.length; i++) {
-      const tMs = tagMsList[i];
-      const xCanvas = (tMs / totalMs) * currentWidth - sl;
+      const xCanvas = markerX(tagMsList[i]) - sl;
       if (xCanvas < -tagDotRadius - 2 || xCanvas > canvasViewW + tagDotRadius + 2) continue;
       if (i === hoveredTagIdx) {
         hoveredX = xCanvas;
@@ -716,6 +799,18 @@ export function buildTimeline(
       tagctx.fill();
       tagctx.strokeStyle = "rgba(255,255,255,0.55)";
       tagctx.stroke();
+    }
+    // Continue the guide line of a hovered PR dot through this strip so the
+    // line runs unbroken from the lanes down to the PR strip.
+    if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
+      const xPr = markerX(prMsList[hoveredPrIdx]) - sl;
+      if (xPr >= -1 && xPr <= canvasViewW + 1) {
+        tagctx.beginPath();
+        tagctx.moveTo(Math.round(xPr) + 0.5, 0);
+        tagctx.lineTo(Math.round(xPr) + 0.5, tagHeight);
+        tagctx.strokeStyle = "rgba(255,255,255,0.55)";
+        tagctx.stroke();
+      }
     }
     if (hoveredX !== null) {
       tagctx.beginPath();
@@ -730,6 +825,68 @@ export function buildTimeline(
     }
   }
 
+  function drawPrs(): void {
+    if (!prCanvas || !prctx) return;
+    prctx.setTransform(1, 0, 0, 1, 0, 0);
+    prctx.scale(dpr, dpr);
+    prctx.clearRect(0, 0, canvasViewW, prHeight);
+    drawYearLines(prctx, prHeight);
+    const sl = scrollDiv.scrollLeft;
+    const rowY = (i: number) => prRow[i] * prRowH + prRowH / 2;
+    // Open→merge spans first, so the merge dots draw on top.
+    prctx.lineWidth = 2;
+    for (let i = 0; i < prs.length; i++) {
+      const openMs = prOpenMsList[i];
+      if (openMs == null || openMs >= prMsList[i]) continue;
+      const x0 = markerX(openMs) - sl;
+      const x1 = markerX(prMsList[i]) - sl;
+      if (x1 < 0 || x0 > canvasViewW) continue;
+      prctx.strokeStyle = i === hoveredPrIdx ? "rgba(137,87,229,1)" : "rgba(137,87,229,0.4)";
+      prctx.beginPath();
+      prctx.moveTo(x0, rowY(i));
+      prctx.lineTo(x1, rowY(i));
+      prctx.stroke();
+    }
+    prctx.lineWidth = 1;
+    // Continue the guide line of a hovered tag dot through this strip.
+    if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
+      const xTag = markerX(tagMsList[hoveredTagIdx]) - sl;
+      if (xTag >= -1 && xTag <= canvasViewW + 1) {
+        prctx.beginPath();
+        prctx.moveTo(Math.round(xTag) + 0.5, 0);
+        prctx.lineTo(Math.round(xTag) + 0.5, prHeight);
+        prctx.strokeStyle = "rgba(255,255,255,0.55)";
+        prctx.stroke();
+      }
+    }
+    let hoveredX: number | null = null;
+    for (let i = 0; i < prs.length; i++) {
+      const xCanvas = markerX(prMsList[i]) - sl;
+      if (xCanvas < -tagDotRadius - 2 || xCanvas > canvasViewW + tagDotRadius + 2) continue;
+      if (i === hoveredPrIdx) {
+        hoveredX = xCanvas;
+        continue;
+      }
+      prctx.beginPath();
+      prctx.arc(xCanvas, rowY(i), tagDotRadius, 0, Math.PI * 2);
+      prctx.fillStyle = prColor;
+      prctx.fill();
+      prctx.strokeStyle = "rgba(255,255,255,0.35)";
+      prctx.stroke();
+    }
+    if (hoveredX !== null && hoveredPrIdx != null) {
+      prctx.beginPath();
+      prctx.moveTo(Math.round(hoveredX) + 0.5, 0);
+      prctx.lineTo(Math.round(hoveredX) + 0.5, prHeight);
+      prctx.strokeStyle = "rgba(255,255,255,0.55)";
+      prctx.stroke();
+      prctx.beginPath();
+      prctx.arc(hoveredX, rowY(hoveredPrIdx), tagDotRadius + 0.5, 0, Math.PI * 2);
+      prctx.fillStyle = "rgba(255,255,255,0.98)";
+      prctx.fill();
+    }
+  }
+
   let histogramByPx: Map<number, { total: number; per: number[] }> | null = null;
   let histogramMax = 0;
   let histogramViewW = -1;
@@ -739,7 +896,13 @@ export function buildTimeline(
     histogramByPx = new Map();
     for (let i = 0; i < drawables.length; i++) {
       const d = drawables[i];
-      const px = Math.floor((d.tMs / totalMs) * canvasViewW);
+      // Same edge inset as markerX so edge bars line up with the lane squares.
+      const px = Math.floor(
+        Math.max(
+          markerEdgePad,
+          Math.min(canvasViewW - markerEdgePad, (d.tMs / totalMs) * canvasViewW),
+        ),
+      );
       let b = histogramByPx.get(px);
       if (!b) {
         b = { total: 0, per: new Array(contributors.length).fill(0) };
@@ -817,6 +980,7 @@ export function buildTimeline(
       hctx.strokeRect(bx, 0.5, bw, histBarsHeight - 1);
     }
     drawHistogramTags();
+    drawHistogramPrs();
     drawSelectionPreview();
   }
 
@@ -825,9 +989,17 @@ export function buildTimeline(
     const cy = histBarsHeight + Math.floor(histTagStripH / 2);
     hctx.fillStyle = "rgba(255,255,255,0.95)";
     for (let i = 0; i < tags.length; i++) {
-      const tMs = tagMsList[i];
-      const x = (tMs / totalMs) * canvasViewW;
-      if (x < -1 || x > canvasViewW + 1) continue;
+      const x = Math.max(1, Math.min(canvasViewW - 1, (tagMsList[i] / totalMs) * canvasViewW));
+      hctx.fillRect(Math.round(x) - 1, cy - 1, 2, 2);
+    }
+  }
+
+  function drawHistogramPrs(): void {
+    if (!hasPrs || totalMs <= 0 || canvasViewW <= 0) return;
+    const cy = histBarsHeight + histTagStripH + Math.floor(histPrStripH / 2);
+    hctx.fillStyle = "rgba(137,87,229,0.95)";
+    for (let i = 0; i < prs.length; i++) {
+      const x = Math.max(1, Math.min(canvasViewW - 1, (prMsList[i] / totalMs) * canvasViewW));
       hctx.fillRect(Math.round(x) - 1, cy - 1, 2, 2);
     }
   }
@@ -1144,8 +1316,7 @@ export function buildTimeline(
     let best = -1,
       bestDist = Infinity;
     for (let i = 0; i < tags.length; i++) {
-      const tMs = tagMsList[i];
-      const xCanvas = (tMs / totalMs) * currentWidth - sl;
+      const xCanvas = markerX(tagMsList[i]) - sl;
       const dx = Math.abs(xCanvas - mx);
       if (dx > tagDotRadius + tagHitPad) continue;
       if (dx < bestDist) {
@@ -1192,6 +1363,65 @@ export function buildTimeline(
       const hit = findTagHit(mx);
       if (hit == null) return;
       const url = tagUrl(tags[hit].name);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    });
+  }
+
+  function findPrHit(mx: number, my: number): number | null {
+    if (!prs.length) return null;
+    const sl = scrollDiv.scrollLeft;
+    let best = -1,
+      bestDist = Infinity;
+    for (let i = 0; i < prs.length; i++) {
+      const xCanvas = markerX(prMsList[i]) - sl;
+      const dx = Math.abs(xCanvas - mx);
+      if (dx > tagDotRadius + tagHitPad) continue;
+      // Only dots on the row under the cursor are hit candidates.
+      if (Math.abs(prRow[i] * prRowH + prRowH / 2 - my) > prRowH / 2) continue;
+      if (dx < bestDist) {
+        bestDist = dx;
+        best = i;
+      }
+    }
+    return best === -1 ? null : best;
+  }
+
+  function prUrl(n: number): string | null {
+    if (!D.githubBaseUrl || !n) return null;
+    return `${D.githubBaseUrl}/pull/${n}`;
+  }
+
+  if (prCanvas) {
+    prCanvas.addEventListener("mousedown", (e) => e.stopPropagation());
+    prCanvas.addEventListener("mousemove", (e) => {
+      const rect = prCanvas!.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const hit = findPrHit(mx, e.clientY - rect.top);
+      if (hit !== hoveredPrIdx) {
+        hoveredPrIdx = hit;
+        drawCanvas();
+      }
+      if (hit != null) {
+        prCanvas!.style.cursor = "pointer";
+        tooltip.showPr(prs[hit], e.clientX, e.clientY);
+      } else {
+        prCanvas!.style.cursor = "";
+        tooltip.hide();
+      }
+    });
+    prCanvas.addEventListener("mouseleave", () => {
+      if (hoveredPrIdx !== null) {
+        hoveredPrIdx = null;
+        drawCanvas();
+      }
+      tooltip.hide();
+    });
+    prCanvas.addEventListener("click", (e) => {
+      const rect = prCanvas!.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const hit = findPrHit(mx, e.clientY - rect.top);
+      if (hit == null) return;
+      const url = prUrl(prs[hit].number);
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     });
   }

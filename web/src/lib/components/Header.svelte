@@ -37,12 +37,32 @@
     branchCount != null ? `${fmt(branchCount)} branch${branchCount === 1 ? "" : "es"}` : "",
   );
 
-  // GitHub social counts (top-right line); present only for reachable GitHub repos.
-  const stars = $derived(data.stars ?? null);
-  const watchers = $derived(data.watchers ?? null);
-  const forks = $derived(data.forks ?? null);
-  const hasSocial = $derived(stars != null || watchers != null || forks != null);
+  // GitHub social counts (top-right line); present only for reachable GitHub
+  // repos, so each entry is included only when its count is. Built as a list so
+  // the "·" separators land between whatever subset is present.
   const plural = (n: number, w: string) => `${fmt(n)} ${w}${n === 1 ? "" : "s"}`;
+  const socialItems = $derived.by(() => {
+    const link = (path: string) => (base ? `${base}/${path}` : null);
+    const items: { url: string | null; label: string }[] = [];
+    if (data.stars != null)
+      items.push({ url: link("stargazers"), label: plural(data.stars, "star") });
+    if (data.watchers != null)
+      items.push({ url: link("watchers"), label: plural(data.watchers, "watcher") });
+    if (data.forks != null) items.push({ url: link("forks"), label: plural(data.forks, "fork") });
+    if (data.prCount != null)
+      items.push({
+        url: link("pulls?q=is%3Apr+is%3Amerged"),
+        label: plural(data.prCount, "merged PR"),
+      });
+    if (data.prOpenCount != null)
+      items.push({ url: link("pulls"), label: `${fmt(data.prOpenCount)} open` });
+    if (data.prClosedCount != null)
+      items.push({
+        url: link("pulls?q=is%3Apr+is%3Aclosed+is%3Aunmerged"),
+        label: `${fmt(data.prClosedCount)} closed`,
+      });
+    return items;
+  });
 
   $effect(() => {
     document.title = titleText ? `${titleText} · Repo Intel` : "Repo Intel";
@@ -55,23 +75,12 @@
       <a href={data.githubBaseUrl} target="_blank" rel="noopener noreferrer">{titleText}</a>
     {:else}{titleText}{/if}
   </h1>
-  {#if hasSocial || generatedAgo}
+  {#if socialItems.length || generatedAgo}
     <div class="header-meta">
-      {#if hasSocial}
+      {#if socialItems.length}
+        <!-- prettier-ignore -->
         <div class="social">
-          {#if stars != null}<a
-              href={base ? `${base}/stargazers` : undefined}
-              target="_blank"
-              rel="noopener noreferrer">{plural(stars, "star")}</a
-            >{/if}{#if watchers != null}{" "}·
-            <a
-              href={base ? `${base}/watchers` : undefined}
-              target="_blank"
-              rel="noopener noreferrer">{plural(watchers, "watcher")}</a
-            >{/if}{#if forks != null}{" "}·
-            <a href={base ? `${base}/forks` : undefined} target="_blank" rel="noopener noreferrer"
-              >{plural(forks, "fork")}</a
-            >{/if}
+          {#each socialItems as it, i (it.label)}{#if i > 0}{" · "}{/if}{#if it.url}<a href={it.url} target="_blank" rel="noopener noreferrer">{it.label}</a>{:else}{it.label}{/if}{/each}
         </div>
       {/if}
       {#if generatedAgo}

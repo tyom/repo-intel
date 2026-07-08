@@ -3,7 +3,7 @@
 // which the AuthorPopover / CommitPopover components render. The show/hide call
 // sites in timeline.ts and charts.ts stay unchanged — they still receive an
 // object with the same shape.
-import type { Commit, Contributor, RepoData, Tag } from "$types";
+import type { Commit, Contributor, PullRequest, RepoData, Tag } from "$types";
 import type { TimelineBundle } from "./timeline";
 import {
   setAuthor,
@@ -13,6 +13,7 @@ import {
   setCommitBaseUrl,
   setCommitTip,
   setTagTip,
+  setPrTip,
   clearTip,
 } from "./popover-store.svelte";
 
@@ -68,6 +69,28 @@ export function buildPunchPoints(commits: Commit[]): Record<string, PunchPoint[]
   return out;
 }
 
+// Per-login PR counts (merged from the fetched window, open from the open
+// list), keyed by lowercased GitHub login. Shared by the summary table, the
+// PR-authors card and the author popover.
+export interface PrAuthorCounts {
+  merged: number;
+  open: number;
+}
+
+export function buildPrCountsByLogin(D: RepoData): Map<string, PrAuthorCounts> {
+  const map = new Map<string, PrAuthorCounts>();
+  const add = (login: string, key: keyof PrAuthorCounts) => {
+    if (!login) return;
+    const k = login.toLowerCase();
+    const e = map.get(k) ?? { merged: 0, open: 0 };
+    e[key]++;
+    map.set(k, e);
+  };
+  for (const p of D.pullRequests ?? []) add(p.author, "merged");
+  for (const p of D.openPullRequests ?? []) add(p.author, "open");
+  return map;
+}
+
 export interface CommitPopover {
   show(
     anchor: { x: number; top: number; bottom: number },
@@ -111,6 +134,7 @@ export function createCommitPopover(D: RepoData): CommitPopover {
 export interface TimelineTooltip {
   showCommit(c: TimelineBundle, author: Contributor, color: string, x: number, y: number): void;
   showTag(tags: Tag[], x: number, y: number): void;
+  showPr(pr: PullRequest, x: number, y: number): void;
   hide(): void;
 }
 
@@ -118,6 +142,7 @@ export function createTimelineTooltip(): TimelineTooltip {
   return {
     showCommit: setCommitTip,
     showTag: setTagTip,
+    showPr: setPrTip,
     hide: clearTip,
   };
 }

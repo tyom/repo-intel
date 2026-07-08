@@ -10,9 +10,10 @@
     createCommitPopover,
     createTimelineTooltip,
     buildPunchPoints,
+    buildPrCountsByLogin,
   } from "$lib/popovers";
   import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
-  import { setAuthorTotalCommits } from "$lib/popover-store.svelte";
+  import { setAuthorTotalCommits, setAuthorPrCounts } from "$lib/popover-store.svelte";
   import { registerEchartsTheme } from "$lib/theme";
   import { buildTimeline } from "$lib/timeline";
   import { dragScroll, scrollSpy } from "$lib/actions";
@@ -23,6 +24,7 @@
   import Heatmap from "$components/Heatmap.svelte";
   import ContributorCard from "$components/ContributorCard.svelte";
   import OverallCharts from "$components/OverallCharts.svelte";
+  import PrCards from "$components/PrCards.svelte";
   import PatternCard from "$components/PatternCard.svelte";
   import AuthorPopover from "$components/AuthorPopover.svelte";
   import CommitPopover from "$components/CommitPopover.svelte";
@@ -63,10 +65,16 @@
   // Heatmap view mode, chosen by YearToggles and read by the Heatmap component.
   let heatmapMode = $state<Mode>("current");
 
+  // PR section (cards + nav link) only exists when the collector fetched PRs.
+  const hasPrs = $derived(
+    (data.pullRequests?.length ?? 0) > 0 || (data.openPullRequests?.length ?? 0) > 0,
+  );
+
   // The timeline is still rendered imperatively into the container elements below
   // (it's a hand-drawn canvas); wire it once the static layout is mounted.
   onMount(() => {
     setAuthorTotalCommits(data.totals.commits);
+    setAuthorPrCounts(buildPrCountsByLogin(data));
     authorPopover = createAuthorPopover(data.contributors);
     commitPopover = createCommitPopover(data);
     buildTimeline(data, authorPopover, createTimelineTooltip());
@@ -86,6 +94,7 @@
         <a href="#commit-timeline">Commit timeline</a>
         <a href="#tech">Technologies</a>
         <a href="#summary">Summary</a>
+        {#if hasPrs}<a href="#pull-requests">Pull requests</a>{/if}
         <a href="#overall">Overall</a>
         <a href="#commit-frequency">Commit frequency</a>
         <a href="#patterns">Commit patterns</a>
@@ -132,6 +141,12 @@
       <div class="section" id="summary">
         <Table {data} {authorPopover} />
       </div>
+      {#if hasPrs}
+        <div class="section" id="pull-requests">
+          <h2>Pull requests</h2>
+          <PrCards {data} {authorPopover} />
+        </div>
+      {/if}
       <div class="section" id="overall">
         <h2>Overall</h2>
         <OverallCharts {data} {authorPopover} />

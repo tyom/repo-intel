@@ -1311,5 +1311,95 @@
         "Make"
       ]
     }
+  ],
+  "stars": 128,
+  "watchers": 12,
+  "forks": 23,
+  "prCount": 57,
+  "prOpenCount": 4,
+  "prClosedCount": 9,
+  "pullRequests": [
+    {
+      "number": 12,
+      "title": "Add timeline zoom",
+      "createdAt": "2025-03-11T14:00:00",
+      "mergedAt": "2025-03-14T09:30:00",
+      "author": "arivera"
+    },
+    {
+      "number": 18,
+      "title": "Refactor contributor table",
+      "createdAt": "2025-05-05T09:00:00",
+      "mergedAt": "2025-06-02T15:12:00",
+      "author": "jchen"
+    },
+    {
+      "number": 19,
+      "title": "Punch card chart",
+      "createdAt": "2025-05-10T10:00:00",
+      "mergedAt": "2025-06-20T12:00:00",
+      "author": "ada"
+    },
+    {
+      "number": 24,
+      "title": "Fix heatmap off-by-one on year boundary",
+      "createdAt": "2025-09-18T16:20:00",
+      "mergedAt": "2025-09-19T11:45:00",
+      "author": "arivera"
+    },
+    {
+      "number": 31,
+      "title": "Dark theme polish",
+      "createdAt": "2025-11-10T10:00:00",
+      "mergedAt": "2025-12-08T18:03:00",
+      "author": "msato"
+    },
+    {
+      "number": 33,
+      "title": "Treemap for disk usage",
+      "createdAt": "2025-11-15T09:00:00",
+      "mergedAt": "2025-12-20T17:30:00",
+      "author": "grace"
+    },
+    {
+      "number": 40,
+      "title": "Language sunburst drill-down",
+      "createdAt": "2026-02-10T20:15:00",
+      "mergedAt": "2026-02-11T08:27:00",
+      "author": "jchen"
+    },
+    {
+      "number": 49,
+      "title": "Ship single-file HTML export",
+      "createdAt": "2026-03-28T08:00:00",
+      "mergedAt": "2026-04-30T13:55:00",
+      "author": "arivera"
+    }
+  ],
+  "openPullRequests": [
+    {
+      "number": 21,
+      "title": "Dark-mode print stylesheet",
+      "createdAt": "2025-06-18T09:00:00",
+      "author": "jchen"
+    },
+    {
+      "number": 35,
+      "title": "Export dashboard as PNG",
+      "createdAt": "2025-12-02T11:30:00",
+      "author": "ada"
+    },
+    {
+      "number": 52,
+      "title": "Add GitLab origin support",
+      "createdAt": "2026-03-09T16:45:00",
+      "author": "arivera"
+    },
+    {
+      "number": 55,
+      "title": "Streaming commit parser",
+      "createdAt": "2026-04-28T08:20:00",
+      "author": "grace"
+    }
   ]
 }

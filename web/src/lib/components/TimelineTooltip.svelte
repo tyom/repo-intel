@@ -8,7 +8,7 @@
   import { timelineTipState as tip } from "$lib/popover-store.svelte";
   import { portal, position } from "$lib/actions";
   import { colorAdded, colorDeleted } from "$lib/theme";
-  import { fmt } from "$lib/format";
+  import { fmt, fmtDuration } from "$lib/format";
 
   function dateTime(d: string): [string, string] {
     const dt = new Date(d);
@@ -62,6 +62,14 @@
     const msg = (t.message ?? "").trim();
     return msg && msg !== (t.name ?? "").trim() ? msg : "";
   };
+
+  // --- pr tip ---
+  const pr = $derived(tip.kind === "pr" ? tip.pr : null);
+  const prDT = $derived(pr ? dateTime(pr.mergedAt) : ["", ""]);
+  // How long the PR was open, in the largest sensible unit.
+  const prOpenFor = $derived(
+    pr ? fmtDuration(+new Date(pr.mergedAt) - +new Date(pr.createdAt)) : "",
+  );
 
   // Place at the cursor: 12px to the right, flipped left near the right edge,
   // vertically centred, clamped to the viewport with an 8px margin.
@@ -145,6 +153,15 @@
     {/if}
     <!-- prettier-ignore -->
     <div class="tt-meta">{tagDT[0] || tag0.date || ""}{tagDT[1] ? " " + tagDT[1] : ""}{#if tagOid}{" · "}<span class="tt-hash">{tagOid}</span>{/if}</div>
+  {:else if pr}
+    <div class="tt-author-row">
+      <span class="tt-tag-icon" style="background:#8957e5;border-color:#8957e5"></span><span
+        class="tt-tag-kicker">MERGED PR</span
+      ><span class="tt-tag-name">#{pr.number}</span>
+    </div>
+    <div class="tt-subject">{pr.title || ""}</div>
+    <!-- prettier-ignore -->
+    <div class="tt-meta">{prDT[0]} {prDT[1]}{#if prOpenFor}{" · open for "}{prOpenFor}{/if}{#if pr.author}{" · "}{pr.author}{/if}</div>
   {/if}
 </div>
 

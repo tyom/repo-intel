@@ -102,6 +102,8 @@ ORIGIN_RE = re.compile(
     r"(?P<owner>[^/]+)/(?P<repo>.+?)(?:\.git)?/?$"
 )
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "repo-intel"
+# Newest merged PRs fetched for timeline markers (100 per GraphQL page).
+MAX_PULL_REQUESTS = 1000
 
 
 def parse_iso_instant(s):
@@ -1411,6 +1413,91 @@ query($owner: String!, $repo: String!, $cursor: String) {
     return tags
 
 
+def fetch_pull_requests(github_base, token):
+    """Merged PRs (newest MAX_PULL_REQUESTS), PR counts (merged/open/closed)
+    and the oldest open PRs via GraphQL; (None, None) when unavailable
+    (non-GitHub origin, no token, network error)."""
+    m = ORIGIN_RE.match(github_base or "")
+    host = (m.group("https_host") or m.group("ssh_host")) if m else ""
+    # gh_graphql is hardcoded to api.github.com, so GHE hosts are out.
+    if not m or host != "github.com" or not token:
+        return None, None
+    # orderBy has no MERGED_AT field; CREATED_AT DESC is the proxy for
+    # "newest merged first", which is fine for timeline markers.
+    query = """
+query($owner: String!, $repo: String!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(states: MERGED, first: 100, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+      totalCount
+      pageInfo { hasNextPage endCursor }
+      nodes { number title createdAt mergedAt author { login } }
+    }
+    openPrs: pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
+      totalCount
+      nodes { number title createdAt author { login } }
+    }
+    closedPrs: pullRequests(states: CLOSED) { totalCount }
+  }
+}
+""".strip()
+    variables = {"owner": m.group("owner"), "repo": m.group("repo"), "cursor": None}
+    cursor = None
+    prs = []
+    counts = None
+    while True:
+        variables["cursor"] = cursor
+        try:
+            body = gh_graphql(query, variables, token)
+        except urllib.error.URLError as exc:
+            print(f"  warning: PR fetch failed: {exc}", file=sys.stderr)
+            break
+        if "errors" in body:
+            print(f"  warning: PR fetch GraphQL error: {body['errors']}", file=sys.stderr)
+            break
+        repo = gh_repository(body)
+        pulls = repo.get("pullRequests") or {}
+        if counts is None:
+            # GitHub's CLOSED state excludes merged, so the three are disjoint.
+            open_prs = repo.get("openPrs") or {}
+            counts = {
+                "prCount": pulls.get("totalCount"),
+                "prOpenCount": open_prs.get("totalCount"),
+                "prClosedCount": (repo.get("closedPrs") or {}).get("totalCount"),
+                # ponytail: oldest 100 open PRs only; paginate if a repo ever has more
+                "openPullRequests": [
+                    {
+                        "number": node.get("number"),
+                        "title": node.get("title") or "",
+                        "createdAt": node.get("createdAt") or "",
+                        "author": ((node.get("author") or {}).get("login")) or "",
+                    }
+                    for node in open_prs.get("nodes") or []
+                ],
+            }
+        for node in pulls.get("nodes") or []:
+            merged_at = node.get("mergedAt")
+            if not merged_at:
+                continue
+            prs.append(
+                {
+                    "number": node.get("number"),
+                    "title": node.get("title") or "",
+                    "createdAt": node.get("createdAt") or "",
+                    "mergedAt": merged_at,
+                    # author is null for deleted accounts
+                    "author": ((node.get("author") or {}).get("login")) or "",
+                }
+            )
+        page = pulls.get("pageInfo") or {}
+        if not page.get("hasNextPage") or len(prs) >= MAX_PULL_REQUESTS:
+            break
+        cursor = page.get("endCursor")
+    if counts is None and not prs:
+        return None, None
+    prs.sort(key=lambda p: p["mergedAt"])
+    return prs, counts or {}
+
+
 def gh_rest_get(path, token):
     """GET an api.github.com REST endpoint; returns the parsed JSON body."""
     req = urllib.request.Request(
@@ -2421,9 +2508,14 @@ def main():
 
     enrich_contributor_profiles(data["contributors"], commits_meta, github_base, token=token)
 
-    social = fetch_repo_social(github_base, token or get_github_token())
+    gh_token = token or get_github_token()
+    social = fetch_repo_social(github_base, gh_token)
     if social:
         data.update(social)
+    prs, pr_counts = fetch_pull_requests(github_base, gh_token)
+    if prs is not None:
+        data["pullRequests"] = prs
+        data.update(pr_counts)
 
     multi = len(formats) > 1
     builders = {

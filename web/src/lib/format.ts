@@ -54,6 +54,20 @@ export function relativeTime(iso: string | null | undefined, now: Date = new Dat
   return ago(Math.floor(days / 365), "year");
 }
 
+// Coarse single-unit duration ("42 min" / "18 h" / "12 days" / "4 months"),
+// for PR open-time readouts. "" for negative/NaN input.
+export function fmtDuration(ms: number): string {
+  if (Number.isNaN(ms) || ms < 0) return "";
+  const h = ms / 3600000;
+  if (h < 1) return `${Math.max(1, Math.round(ms / 60000))} min`;
+  if (h < 48) return `${Math.round(h)} h`;
+  const days = Math.round(h / 24);
+  if (days < 90) return `${days} days`;
+  const months = Math.round(days / 30.44);
+  if (months < 24) return `${months} months`;
+  return `${(days / 365.25).toFixed(1).replace(/\.0$/, "")} years`;
+}
+
 // Full timestamp for the hover title behind a relative time. "" when unparseable.
 export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return "";

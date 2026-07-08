@@ -29,6 +29,12 @@
   const commitShare = $derived(
     c && authorMeta.totalCommits ? pct(c.commits, authorMeta.totalCommits) : null,
   );
+  // PR counts matched by login; the line only renders when there's something
+  // to say (no "0 merged PRs" noise for repos without PR data).
+  const prStats = $derived.by(() => {
+    const s = c?.login ? authorMeta.prCounts?.get(c.login.toLowerCase()) : undefined;
+    return s && (s.merged || s.open) ? s : null;
+  });
 
   const counts = $derived(
     c
@@ -108,6 +114,10 @@
     <div class="lp-stats">{fmt(c.commits)} commits{#if commitShare}{" "}<span class="lp-share">({commitShare})</span>{/if} · {c.activeDays} active day{c.activeDays === 1 ? "" : "s"}</div>
     <!-- prettier-ignore -->
     <div class="lp-stats"><span class="add">+{fmt(c.added)}</span> <span class="del">-{fmt(c.deleted)}</span> (net {#if net > 0}<span class="add">+{fmt(net)}</span>{:else if net < 0}<span class="del">{fmt(net)}</span>{:else}{fmt(net)}{/if})</div>
+    {#if prStats}
+      <!-- prettier-ignore -->
+      <div class="lp-stats">{fmt(prStats.merged)} merged PR{prStats.merged === 1 ? "" : "s"}{#if prStats.open}{" · "}{fmt(prStats.open)} open{/if}</div>
+    {/if}
     <div class="lp-period">{c.first} — {c.last}</div>
     <LangBar langs={c.languages} legend />
   {/if}
