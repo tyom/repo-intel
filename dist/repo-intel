@@ -87,6 +87,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 import webbrowser
@@ -796,6 +797,38 @@ def prompt_subset(total):
         sys.stderr.write(f"  invalid choice {choice!r}\n")
 
 
+def prompt_more(cached_count, total):
+    """Ask whether to extend a partial cache with more history.
+
+    Returns (commits_filter, since, until), like prompt_subset.
+    """
+    sys.stderr.write(
+        f"\nCache has {cached_count:,} of {total:,} commits. Fetch additional history?\n"
+        f"  [1] 500 more\n"
+        f"  [2] 1000 more\n"
+        f"  [3] 2000 more\n"
+        f"  [4] All\n"
+        f"  [5] None — keep the cached {cached_count:,}\n"
+    )
+    while True:
+        sys.stderr.write("Choice [5]: ")
+        sys.stderr.flush()
+        try:
+            line = sys.stdin.readline()
+        except KeyboardInterrupt:
+            sys.stderr.write("\nAborted.\n")
+            sys.exit(130)
+        choice = (line.strip() or "5") if line else "5"
+        more = {"1": 500, "2": 1000, "3": 2000}.get(choice)
+        if more:
+            return ("last", cached_count + more), None, None
+        if choice == "4":
+            return None, None, None
+        if choice == "5":
+            return ("last", cached_count), None, None
+        sys.stderr.write(f"  invalid choice {choice!r}\n")
+
+
 def repo_disk_kb(cwd=None):
     """Total on-disk size of git objects (loose + packed) in KB."""
     try:
@@ -1148,6 +1181,56 @@ HISTORY_FETCH_PLAN = (
 )
 
 
+_SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+_status = {"msg": None, "frame": 0}
+_status_lock = threading.Lock()
+_spinner_started = False
+
+
+def _draw_status():
+    # Caller holds _status_lock. The frame glyph + space sits where the
+    # message's two-space indent would be.
+    frame = _SPINNER_FRAMES[_status["frame"] % len(_SPINNER_FRAMES)]
+    print(f"\r\x1b[K{frame} {_status['msg'].lstrip()}", end="", file=sys.stderr, flush=True)
+
+
+def _spinner_loop():
+    while True:
+        time.sleep(0.1)
+        with _status_lock:
+            if _status["msg"] is not None:
+                _status["frame"] += 1
+                _draw_status()
+
+
+def status_line(msg, transient=False):
+    """Stderr progress line. On a TTY, transient lines overwrite in place with
+    an animated spinner and permanent lines replace any leftover transient one;
+    elsewhere (CI, logs) every line prints normally."""
+    global _spinner_started
+    if not sys.stderr.isatty():
+        print(msg, file=sys.stderr)
+        return
+    with _status_lock:
+        if transient:
+            _status["msg"] = msg
+            _draw_status()
+            if not _spinner_started:
+                _spinner_started = True
+                threading.Thread(target=_spinner_loop, daemon=True).start()
+        else:
+            _status["msg"] = None
+            print(f"\r\x1b[K{msg}", file=sys.stderr, flush=True)
+
+
+def clear_status_line():
+    """Erase any transient status_line so the next print starts on a clean line."""
+    if sys.stderr.isatty():
+        with _status_lock:
+            _status["msg"] = None
+            print("\r\x1b[K", end="", file=sys.stderr, flush=True)
+
+
 def fetch_history_page(query, variables, token, label):
     """gh_graphql for a Commit.history page, retrying transient 5xx with
     backoff and a shrinking page size. Raises the last error if all attempts
@@ -1164,10 +1247,7 @@ def fetch_history_page(query, variables, token, label):
             last_exc, detail = exc, f"HTTP {exc.code}"
         except urllib.error.URLError as exc:
             last_exc, detail = exc, str(exc.reason)
-        print(
-            f"  warning: {label} page (size {page_size}) failed: {detail}",
-            file=sys.stderr,
-        )
+        status_line(f"  warning: {label} page (size {page_size}) failed: {detail}")
     raise last_exc
 
 
@@ -1274,10 +1354,10 @@ def fetch_logins_for_commits(owner, repo, oids_by_email, token):
     try:
         body = gh_graphql(query, variables, token)
     except urllib.error.URLError as exc:
-        print(f"  warning: login lookup failed: {exc}", file=sys.stderr)
+        status_line(f"  warning: login lookup failed: {exc}")
         return {}
     if "errors" in body:
-        print(f"  warning: login lookup errors: {body['errors']}", file=sys.stderr)
+        status_line(f"  warning: login lookup errors: {body['errors']}")
     repo_node = gh_repository(body)
     out = {}
     for i, email in aliases:
@@ -1324,14 +1404,14 @@ def fetch_user_profiles(logins, token):
     try:
         body = gh_graphql(query, variables, token)
     except urllib.error.URLError as exc:
-        print(f"  warning: profile fetch failed: {exc}", file=sys.stderr)
+        status_line(f"  warning: profile fetch failed: {exc}")
         return {}
     # NOT_FOUND just means a login no longer resolves (deleted/renamed account);
     # the per-alias `if not node: continue` below already skips those. Only warn
     # about other errors (auth, rate limits) that signal a real fetch problem.
     real_errors = [e for e in body.get("errors", []) if e.get("type") != "NOT_FOUND"]
     if real_errors:
-        print(f"  warning: profile fetch errors: {real_errors}", file=sys.stderr)
+        status_line(f"  warning: profile fetch errors: {real_errors}")
     data = body.get("data") or {}
     out = {}
     for i, login in enumerate(unique):
@@ -1379,10 +1459,10 @@ query($owner: String!, $repo: String!, $cursor: String) {
         try:
             body = gh_graphql(query, {"owner": owner, "repo": repo, "cursor": cursor}, token)
         except urllib.error.URLError as exc:
-            print(f"  warning: tag fetch failed: {exc}", file=sys.stderr)
+            status_line(f"  warning: tag fetch failed: {exc}")
             return tags
         if "errors" in body:
-            print(f"  warning: tag fetch GraphQL error: {body['errors']}", file=sys.stderr)
+            status_line(f"  warning: tag fetch GraphQL error: {body['errors']}")
             return tags
         refs = gh_repository(body).get("refs") or {}
         for node in refs.get("nodes") or []:
@@ -1456,10 +1536,10 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
         try:
             body = gh_graphql(query, variables, token)
         except urllib.error.URLError as exc:
-            print(f"  warning: PR fetch failed: {exc}", file=sys.stderr)
+            status_line(f"  warning: PR fetch failed: {exc}")
             break
         if "errors" in body:
-            print(f"  warning: PR fetch GraphQL error: {body['errors']}", file=sys.stderr)
+            status_line(f"  warning: PR fetch GraphQL error: {body['errors']}")
             break
         repo = gh_repository(body)
         pulls = repo.get("pullRequests") or {}
@@ -1568,7 +1648,7 @@ def fetch_blob_texts(owner, repo, paths, token):
         try:
             body = gh_graphql(query, variables, token)
         except urllib.error.URLError as exc:
-            print(f"  warning: manifest fetch failed: {exc}", file=sys.stderr)
+            status_line(f"  warning: manifest fetch failed: {exc}")
             continue
         node = gh_repository(body)
         for i, p in enumerate(chunk):
@@ -1591,14 +1671,13 @@ def fetch_frameworks_remote(owner, repo, token):
     try:
         tree = gh_rest_get(f"/repos/{owner}/{repo}/git/trees/HEAD?recursive=1", token)
     except urllib.error.URLError as exc:
-        print(f"  warning: framework tree fetch failed: {exc}", file=sys.stderr)
+        status_line(f"  warning: framework tree fetch failed: {exc}")
         return []
     if tree.get("truncated"):
         # GitHub caps the recursive tree at ~100k entries / 7MB; deep manifests
         # past the cap are dropped, so detection may miss frameworks silently.
-        print(
-            "  warning: repo tree truncated by GitHub — framework detection may be incomplete",
-            file=sys.stderr,
+        status_line(
+            "  warning: repo tree truncated by GitHub — framework detection may be incomplete"
         )
     paths = [e["path"] for e in (tree.get("tree") or []) if e.get("type") == "blob"]
     if not paths:
@@ -1631,7 +1710,7 @@ query($owner: String!, $repo: String!) {
     try:
         body = gh_graphql(query, {"owner": owner, "repo": repo}, token)
     except urllib.error.URLError as exc:
-        print(f"  warning: language fetch failed: {exc}", file=sys.stderr)
+        status_line(f"  warning: language fetch failed: {exc}")
         return []
     if "errors" in body:
         return []
@@ -1659,37 +1738,64 @@ def _paginate_history(
     nodes = []
     cursor = None
     dropped_anchor = not skip_first
-    while True:
-        try:
-            history = fetch_page(cursor)
-        except urllib.error.URLError as exc:
-            # A non-retryable HTTP status (401/403/404) is a hard failure, not
-            # a resumable one — propagate it rather than persisting a partial
-            # cache and telling the user to re-run.
-            if isinstance(exc, urllib.error.HTTPError) and exc.code not in RETRYABLE_STATUS:
-                raise
-            print(f"  error: {label} fetch aborted: {exc}", file=sys.stderr)
-            return nodes, "fetch_failed"
-        if history is None:
-            return nodes, "anchor_null"
-        for n in history.get("nodes") or []:
-            if not dropped_anchor:
-                dropped_anchor = True
-                continue
-            if n["oid"] in cached_oids:
-                return nodes, "hit_cache"
-            nodes.append(n)
-            if last_n is not None and len(nodes) + have_count_baseline >= last_n:
-                return nodes, "short_circuit"
-            if since:
-                d = ((n.get("author") or {}).get("date") or "")[:10]
-                if d and d < since:
+    expected = None
+    try:
+        while True:
+            try:
+                history = fetch_page(cursor)
+            except urllib.error.URLError as exc:
+                # A non-retryable HTTP status (401/403/404) is a hard failure, not
+                # a resumable one — propagate it rather than persisting a partial
+                # cache and telling the user to re-run.
+                if isinstance(exc, urllib.error.HTTPError) and exc.code not in RETRYABLE_STATUS:
+                    raise
+                status_line(f"  error: {label} fetch aborted: {exc}")
+                return nodes, "fetch_failed"
+            if history is None:
+                return nodes, "anchor_null"
+            if expected is None and history.get("totalCount"):
+                # How many commits this walk should yield: the whole connection,
+                # minus what we already have (the cached run for the top walk,
+                # just the anchor commit for the older walk), capped by --commits.
+                expected = history["totalCount"] - (1 if skip_first else len(cached_oids))
+                if last_n is not None:
+                    expected = min(expected, last_n - have_count_baseline)
+                if expected <= 0:
+                    expected = None
+            for n in history.get("nodes") or []:
+                if not dropped_anchor:
+                    dropped_anchor = True
+                    continue
+                if n["oid"] in cached_oids:
+                    return nodes, "hit_cache"
+                nodes.append(n)
+                if last_n is not None and len(nodes) + have_count_baseline >= last_n:
                     return nodes, "short_circuit"
-        page = history.get("pageInfo") or {}
-        if not page.get("hasNextPage"):
-            return nodes, "page_end"
-        cursor = page.get("endCursor")
-        print(f"  fetched {len(nodes)} {label} commits…", file=sys.stderr)
+                if since:
+                    d = ((n.get("author") or {}).get("date") or "")[:10]
+                    if d and d < since:
+                        return nodes, "short_circuit"
+            page = history.get("pageInfo") or {}
+            if not page.get("hasNextPage"):
+                return nodes, "page_end"
+            cursor = page.get("endCursor")
+            if expected:
+                # A since-filtered walk stops early (bar ends short) and a
+                # force-push can shrink the connection (bar would overshoot) —
+                # clamp rather than trust the estimate.
+                filled = int(20 * min(len(nodes) / expected, 1.0))
+                msg = (
+                    f"  {'█' * filled}{'░' * (20 - filled)} {len(nodes)}/{expected} {label} commits"
+                    if sys.stderr.isatty()
+                    else f"  fetched {len(nodes)}/{expected} {label} commits…"
+                )
+                status_line(msg, transient=True)
+            else:
+                status_line(f"  fetched {len(nodes)} {label} commits…", transient=True)
+    finally:
+        # Leave the cursor on a clean line so the caller's summary print
+        # doesn't append to a transient progress line.
+        clear_status_line()
 
 
 def collect_remote(slug, token, no_cache=False, commits_filter=None, since=None, until=None):
@@ -1728,6 +1834,7 @@ def collect_remote(slug, token, no_cache=False, commits_filter=None, since=None,
 
     history_block = """
 history(first: $pageSize, after: $cursor) {
+  totalCount
   pageInfo { hasNextPage endCursor }
   nodes {
     oid messageHeadline
@@ -2438,10 +2545,20 @@ def main():
             and sys.stdin.isatty()
             and sys.stderr.isatty()
         ):
-            has_any_cache = not no_cache and cache_path(remote).exists()
-            total = None if has_any_cache else probe_remote_total(owner, repo, token)
-            if total and total > 1000:
-                commits_filter, since, until = prompt_subset(total)
+            # Gate on what load_cache accepts, not bare file existence — a
+            # stale-version or corrupt cache file would otherwise suppress the
+            # prompt while contributing zero commits to the fetch.
+            cached_nodes, cached_complete = ([], False) if no_cache else load_cache(remote)
+            if cached_nodes and not cached_complete:
+                # Partial cache (an earlier subset choice): without asking, a
+                # re-run would silently extend it to the full history.
+                total = probe_remote_total(owner, repo, token)
+                if total and total > len(cached_nodes):
+                    commits_filter, since, until = prompt_more(len(cached_nodes), total)
+            elif not cached_nodes:
+                total = probe_remote_total(owner, repo, token)
+                if total and total > 1000:
+                    commits_filter, since, until = prompt_subset(total)
 
         if use_graphql:
             print(f"Fetching {remote} via GitHub GraphQL…", file=sys.stderr)
@@ -2522,10 +2639,12 @@ def main():
         extras,
     )
 
+    status_line("  enriching contributor profiles…", transient=True)
     enrich_contributor_profiles(data["contributors"], commits_meta, github_base, token=token)
 
     # --remote already resolved the token (possibly to ""); don't re-run gh.
     gh_token = get_github_token() if token is None else token
+    status_line("  fetching repo details and pull requests…", transient=True)
     social = fetch_repo_social(github_base, gh_token)
     if social:
         data.update(social)
@@ -2542,11 +2661,13 @@ def main():
     }
     written = {}
     for fmt in formats:
+        status_line(f"  generating {fmt}…", transient=True)
         content = builders[fmt]()
         out_path = resolve_out_path(output, data, fmt, multi)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(content)
         written[fmt] = out_path
+        clear_status_line()
         print(f"Wrote {out_path}")
 
     print(
