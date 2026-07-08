@@ -156,6 +156,8 @@ export interface RepoData {
   openIssues?: OpenIssue[];
   issueOpenCount?: number | null;
   issueClosedCount?: number | null;
+  /** Max stacked rows in the timeline's PR/issue strips (--lanes flag). */
+  timelineLanes?: number;
   totals: Totals;
   contributors: Contributor[];
   weeks: string[];

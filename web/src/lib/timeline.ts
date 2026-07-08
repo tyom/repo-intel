@@ -115,8 +115,10 @@ export function buildTimeline(
   const hasPrs = prs.length > 0;
   // Overlapping open→merge spans stack onto separate rows (greedy interval
   // partitioning by open time, capped — beyond the cap, overflow PRs share the
-  // row that frees up earliest and may overlap again).
-  const prRowCap = 10;
+  // row that frees up earliest and may overlap again). The collector's --lanes
+  // flag sets the cap.
+  const laneCap = D.timelineLanes || 10;
+  const prRowCap = laneCap;
   const prRowH = 14;
   const prRow = new Array<number>(prs.length).fill(0);
   let prRowCount = 1;
@@ -158,7 +160,7 @@ export function buildTimeline(
   const issueSpanEnd = (i: number) => (issueIsOpen(i) ? totalMs : issueMsList[i]);
   const hasIssues = issues.length > 0;
   // Same greedy row stacking as PRs above.
-  const issueRowCap = 10;
+  const issueRowCap = laneCap;
   const issueRowH = 14;
   const issueRow = new Array<number>(issues.length).fill(0);
   let issueRowCount = 1;

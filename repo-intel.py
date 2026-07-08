@@ -43,6 +43,10 @@ Options:
                       from oldest, half-open like Python slicing).
   --since DATE        Only include commits on or after DATE (YYYY-MM-DD, inclusive).
   --until DATE        Only include commits on or before DATE (YYYY-MM-DD, inclusive).
+  --max-prs N         Max merged PRs to fetch for stats/timeline (default: 1000).
+  --max-issues N      Max closed issues to fetch for stats/timeline (default: 1000).
+  --lanes N           Max stacked rows in the timeline's PR and issue strips
+                      (default: 10).
   -h, --help          Show this help message and exit.
   -v, --version       Show the version and exit.
 
@@ -103,9 +107,12 @@ ORIGIN_RE = re.compile(
     r"(?P<owner>[^/]+)/(?P<repo>.+?)(?:\.git)?/?$"
 )
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "repo-intel"
-# Newest merged PRs / closed issues fetched for timeline markers (100 per GraphQL page).
+# Newest merged PRs / closed issues fetched for timeline markers (100 per
+# GraphQL page); defaults for --max-prs / --max-issues.
 MAX_PULL_REQUESTS = 1000
 MAX_ISSUES = 1000
+# Default for --lanes: stacked rows in the timeline's PR/issue strips.
+DEFAULT_LANES = 10
 
 
 def parse_iso_instant(s):
@@ -241,8 +248,14 @@ def parse_args(argv):
     top_n, remote, output, no_open, no_cache = 10, None, None, False, False
     clone = False
     commits_filter, since, until = None, None, None
+    max_prs, max_issues, lanes = MAX_PULL_REQUESTS, MAX_ISSUES, DEFAULT_LANES
     formats = []
     i = 0
+
+    def parse_positive(val, name):
+        if not val.isdigit() or int(val) <= 0:
+            raise ValueError(f"{name} requires a positive integer (got {val!r})")
+        return int(val)
 
     def take_value(name):
         tok = argv[i]
@@ -302,6 +315,21 @@ def parse_args(argv):
                 parse_formats(val, formats)
                 i += step
                 continue
+            val, step = take_value("--max-prs")
+            if step:
+                max_prs = parse_positive(val, "--max-prs")
+                i += step
+                continue
+            val, step = take_value("--max-issues")
+            if step:
+                max_issues = parse_positive(val, "--max-issues")
+                i += step
+                continue
+            val, step = take_value("--lanes")
+            if step:
+                lanes = parse_positive(val, "--lanes")
+                i += step
+                continue
         except ValueError as exc:
             sys.stderr.write(f"repo-intel: {exc}\n")
             sys.exit(2)
@@ -332,7 +360,21 @@ def parse_args(argv):
         sys.exit(2)
     if not formats:
         formats = ["html"]
-    return (top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until, formats)
+    return (
+        top_n,
+        remote,
+        output,
+        no_open,
+        no_cache,
+        clone,
+        commits_filter,
+        since,
+        until,
+        formats,
+        max_prs,
+        max_issues,
+        lanes,
+    )
 
 
 def login_from_email(email):
@@ -1498,8 +1540,8 @@ query($owner: String!, $repo: String!, $cursor: String) {
     return tags
 
 
-def fetch_pull_requests(github_base, token):
-    """Merged PRs (newest MAX_PULL_REQUESTS), PR counts (merged/open/closed)
+def fetch_pull_requests(github_base, token, limit=MAX_PULL_REQUESTS):
+    """Merged PRs (newest `limit`), PR counts (merged/open/closed)
     and the oldest open PRs via GraphQL; (None, None) when unavailable
     (non-GitHub origin, no token, network error)."""
     m = ORIGIN_RE.match(github_base or "")
@@ -1577,17 +1619,20 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
                 }
             )
         page = pulls.get("pageInfo") or {}
-        if not page.get("hasNextPage") or len(prs) >= MAX_PULL_REQUESTS:
+        if not page.get("hasNextPage") or len(prs) >= limit:
             break
         cursor = page.get("endCursor")
     if counts is None and not prs:
         return None, None
+    # Pages come 100 at a time, so a sub-page limit overshoots — trim the tail
+    # (pages accumulate newest-first, so this keeps the newest `limit`).
+    del prs[limit:]
     prs.sort(key=lambda p: p["mergedAt"])
     return prs, counts or {}
 
 
-def fetch_issues(github_base, token):
-    """Closed issues (newest MAX_ISSUES), issue counts (open/closed) and the
+def fetch_issues(github_base, token, limit=MAX_ISSUES):
+    """Closed issues (newest `limit`), issue counts (open/closed) and the
     oldest open issues via GraphQL; (None, None) when unavailable (non-GitHub
     origin, no token, network error). GraphQL issues already exclude PRs."""
     m = ORIGIN_RE.match(github_base or "")
@@ -1659,11 +1704,13 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
                 }
             )
         page = closed.get("pageInfo") or {}
-        if not page.get("hasNextPage") or len(issues) >= MAX_ISSUES:
+        if not page.get("hasNextPage") or len(issues) >= limit:
             break
         cursor = page.get("endCursor")
     if counts is None and not issues:
         return None, None
+    # Same sub-page-limit trim as fetch_pull_requests.
+    del issues[limit:]
     issues.sort(key=lambda i: i["closedAt"])
     return issues, counts or {}
 
@@ -2601,9 +2648,21 @@ def render_markdown(data):
 
 
 def main():
-    (top_n, remote, output, no_open, no_cache, clone, commits_filter, since, until, formats) = (
-        parse_args(sys.argv[1:])
-    )
+    (
+        top_n,
+        remote,
+        output,
+        no_open,
+        no_cache,
+        clone,
+        commits_filter,
+        since,
+        until,
+        formats,
+        max_prs,
+        max_issues,
+        lanes,
+    ) = parse_args(sys.argv[1:])
 
     token = None
     if remote:
@@ -2731,14 +2790,15 @@ def main():
     social = fetch_repo_social(github_base, gh_token)
     if social:
         data.update(social)
-    prs, pr_counts = fetch_pull_requests(github_base, gh_token)
+    prs, pr_counts = fetch_pull_requests(github_base, gh_token, limit=max_prs)
     if prs is not None:
         data["pullRequests"] = prs
         data.update(pr_counts)
-    issues, issue_counts = fetch_issues(github_base, gh_token)
+    issues, issue_counts = fetch_issues(github_base, gh_token, limit=max_issues)
     if issues is not None:
         data["issues"] = issues
         data.update(issue_counts)
+    data["timelineLanes"] = lanes
 
     multi = len(formats) > 1
     builders = {
