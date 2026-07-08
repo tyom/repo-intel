@@ -5,10 +5,16 @@
   // carry the live {x, y} (the action ignores them; their presence is what makes
   // Svelte re-run update() on each mousemove). Svelte port of showTooltipFor /
   // showTagTooltip's innerHTML in lib/timeline.ts.
+  import type { Issue, PullRequest } from "$types";
   import { timelineTipState as tip } from "$lib/popover-store.svelte";
   import { portal, position } from "$lib/actions";
   import { colorAdded, colorDeleted } from "$lib/theme";
   import { fmt, fmtDuration } from "$lib/format";
+
+  // Open PR/issue ages are measured to generation time, not view time — the
+  // dashboard is a static snapshot (same rule as the PR/issue cards).
+  let { generatedAt }: { generatedAt?: string } = $props();
+  const asOf = $derived(generatedAt ? +new Date(generatedAt) : Date.now());
 
   function dateTime(d: string): [string, string] {
     const dt = new Date(d);
@@ -64,11 +70,24 @@
   };
 
   // --- pr tip ---
+  // A still-open PR has no mergedAt: date shown is the open event, age runs
+  // to generation time.
   const pr = $derived(tip.kind === "pr" ? tip.pr : null);
-  const prDT = $derived(pr ? dateTime(pr.mergedAt) : ["", ""]);
-  // How long the PR was open, in the largest sensible unit.
+  const prMergedAt = $derived(pr ? ((pr as PullRequest).mergedAt ?? null) : null);
+  const prDT = $derived(pr ? dateTime(prMergedAt ?? pr.createdAt) : ["", ""]);
+  // How long the PR was (or has been) open, in the largest sensible unit.
   const prOpenFor = $derived(
-    pr ? fmtDuration(+new Date(pr.mergedAt) - +new Date(pr.createdAt)) : "",
+    pr ? fmtDuration((prMergedAt ? +new Date(prMergedAt) : asOf) - +new Date(pr.createdAt)) : "",
+  );
+
+  // --- issue tip --- (same open/closed split as the PR tip)
+  const issue = $derived(tip.kind === "issue" ? tip.issue : null);
+  const issueClosedAt = $derived(issue ? ((issue as Issue).closedAt ?? null) : null);
+  const issueDT = $derived(issue ? dateTime(issueClosedAt ?? issue.createdAt) : ["", ""]);
+  const issueOpenFor = $derived(
+    issue
+      ? fmtDuration((issueClosedAt ? +new Date(issueClosedAt) : asOf) - +new Date(issue.createdAt))
+      : "",
   );
 
   // Place at the cursor: 12px to the right, flipped left near the right edge,
@@ -157,14 +176,29 @@
     <div class="tt-author-row">
       <span
         class="tt-tag-icon"
-        style="background:rgb(var(--accent-pr));border-color:rgb(var(--accent-pr))"
-      ></span><span class="tt-tag-kicker">MERGED PR</span><span class="tt-tag-name"
-        >#{pr.number}</span
+        style="background:{prMergedAt
+          ? 'rgb(var(--accent-pr))'
+          : 'transparent'};border-color:rgb(var(--accent-pr))"
+      ></span><span class="tt-tag-kicker">{prMergedAt ? "MERGED PR" : "OPEN PR"}</span><span
+        class="tt-tag-name">#{pr.number}</span
       >
     </div>
     <div class="tt-subject">{pr.title || ""}</div>
     <!-- prettier-ignore -->
-    <div class="tt-meta">{prDT[0]} {prDT[1]}{#if prOpenFor}{" · open for "}{prOpenFor}{/if}{#if pr.author}{" · "}{pr.author}{/if}</div>
+    <div class="tt-meta">{#if !prMergedAt}{"opened "}{/if}{prDT[0]} {prDT[1]}{#if prOpenFor}{" · open for "}{prOpenFor}{/if}{#if pr.author}{" · "}{pr.author}{/if}</div>
+  {:else if issue}
+    <div class="tt-author-row">
+      <span
+        class="tt-tag-icon"
+        style="background:{issueClosedAt
+          ? 'rgb(var(--accent-issue))'
+          : 'transparent'};border-color:rgb(var(--accent-issue))"
+      ></span><span class="tt-tag-kicker">{issueClosedAt ? "CLOSED ISSUE" : "OPEN ISSUE"}</span
+      ><span class="tt-tag-name">#{issue.number}</span>
+    </div>
+    <div class="tt-subject">{issue.title || ""}</div>
+    <!-- prettier-ignore -->
+    <div class="tt-meta">{#if !issueClosedAt}{"opened "}{/if}{issueDT[0]} {issueDT[1]}{#if issueOpenFor}{" · open for "}{issueOpenFor}{/if}{#if issue.author}{" · "}{issue.author}{/if}</div>
   {/if}
 </div>
 

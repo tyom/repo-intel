@@ -61,6 +61,13 @@
         url: link("pulls?q=is%3Apr+is%3Aclosed+is%3Aunmerged"),
         label: plural(data.prClosedCount, "closed PR"),
       });
+    if (data.issueOpenCount != null)
+      items.push({ url: link("issues"), label: plural(data.issueOpenCount, "open issue") });
+    if (data.issueClosedCount != null)
+      items.push({
+        url: link("issues?q=is%3Aissue+is%3Aclosed"),
+        label: plural(data.issueClosedCount, "closed issue"),
+      });
     return items;
   });
 

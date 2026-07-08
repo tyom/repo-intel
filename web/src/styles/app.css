@@ -27,6 +27,8 @@
   --accent-weekend: 240, 170, 90;
   /* merged-PR purple (GitHub), raw r,g,b — alpha applied per use */
   --accent-pr: 137, 87, 229;
+  /* issue green (GitHub), raw r,g,b — alpha applied per use */
+  --accent-issue: 63, 185, 80;
   /* Chart series palette (read by theme.ts via --c1..--c10). */
   --c1: #818cf8;
   --c2: #fb923c;

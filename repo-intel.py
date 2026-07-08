@@ -103,8 +103,9 @@ ORIGIN_RE = re.compile(
     r"(?P<owner>[^/]+)/(?P<repo>.+?)(?:\.git)?/?$"
 )
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "repo-intel"
-# Newest merged PRs fetched for timeline markers (100 per GraphQL page).
+# Newest merged PRs / closed issues fetched for timeline markers (100 per GraphQL page).
 MAX_PULL_REQUESTS = 1000
+MAX_ISSUES = 1000
 
 
 def parse_iso_instant(s):
@@ -1585,6 +1586,88 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
     return prs, counts or {}
 
 
+def fetch_issues(github_base, token):
+    """Closed issues (newest MAX_ISSUES), issue counts (open/closed) and the
+    oldest open issues via GraphQL; (None, None) when unavailable (non-GitHub
+    origin, no token, network error). GraphQL issues already exclude PRs."""
+    m = ORIGIN_RE.match(github_base or "")
+    host = (m.group("https_host") or m.group("ssh_host")) if m else ""
+    if not m or host != "github.com" or not token:
+        return None, None
+    # orderBy has no CLOSED_AT field; CREATED_AT DESC is the proxy for
+    # "newest closed first", which is fine for timeline markers.
+    query = """
+query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
+  repository(owner: $owner, name: $repo) {
+    issues(states: CLOSED, first: 100, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+      totalCount
+      pageInfo { hasNextPage endCursor }
+      nodes { number title createdAt closedAt author { login } }
+    }
+    openIssues: issues(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) @include(if: $withCounts) {
+      totalCount
+      nodes { number title createdAt author { login } }
+    }
+  }
+}
+""".strip()
+    variables = {"owner": m.group("owner"), "repo": m.group("repo")}
+    cursor = None
+    issues = []
+    counts = None
+    while True:
+        variables["cursor"] = cursor
+        variables["withCounts"] = counts is None
+        try:
+            body = gh_graphql(query, variables, token)
+        except urllib.error.URLError as exc:
+            status_line(f"  warning: issue fetch failed: {exc}")
+            break
+        if "errors" in body:
+            status_line(f"  warning: issue fetch GraphQL error: {body['errors']}")
+            break
+        repo = gh_repository(body)
+        closed = repo.get("issues") or {}
+        if counts is None:
+            open_issues = repo.get("openIssues") or {}
+            counts = {
+                "issueClosedCount": closed.get("totalCount"),
+                "issueOpenCount": open_issues.get("totalCount"),
+                # ponytail: oldest 100 open issues only; paginate if a repo ever has more
+                "openIssues": [
+                    {
+                        "number": node.get("number"),
+                        "title": node.get("title") or "",
+                        "createdAt": node.get("createdAt") or "",
+                        "author": ((node.get("author") or {}).get("login")) or "",
+                    }
+                    for node in open_issues.get("nodes") or []
+                ],
+            }
+        for node in closed.get("nodes") or []:
+            closed_at = node.get("closedAt")
+            if not closed_at:
+                continue
+            issues.append(
+                {
+                    "number": node.get("number"),
+                    "title": node.get("title") or "",
+                    "createdAt": node.get("createdAt") or "",
+                    "closedAt": closed_at,
+                    # author is null for deleted accounts
+                    "author": ((node.get("author") or {}).get("login")) or "",
+                }
+            )
+        page = closed.get("pageInfo") or {}
+        if not page.get("hasNextPage") or len(issues) >= MAX_ISSUES:
+            break
+        cursor = page.get("endCursor")
+    if counts is None and not issues:
+        return None, None
+    issues.sort(key=lambda i: i["closedAt"])
+    return issues, counts or {}
+
+
 def gh_rest_get(path, token):
     """GET an api.github.com REST endpoint; returns the parsed JSON body."""
     req = urllib.request.Request(
@@ -2644,7 +2727,7 @@ def main():
 
     # --remote already resolved the token (possibly to ""); don't re-run gh.
     gh_token = get_github_token() if token is None else token
-    status_line("  fetching repo details and pull requests…", transient=True)
+    status_line("  fetching repo details, pull requests and issues…", transient=True)
     social = fetch_repo_social(github_base, gh_token)
     if social:
         data.update(social)
@@ -2652,6 +2735,10 @@ def main():
     if prs is not None:
         data["pullRequests"] = prs
         data.update(pr_counts)
+    issues, issue_counts = fetch_issues(github_base, gh_token)
+    if issues is not None:
+        data["issues"] = issues
+        data.update(issue_counts)
 
     multi = len(formats) > 1
     builders = {

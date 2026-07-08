@@ -150,6 +150,12 @@ export function prPageUrl(D: RepoData, n: number): string | null {
   return base && n ? `${base}/pull/${n}` : null;
 }
 
+// GitHub page for an issue, or null when there's no GitHub base.
+export function issuePageUrl(D: RepoData, n: number): string | null {
+  const base = repoBase(D);
+  return base && n ? `${base}/issues/${n}` : null;
+}
+
 // Link to a contributor's commits on the repo's default branch, or '#' for a
 // local-only repo with no GitHub base.
 export function authorUrl(D: RepoData, c: Contributor): string {
