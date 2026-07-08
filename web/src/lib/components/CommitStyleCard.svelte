@@ -9,7 +9,7 @@
   // footprint); colour is the person's identity colour (clr).
   /* eslint-disable @typescript-eslint/no-explicit-any */
   import { echart } from "$lib/actions";
-  import { escapeHtml } from "$lib/format";
+  import { escapeHtml, median } from "$lib/format";
   import { humanContribRows } from "$lib/chart-helpers";
   import { borderDefault, clr, textMuted, textPrimary } from "$lib/theme";
   import type { RepoData } from "$types";
@@ -22,12 +22,6 @@
     // linear scale would crush everyone into one corner.
     // Per-commit churn comes from data.commits (keyed by author email c.e), which
     // holds every commit by the displayed contributors.
-    const median = (xs: number[]): number => {
-      if (!xs.length) return 0;
-      const s = [...xs].sort((a, b) => a - b);
-      const m = s.length >> 1;
-      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-    };
     const churnByEmail = new Map<string, number[]>();
     for (const k of data.commits) {
       const arr = churnByEmail.get(k.e);

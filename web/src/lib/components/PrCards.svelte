@@ -6,15 +6,15 @@
   import type { RepoData } from "$types";
   import type { AuthorPopover } from "$lib/popovers";
   import { clr } from "$lib/theme";
-  import { fmt, fmtDuration } from "$lib/format";
+  import { fmt, fmtDuration, median, prPageUrl, repoBase } from "$lib/format";
 
   let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
     $props();
 
   const merged = $derived(data.pullRequests ?? []);
   const open = $derived(data.openPullRequests ?? []);
-  const base = $derived(data.githubBaseUrl ? data.githubBaseUrl.replace(/\/$/, "") : null);
-  const prUrl = (n: number) => (base ? `${base}/pull/${n}` : undefined);
+  const base = $derived(repoBase(data));
+  const prUrl = (n: number) => prPageUrl(data, n);
 
   // The merged list is a window (newest MAX_PULL_REQUESTS); say so when the
   // repo has more, so the per-author counts and merge times read honestly.
@@ -62,16 +62,13 @@
       .map((pr) => ({ pr, ms: +new Date(pr.mergedAt) - +new Date(pr.createdAt) }))
       .filter((d) => !Number.isNaN(d.ms) && d.ms >= 0),
   );
-  const medianMs = $derived.by(() => {
-    if (!durations.length) return 0;
-    const s = durations.map((d) => d.ms).sort((a, b) => a - b);
-    const m = s.length >> 1;
-    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-  });
+  // Sorted ascending once; the median reads the middle, the slowest the tail.
+  const byMs = $derived([...durations].sort((a, b) => a.ms - b.ms));
+  const medianMs = $derived(median(byMs.map((d) => d.ms)));
   const avgMs = $derived(
     durations.length ? durations.reduce((t, d) => t + d.ms, 0) / durations.length : 0,
   );
-  const slowest = $derived([...durations].sort((a, b) => b.ms - a.ms).slice(0, 5));
+  const slowest = $derived(byMs.slice(-5).reverse());
 
   // --- stalled open PRs ---
   // Age is measured to generation time, not view time: the dashboard is a
@@ -207,7 +204,7 @@
     .bar {
       height: 100%;
       border-radius: 4px;
-      background: #8957e5; /* GitHub merged-PR purple, matches the timeline markers */
+      background: rgb(var(--accent-pr));
     }
   }
 

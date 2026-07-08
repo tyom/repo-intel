@@ -155,9 +155,12 @@
     <div class="tt-meta">{tagDT[0] || tag0.date || ""}{tagDT[1] ? " " + tagDT[1] : ""}{#if tagOid}{" · "}<span class="tt-hash">{tagOid}</span>{/if}</div>
   {:else if pr}
     <div class="tt-author-row">
-      <span class="tt-tag-icon" style="background:#8957e5;border-color:#8957e5"></span><span
-        class="tt-tag-kicker">MERGED PR</span
-      ><span class="tt-tag-name">#{pr.number}</span>
+      <span
+        class="tt-tag-icon"
+        style="background:rgb(var(--accent-pr));border-color:rgb(var(--accent-pr))"
+      ></span><span class="tt-tag-kicker">MERGED PR</span><span class="tt-tag-name"
+        >#{pr.number}</span
+      >
     </div>
     <div class="tt-subject">{pr.title || ""}</div>
     <!-- prettier-ignore -->

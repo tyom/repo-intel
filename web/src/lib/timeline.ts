@@ -3,8 +3,8 @@
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
 import type { Commit, RepoData, Tag } from "$types";
-import { clr, gridLine, selectionFill, selectionStroke, accentWeekend } from "./theme";
-import { authorUrl, escapeHtml } from "./format";
+import { clr, gridLine, selectionFill, selectionStroke, accentWeekend, accentPr } from "./theme";
+import { authorUrl, escapeHtml, prPageUrl } from "./format";
 import type { AuthorPopover, TimelineTooltip } from "./popovers";
 
 // A day+author commit bundle (one or more commits collapsed onto one square),
@@ -103,7 +103,7 @@ export function buildTimeline(
   const prRowCap = 4;
   const prRowH = 14;
   const prRow = new Array<number>(prs.length).fill(0);
-  let prRowCount = hasPrs ? 1 : 0;
+  let prRowCount = 1;
   {
     const startMs = prs.map((_, i) => prOpenMsList[i] ?? prMsList[i]);
     const order = prs.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
@@ -124,7 +124,7 @@ export function buildTimeline(
     prRowCount = Math.max(1, rowEnd.length);
   }
   const prHeight = hasPrs ? prRowCount * prRowH : 0;
-  const prColor = "rgba(137,87,229,0.9)"; // GitHub merged-PR purple
+  const prColor = `rgba(${accentPr},0.9)`;
   const histTagStripH = hasTags ? 6 : 0;
   const histPrStripH = hasPrs ? 6 : 0;
   const histHeight = histBarsHeight + histTagStripH + histPrStripH;
@@ -256,6 +256,17 @@ export function buildTimeline(
   // Mid-scroll markers still leave the viewport naturally — only the domain
   // edges get the safe area.
   const markerEdgePad = tagDotRadius + 1.5;
+  // White vertical guide line through a strip at inner-x `x` (already
+  // scroll-adjusted); skipped when x is outside the viewport.
+  function drawGuide(c: CanvasRenderingContext2D, x: number, h: number): void {
+    if (x < -1 || x > canvasViewW + 1) return;
+    c.strokeStyle = "rgba(255,255,255,0.55)";
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(Math.round(x) + 0.5, 0);
+    c.lineTo(Math.round(x) + 0.5, h);
+    c.stroke();
+  }
   function markerX(tMs: number): number {
     const x = (tMs / totalMs) * currentWidth;
     return Math.max(markerEdgePad, Math.min(currentWidth - markerEdgePad, x));
@@ -666,27 +677,11 @@ export function buildTimeline(
     drawYearLines(ctx, height);
 
     if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
-      const xCanvas = markerX(tagMsList[hoveredTagIdx]) - sl;
-      if (xCanvas >= -1 && xCanvas <= canvasViewW + 1) {
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(Math.round(xCanvas) + 0.5, 0);
-        ctx.lineTo(Math.round(xCanvas) + 0.5, height);
-        ctx.stroke();
-      }
+      drawGuide(ctx, markerX(tagMsList[hoveredTagIdx]) - sl, height);
     }
 
     if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
-      const xCanvas = markerX(prMsList[hoveredPrIdx]) - sl;
-      if (xCanvas >= -1 && xCanvas <= canvasViewW + 1) {
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(Math.round(xCanvas) + 0.5, 0);
-        ctx.lineTo(Math.round(xCanvas) + 0.5, height);
-        ctx.stroke();
-      }
+      drawGuide(ctx, markerX(prMsList[hoveredPrIdx]) - sl, height);
     }
 
     const slotMsLo = (sl / currentWidth) * totalMs - 86400000;
@@ -803,21 +798,10 @@ export function buildTimeline(
     // Continue the guide line of a hovered PR dot through this strip so the
     // line runs unbroken from the lanes down to the PR strip.
     if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
-      const xPr = markerX(prMsList[hoveredPrIdx]) - sl;
-      if (xPr >= -1 && xPr <= canvasViewW + 1) {
-        tagctx.beginPath();
-        tagctx.moveTo(Math.round(xPr) + 0.5, 0);
-        tagctx.lineTo(Math.round(xPr) + 0.5, tagHeight);
-        tagctx.strokeStyle = "rgba(255,255,255,0.55)";
-        tagctx.stroke();
-      }
+      drawGuide(tagctx, markerX(prMsList[hoveredPrIdx]) - sl, tagHeight);
     }
     if (hoveredX !== null) {
-      tagctx.beginPath();
-      tagctx.moveTo(Math.round(hoveredX) + 0.5, 0);
-      tagctx.lineTo(Math.round(hoveredX) + 0.5, tagHeight);
-      tagctx.strokeStyle = "rgba(255,255,255,0.55)";
-      tagctx.stroke();
+      drawGuide(tagctx, hoveredX, tagHeight);
       tagctx.beginPath();
       tagctx.arc(hoveredX, cy, tagDotRadius + 0.5, 0, Math.PI * 2);
       tagctx.fillStyle = "rgba(255,255,255,0.98)";
@@ -841,7 +825,7 @@ export function buildTimeline(
       const x0 = markerX(openMs) - sl;
       const x1 = markerX(prMsList[i]) - sl;
       if (x1 < 0 || x0 > canvasViewW) continue;
-      prctx.strokeStyle = i === hoveredPrIdx ? "rgba(137,87,229,1)" : "rgba(137,87,229,0.4)";
+      prctx.strokeStyle = i === hoveredPrIdx ? `rgba(${accentPr},1)` : `rgba(${accentPr},0.4)`;
       prctx.beginPath();
       prctx.moveTo(x0, rowY(i));
       prctx.lineTo(x1, rowY(i));
@@ -850,14 +834,7 @@ export function buildTimeline(
     prctx.lineWidth = 1;
     // Continue the guide line of a hovered tag dot through this strip.
     if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
-      const xTag = markerX(tagMsList[hoveredTagIdx]) - sl;
-      if (xTag >= -1 && xTag <= canvasViewW + 1) {
-        prctx.beginPath();
-        prctx.moveTo(Math.round(xTag) + 0.5, 0);
-        prctx.lineTo(Math.round(xTag) + 0.5, prHeight);
-        prctx.strokeStyle = "rgba(255,255,255,0.55)";
-        prctx.stroke();
-      }
+      drawGuide(prctx, markerX(tagMsList[hoveredTagIdx]) - sl, prHeight);
     }
     let hoveredX: number | null = null;
     for (let i = 0; i < prs.length; i++) {
@@ -875,11 +852,7 @@ export function buildTimeline(
       prctx.stroke();
     }
     if (hoveredX !== null && hoveredPrIdx != null) {
-      prctx.beginPath();
-      prctx.moveTo(Math.round(hoveredX) + 0.5, 0);
-      prctx.lineTo(Math.round(hoveredX) + 0.5, prHeight);
-      prctx.strokeStyle = "rgba(255,255,255,0.55)";
-      prctx.stroke();
+      drawGuide(prctx, hoveredX, prHeight);
       prctx.beginPath();
       prctx.arc(hoveredX, rowY(hoveredPrIdx), tagDotRadius + 0.5, 0, Math.PI * 2);
       prctx.fillStyle = "rgba(255,255,255,0.98)";
@@ -979,27 +952,27 @@ export function buildTimeline(
       const bw = Math.max(1, right - left - 1);
       hctx.strokeRect(bx, 0.5, bw, histBarsHeight - 1);
     }
-    drawHistogramTags();
-    drawHistogramPrs();
+    if (hasTags)
+      drawHistogramMarkers(
+        tagMsList,
+        histBarsHeight + Math.floor(histTagStripH / 2),
+        "rgba(255,255,255,0.95)",
+      );
+    if (hasPrs)
+      drawHistogramMarkers(
+        prMsList,
+        histBarsHeight + histTagStripH + Math.floor(histPrStripH / 2),
+        `rgba(${accentPr},0.95)`,
+      );
     drawSelectionPreview();
   }
 
-  function drawHistogramTags(): void {
-    if (!hasTags || totalMs <= 0 || canvasViewW <= 0) return;
-    const cy = histBarsHeight + Math.floor(histTagStripH / 2);
-    hctx.fillStyle = "rgba(255,255,255,0.95)";
-    for (let i = 0; i < tags.length; i++) {
-      const x = Math.max(1, Math.min(canvasViewW - 1, (tagMsList[i] / totalMs) * canvasViewW));
-      hctx.fillRect(Math.round(x) - 1, cy - 1, 2, 2);
-    }
-  }
-
-  function drawHistogramPrs(): void {
-    if (!hasPrs || totalMs <= 0 || canvasViewW <= 0) return;
-    const cy = histBarsHeight + histTagStripH + Math.floor(histPrStripH / 2);
-    hctx.fillStyle = "rgba(137,87,229,0.95)";
-    for (let i = 0; i < prs.length; i++) {
-      const x = Math.max(1, Math.min(canvasViewW - 1, (prMsList[i] / totalMs) * canvasViewW));
+  // 2×2 marker ticks (tags / merged PRs) on their minimap strip.
+  function drawHistogramMarkers(msList: number[], cy: number, color: string): void {
+    if (totalMs <= 0 || canvasViewW <= 0) return;
+    hctx.fillStyle = color;
+    for (const ms of msList) {
+      const x = Math.max(1, Math.min(canvasViewW - 1, (ms / totalMs) * canvasViewW));
       hctx.fillRect(Math.round(x) - 1, cy - 1, 2, 2);
     }
   }
@@ -1310,15 +1283,19 @@ export function buildTimeline(
     animateReset();
   });
 
-  function findTagHit(mx: number): number | null {
-    if (!tags.length) return null;
+  // Nearest marker dot within hit range of inner-x `mx`; `reject` filters out
+  // candidates on other rows (multi-row strips).
+  function findMarkerHit(
+    msList: number[],
+    mx: number,
+    reject?: (i: number) => boolean,
+  ): number | null {
     const sl = scrollDiv.scrollLeft;
     let best = -1,
       bestDist = Infinity;
-    for (let i = 0; i < tags.length; i++) {
-      const xCanvas = markerX(tagMsList[i]) - sl;
-      const dx = Math.abs(xCanvas - mx);
-      if (dx > tagDotRadius + tagHitPad) continue;
+    for (let i = 0; i < msList.length; i++) {
+      const dx = Math.abs(markerX(msList[i]) - sl - mx);
+      if (dx > tagDotRadius + tagHitPad || reject?.(i)) continue;
       if (dx < bestDist) {
         bestDist = dx;
         best = i;
@@ -1326,6 +1303,11 @@ export function buildTimeline(
     }
     return best === -1 ? null : best;
   }
+
+  const findTagHit = (mx: number) => findMarkerHit(tagMsList, mx);
+  // Only dots on the row under the cursor are hit candidates.
+  const findPrHit = (mx: number, my: number) =>
+    findMarkerHit(prMsList, mx, (i) => Math.abs(prRow[i] * prRowH + prRowH / 2 - my) > prRowH / 2);
 
   function tagUrl(name: string): string | null {
     if (!D.githubBaseUrl || !name) return null;
@@ -1367,30 +1349,6 @@ export function buildTimeline(
     });
   }
 
-  function findPrHit(mx: number, my: number): number | null {
-    if (!prs.length) return null;
-    const sl = scrollDiv.scrollLeft;
-    let best = -1,
-      bestDist = Infinity;
-    for (let i = 0; i < prs.length; i++) {
-      const xCanvas = markerX(prMsList[i]) - sl;
-      const dx = Math.abs(xCanvas - mx);
-      if (dx > tagDotRadius + tagHitPad) continue;
-      // Only dots on the row under the cursor are hit candidates.
-      if (Math.abs(prRow[i] * prRowH + prRowH / 2 - my) > prRowH / 2) continue;
-      if (dx < bestDist) {
-        bestDist = dx;
-        best = i;
-      }
-    }
-    return best === -1 ? null : best;
-  }
-
-  function prUrl(n: number): string | null {
-    if (!D.githubBaseUrl || !n) return null;
-    return `${D.githubBaseUrl}/pull/${n}`;
-  }
-
   if (prCanvas) {
     prCanvas.addEventListener("mousedown", (e) => e.stopPropagation());
     prCanvas.addEventListener("mousemove", (e) => {
@@ -1421,7 +1379,7 @@ export function buildTimeline(
       const mx = e.clientX - rect.left;
       const hit = findPrHit(mx, e.clientY - rect.top);
       if (hit == null) return;
-      const url = prUrl(prs[hit].number);
+      const url = prPageUrl(D, prs[hit].number);
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     });
   }

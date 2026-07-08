@@ -5,7 +5,8 @@
   // computed here, and the popover is wired per-row instead of via event
   // delegation + data-idx.
   import type { RepoData } from "$types";
-  import { buildPrCountsByLogin, type AuthorPopover } from "$lib/popovers";
+  import { hasPrData, type AuthorPopover } from "$lib/popovers";
+  import { authorMeta } from "$lib/popover-store.svelte";
   import { clr } from "$lib/theme";
   import { authorUrl, fmt, pct } from "$lib/format";
 
@@ -16,18 +17,16 @@
   const totalNet = $derived(data.totals.added - data.totals.deleted);
 
   // Per-login PR counts (merged from the fetched window, open from the open
-  // list), matched to contributors by GitHub login. Columns only exist when
-  // the collector fetched PR data at all.
-  const hasPrCols = $derived(
-    (data.pullRequests?.length ?? 0) > 0 || (data.openPullRequests?.length ?? 0) > 0,
-  );
-  const prCounts = $derived(buildPrCountsByLogin(data));
+  // list), matched to contributors by GitHub login — read from the shared
+  // store App fills at startup, not rebuilt here. Columns only exist when the
+  // collector fetched PR data at all.
+  const hasPrCols = $derived(hasPrData(data));
 
   // Per-row view models, with net/lc/avgPerDay derived locally.
   const rows = $derived(
     data.contributors.map((c, i) => {
       const net = c.added - c.deleted;
-      const login = (c.login || "").toLowerCase();
+      const pc = c.login ? authorMeta.prCounts?.get(c.login.toLowerCase()) : undefined;
       return {
         c,
         i,
@@ -36,8 +35,8 @@
         net,
         lc: c.commits ? +(net / c.commits).toFixed(1) : 0,
         avgPerDay: c.activeDays ? +(c.commits / c.activeDays).toFixed(1) : 0,
-        prMerged: (login && prCounts.get(login)?.merged) || 0,
-        prOpen: (login && prCounts.get(login)?.open) || 0,
+        prMerged: pc?.merged ?? 0,
+        prOpen: pc?.open ?? 0,
       };
     }),
   );

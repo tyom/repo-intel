@@ -11,6 +11,7 @@
     createTimelineTooltip,
     buildPunchPoints,
     buildPrCountsByLogin,
+    hasPrData,
   } from "$lib/popovers";
   import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
   import { setAuthorTotalCommits, setAuthorPrCounts } from "$lib/popover-store.svelte";
@@ -66,9 +67,7 @@
   let heatmapMode = $state<Mode>("current");
 
   // PR section (cards + nav link) only exists when the collector fetched PRs.
-  const hasPrs = $derived(
-    (data.pullRequests?.length ?? 0) > 0 || (data.openPullRequests?.length ?? 0) > 0,
-  );
+  const hasPrs = $derived(hasPrData(data));
 
   // The timeline is still rendered imperatively into the container elements below
   // (it's a hand-drawn canvas); wire it once the static layout is mounted.

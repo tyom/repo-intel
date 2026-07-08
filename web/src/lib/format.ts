@@ -4,6 +4,13 @@ import type { Contributor, RepoData } from "$types";
 export const fmt = (n: number): string => n.toLocaleString();
 export const pct = (n: number, t: number): string => (t ? (n / t) * 100 : 0).toFixed(1) + "%";
 
+export function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 export function fmtSize(kb: number): string {
   if (!kb || kb <= 0) return "";
   const units = ["KB", "MB", "GB", "TB"];
@@ -130,6 +137,17 @@ export function fmtTimelineDuration(start: string, end: string): string {
   if (years < 10)
     return months === 0 ? pl(years, "year") : `${pl(years, "year")} and ${pl(months, "month")}`;
   return pl(years, "year");
+}
+
+// githubBaseUrl without any trailing slash (safe to join paths onto), or null
+// for a local-only repo.
+export const repoBase = (D: RepoData): string | null =>
+  D.githubBaseUrl ? D.githubBaseUrl.replace(/\/$/, "") : null;
+
+// GitHub page for a pull request, or null when there's no GitHub base.
+export function prPageUrl(D: RepoData, n: number): string | null {
+  const base = repoBase(D);
+  return base && n ? `${base}/pull/${n}` : null;
 }
 
 // Link to a contributor's commits on the repo's default branch, or '#' for a

@@ -69,6 +69,11 @@ export function buildPunchPoints(commits: Commit[]): Record<string, PunchPoint[]
   return out;
 }
 
+// Whether the payload carries any PR data. Single definition so the nav link,
+// PR section and table columns can't disagree.
+export const hasPrData = (D: RepoData): boolean =>
+  (D.pullRequests?.length ?? 0) > 0 || (D.openPullRequests?.length ?? 0) > 0;
+
 // Per-login PR counts (merged from the fetched window, open from the open
 // list), keyed by lowercased GitHub login. Shared by the summary table, the
 // PR-authors card and the author popover.

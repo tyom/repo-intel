@@ -39,6 +39,7 @@ export const gridLine = readVar("--grid-line");
 export const selectionFill = readVar("--selection-fill");
 export const selectionStroke = readVar("--selection-stroke");
 export const accentWeekend = readVar("--accent-weekend");
+export const accentPr = readVar("--accent-pr");
 
 // The shared dashboard theme — the ECharts analog of the old Chart.defaults
 // block. Per-chart options still override (per-series colour); this just sets the

@@ -1428,28 +1428,31 @@ def fetch_pull_requests(github_base, token):
         return None, None
     # orderBy has no MERGED_AT field; CREATED_AT DESC is the proxy for
     # "newest merged first", which is fine for timeline markers.
+    # openPrs/closedPrs are only needed once, so later pages of the merged-PR
+    # cursor walk skip them via @include.
     query = """
-query($owner: String!, $repo: String!, $cursor: String) {
+query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
   repository(owner: $owner, name: $repo) {
     pullRequests(states: MERGED, first: 100, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
       totalCount
       pageInfo { hasNextPage endCursor }
       nodes { number title createdAt mergedAt author { login } }
     }
-    openPrs: pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
+    openPrs: pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) @include(if: $withCounts) {
       totalCount
       nodes { number title createdAt author { login } }
     }
-    closedPrs: pullRequests(states: CLOSED) { totalCount }
+    closedPrs: pullRequests(states: CLOSED) @include(if: $withCounts) { totalCount }
   }
 }
 """.strip()
-    variables = {"owner": m.group("owner"), "repo": m.group("repo"), "cursor": None}
+    variables = {"owner": m.group("owner"), "repo": m.group("repo")}
     cursor = None
     prs = []
     counts = None
     while True:
         variables["cursor"] = cursor
+        variables["withCounts"] = counts is None
         try:
             body = gh_graphql(query, variables, token)
         except urllib.error.URLError as exc:

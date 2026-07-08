@@ -25,6 +25,8 @@
   --selection-stroke: rgba(88, 166, 255, 0.95);
   /* weekend tint, raw r,g,b — alpha applied per use */
   --accent-weekend: 240, 170, 90;
+  /* merged-PR purple (GitHub), raw r,g,b — alpha applied per use */
+  --accent-pr: 137, 87, 229;
   /* Chart series palette (read by theme.ts via --c1..--c10). */
   --c1: #818cf8;
   --c2: #fb923c;

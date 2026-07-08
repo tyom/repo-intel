@@ -5,7 +5,7 @@
   // set as a side effect.
   import type { RepoData } from "$types";
   import { colorAdded, colorDeleted } from "$lib/theme";
-  import { fmt, fmtSize, relativeTime, fmtDateTime } from "$lib/format";
+  import { fmt, fmtSize, relativeTime, fmtDateTime, repoBase } from "$lib/format";
 
   let { data }: { data: RepoData } = $props();
 
@@ -21,7 +21,7 @@
   const fileCount = $derived(data.fileCount);
   const branchCount = $derived(data.branchCount);
   // GitHub base URL without a trailing slash; the deep links and social links hang off it.
-  const base = $derived(data.githubBaseUrl ? data.githubBaseUrl.replace(/\/$/, "") : null);
+  const base = $derived(repoBase(data));
   const contributorsUrl = $derived(base ? `${base}/graphs/contributors` : null);
   const branchesUrl = $derived(base ? `${base}/branches` : null);
   const commitsUrl = $derived(base ? `${base}/commits` : null);
