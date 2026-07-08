@@ -13,7 +13,7 @@ HELP = """\
 repo-intel — generate a contributor stats dashboard for a git repo.
 
 Usage:
-  repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone]
+  repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone] [-n]
   repo-intel -h | --help
   repo-intel -v | --version
 
@@ -47,6 +47,9 @@ Options:
   --max-issues N      Max closed issues to fetch for stats/timeline (default: 1000).
   --lanes N           Max stacked rows in the timeline's PR and issue strips
                       (default: 10).
+  -n, --non-interactive
+                      Skip interactive prompts (clone suggestion, commit-subset
+                      choice) and take the defaults.
   -h, --help          Show this help message and exit.
   -v, --version       Show the version and exit.
 
@@ -246,7 +249,7 @@ def parse_args(argv):
         sys.stdout.write(f"repo-intel {resolve_version()}\n")
         sys.exit(0)
     top_n, remote, output, no_open, no_cache = 10, None, None, False, False
-    clone = False
+    clone, non_interactive = False, False
     commits_filter, since, until = None, None, None
     max_prs, max_issues, lanes = MAX_PULL_REQUESTS, MAX_ISSUES, DEFAULT_LANES
     formats = []
@@ -283,6 +286,10 @@ def parse_args(argv):
                 continue
             if tok in ("--clone", "--bare"):
                 clone = True
+                i += 1
+                continue
+            if tok in ("-n", "--non-interactive"):
+                non_interactive = True
                 i += 1
                 continue
             if tok == "-o":
@@ -376,6 +383,7 @@ def parse_args(argv):
         max_prs,
         max_issues,
         lanes,
+        non_interactive,
     )
 
 
@@ -816,6 +824,32 @@ def ensure_bare_clone(owner, repo, no_cache):
     return clone_dir
 
 
+def read_key(default):
+    """One keypress, no Enter needed; Enter/EOF returns `default`. Falls back
+    to a line read when stdin isn't a TTY (pipes, tests) or termios is missing."""
+    try:
+        import termios
+        import tty
+    except ImportError:
+        termios = None
+    if termios is None or not sys.stdin.isatty():
+        line = sys.stdin.readline()
+        return (line.strip() or default) if line else default
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    # cbreak disables ECHO — echo the keypress ourselves so the choice shows.
+    if ch in ("", "\r", "\n"):
+        sys.stderr.write("\n")
+        return default
+    sys.stderr.write(f"{ch}\n")
+    return ch
+
+
 def prompt_subset(total):
     """Ask which subset to fetch when a repo has many commits.
 
@@ -834,13 +868,10 @@ def prompt_subset(total):
         sys.stderr.write("Choice [4]: ")
         sys.stderr.flush()
         try:
-            line = sys.stdin.readline()
+            choice = read_key("4")
         except KeyboardInterrupt:
             sys.stderr.write("\nAborted.\n")
             sys.exit(130)
-        if not line:
-            return None, None, None
-        choice = line.strip() or "4"
         if choice == "1":
             return ("last", 500), None, None
         if choice == "2":
@@ -869,11 +900,10 @@ def prompt_more(cached_count, total):
         sys.stderr.write("Choice [5]: ")
         sys.stderr.flush()
         try:
-            line = sys.stdin.readline()
+            choice = read_key("5")
         except KeyboardInterrupt:
             sys.stderr.write("\nAborted.\n")
             sys.exit(130)
-        choice = (line.strip() or "5") if line else "5"
         more = {"1": 500, "2": 1000, "3": 2000}.get(choice)
         if more:
             return ("last", cached_count + more), None, None
@@ -881,6 +911,32 @@ def prompt_more(cached_count, total):
             return None, None, None
         if choice == "5":
             return ("last", cached_count), None, None
+        sys.stderr.write(f"  invalid choice {choice!r}\n")
+
+
+# ponytail: "not huge" cutoff for offering a clone; tune if 200 MB feels wrong
+CLONE_SUGGEST_MAX_KB = 200 * 1024
+
+
+def prompt_clone(disk_kb):
+    """Offer the bare-clone path for richer stats. Default: no."""
+    mb = disk_kb / 1024
+    size = f"{mb:,.0f} MB" if mb >= 1 else f"{disk_kb} KB"
+    while True:
+        sys.stderr.write(
+            f"\nRepository is ~{size}. Clone it for richer stats "
+            f"(per-contributor languages)? [y/N]: "
+        )
+        sys.stderr.flush()
+        try:
+            choice = read_key("n").lower()
+        except KeyboardInterrupt:
+            sys.stderr.write("\nAborted.\n")
+            sys.exit(130)
+        if choice in ("y", "yes"):
+            return True
+        if choice in ("n", "no"):
+            return False
         sys.stderr.write(f"  invalid choice {choice!r}\n")
 
 
@@ -1309,6 +1365,23 @@ def fetch_history_page(query, variables, token, label):
 def gh_repository(body):
     """Extract data.repository defensively — GraphQL returns null on errors."""
     return (body.get("data") or {}).get("repository") or {}
+
+
+def probe_remote_disk_kb(owner, repo, token):
+    """Repo size in KB via GraphQL diskUsage; None on error."""
+    query = """
+query($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) { diskUsage }
+}
+""".strip()
+    try:
+        body = gh_graphql(query, {"owner": owner, "repo": repo}, token)
+    except urllib.error.URLError:
+        return None
+    if "errors" in body:
+        return None
+    kb = gh_repository(body).get("diskUsage")
+    return kb if isinstance(kb, int) else None
 
 
 def probe_remote_total(owner, repo, token):
@@ -2689,6 +2762,7 @@ def main():
         max_prs,
         max_issues,
         lanes,
+        non_interactive,
     ) = parse_args(sys.argv[1:])
 
     token = None
@@ -2704,16 +2778,20 @@ def main():
         if not use_graphql and not clone:
             print("No GitHub token — falling back to bare clone.", file=sys.stderr)
 
+        interactive = sys.stdin.isatty() and sys.stderr.isatty() and not non_interactive
+
+        # A clone unlocks per-author language churn the API can't give; if the
+        # repo is small enough to clone quickly, offer the upgrade up front.
+        if use_graphql and interactive:
+            disk_kb = probe_remote_disk_kb(owner, repo, token)
+            if disk_kb is not None and disk_kb <= CLONE_SUGGEST_MAX_KB and prompt_clone(disk_kb):
+                clone, use_graphql = True, False
+
         # Subset prompt only in the GraphQL path: probing total via the API is
         # cheap, and skipping `--commits N` actually saves network. In the
         # bare-clone path the full clone runs regardless, so the prompt would
         # only trim local display — pass `--commits` / `--since` for that.
-        if (
-            use_graphql
-            and not (commits_filter or since or until)
-            and sys.stdin.isatty()
-            and sys.stderr.isatty()
-        ):
+        if use_graphql and interactive and not (commits_filter or since or until):
             # Gate on what load_cache accepts, not bare file existence — a
             # stale-version or corrupt cache file would otherwise suppress the
             # prompt while contributing zero commits to the fetch.
