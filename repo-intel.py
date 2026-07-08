@@ -253,8 +253,10 @@ def parse_args(argv):
     i = 0
 
     def parse_positive(val, name):
-        if not val.isdigit() or int(val) <= 0:
-            raise ValueError(f"{name} requires a positive integer (got {val!r})")
+        # Cap keeps runaway values (thousands of GraphQL pages, absurd lane
+        # counts) from ever reaching the fetchers or the renderer.
+        if not val.isdigit() or not 0 < int(val) <= 100_000:
+            raise ValueError(f"{name} requires a positive integer up to 100000 (got {val!r})")
         return int(val)
 
     def take_value(name):
@@ -1540,15 +1542,82 @@ query($owner: String!, $repo: String!, $cursor: String) {
     return tags
 
 
-def fetch_pull_requests(github_base, token, limit=MAX_PULL_REQUESTS):
-    """Merged PRs (newest `limit`), PR counts (merged/open/closed)
-    and the oldest open PRs via GraphQL; (None, None) when unavailable
+def _gh_open_nodes(conn):
+    """Open PR/issue GraphQL nodes → the payload's openPullRequests/openIssues
+    entry shape."""
+    return [
+        {
+            "number": node.get("number"),
+            "title": node.get("title") or "",
+            "createdAt": node.get("createdAt") or "",
+            "author": ((node.get("author") or {}).get("login")) or "",
+        }
+        for node in conn.get("nodes") or []
+    ]
+
+
+def _fetch_gh_items(github_base, token, limit, query, list_key, date_key, build_counts, label):
+    """Shared cursor walk behind fetch_pull_requests/fetch_issues: pages the
+    `list_key` connection newest-first, builds counts once (first page only,
+    via `build_counts(repo, conn)` — later pages skip the counts sub-queries
+    with @include on $withCounts), keeps nodes that have `date_key`, then trims
+    to `limit` and sorts ascending by it. (None, None) when unavailable
     (non-GitHub origin, no token, network error)."""
     m = ORIGIN_RE.match(github_base or "")
     host = (m.group("https_host") or m.group("ssh_host")) if m else ""
     # gh_graphql is hardcoded to api.github.com, so GHE hosts are out.
     if not m or host != "github.com" or not token:
         return None, None
+    variables = {"owner": m.group("owner"), "repo": m.group("repo")}
+    cursor = None
+    items = []
+    counts = None
+    while True:
+        variables["cursor"] = cursor
+        variables["withCounts"] = counts is None
+        try:
+            body = gh_graphql(query, variables, token)
+        except urllib.error.URLError as exc:
+            status_line(f"  warning: {label} fetch failed: {exc}")
+            break
+        if "errors" in body:
+            status_line(f"  warning: {label} fetch GraphQL error: {body['errors']}")
+            break
+        repo = gh_repository(body)
+        conn = repo.get(list_key) or {}
+        if counts is None:
+            counts = build_counts(repo, conn)
+        for node in conn.get("nodes") or []:
+            ended_at = node.get(date_key)
+            if not ended_at:
+                continue
+            items.append(
+                {
+                    "number": node.get("number"),
+                    "title": node.get("title") or "",
+                    "createdAt": node.get("createdAt") or "",
+                    date_key: ended_at,
+                    # author is null for deleted accounts
+                    "author": ((node.get("author") or {}).get("login")) or "",
+                }
+            )
+        page = conn.get("pageInfo") or {}
+        if not page.get("hasNextPage") or len(items) >= limit:
+            break
+        cursor = page.get("endCursor")
+    if counts is None and not items:
+        return None, None
+    # Pages come 100 at a time, so a sub-page limit overshoots — trim the tail
+    # (pages accumulate newest-first, so this keeps the newest `limit`).
+    del items[limit:]
+    items.sort(key=lambda x: x[date_key])
+    return items, counts or {}
+
+
+def fetch_pull_requests(github_base, token, limit=MAX_PULL_REQUESTS):
+    """Merged PRs (newest `limit`), PR counts (merged/open/closed)
+    and the oldest open PRs via GraphQL; (None, None) when unavailable
+    (non-GitHub origin, no token, network error)."""
     # orderBy has no MERGED_AT field; CREATED_AT DESC is the proxy for
     # "newest merged first", which is fine for timeline markers.
     # openPrs/closedPrs are only needed once, so later pages of the merged-PR
@@ -1569,76 +1638,27 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
   }
 }
 """.strip()
-    variables = {"owner": m.group("owner"), "repo": m.group("repo")}
-    cursor = None
-    prs = []
-    counts = None
-    while True:
-        variables["cursor"] = cursor
-        variables["withCounts"] = counts is None
-        try:
-            body = gh_graphql(query, variables, token)
-        except urllib.error.URLError as exc:
-            status_line(f"  warning: PR fetch failed: {exc}")
-            break
-        if "errors" in body:
-            status_line(f"  warning: PR fetch GraphQL error: {body['errors']}")
-            break
-        repo = gh_repository(body)
-        pulls = repo.get("pullRequests") or {}
-        if counts is None:
-            # GitHub's CLOSED state excludes merged, so the three are disjoint.
-            open_prs = repo.get("openPrs") or {}
-            counts = {
-                "prCount": pulls.get("totalCount"),
-                "prOpenCount": open_prs.get("totalCount"),
-                "prClosedCount": (repo.get("closedPrs") or {}).get("totalCount"),
-                # ponytail: oldest 100 open PRs only; paginate if a repo ever has more
-                "openPullRequests": [
-                    {
-                        "number": node.get("number"),
-                        "title": node.get("title") or "",
-                        "createdAt": node.get("createdAt") or "",
-                        "author": ((node.get("author") or {}).get("login")) or "",
-                    }
-                    for node in open_prs.get("nodes") or []
-                ],
-            }
-        for node in pulls.get("nodes") or []:
-            merged_at = node.get("mergedAt")
-            if not merged_at:
-                continue
-            prs.append(
-                {
-                    "number": node.get("number"),
-                    "title": node.get("title") or "",
-                    "createdAt": node.get("createdAt") or "",
-                    "mergedAt": merged_at,
-                    # author is null for deleted accounts
-                    "author": ((node.get("author") or {}).get("login")) or "",
-                }
-            )
-        page = pulls.get("pageInfo") or {}
-        if not page.get("hasNextPage") or len(prs) >= limit:
-            break
-        cursor = page.get("endCursor")
-    if counts is None and not prs:
-        return None, None
-    # Pages come 100 at a time, so a sub-page limit overshoots — trim the tail
-    # (pages accumulate newest-first, so this keeps the newest `limit`).
-    del prs[limit:]
-    prs.sort(key=lambda p: p["mergedAt"])
-    return prs, counts or {}
+
+    def build_counts(repo, pulls):
+        # GitHub's CLOSED state excludes merged, so the three are disjoint.
+        open_prs = repo.get("openPrs") or {}
+        return {
+            "prCount": pulls.get("totalCount"),
+            "prOpenCount": open_prs.get("totalCount"),
+            "prClosedCount": (repo.get("closedPrs") or {}).get("totalCount"),
+            # ponytail: oldest 100 open PRs only; paginate if a repo ever has more
+            "openPullRequests": _gh_open_nodes(open_prs),
+        }
+
+    return _fetch_gh_items(
+        github_base, token, limit, query, "pullRequests", "mergedAt", build_counts, "PR"
+    )
 
 
 def fetch_issues(github_base, token, limit=MAX_ISSUES):
     """Closed issues (newest `limit`), issue counts (open/closed) and the
     oldest open issues via GraphQL; (None, None) when unavailable (non-GitHub
     origin, no token, network error). GraphQL issues already exclude PRs."""
-    m = ORIGIN_RE.match(github_base or "")
-    host = (m.group("https_host") or m.group("ssh_host")) if m else ""
-    if not m or host != "github.com" or not token:
-        return None, None
     # orderBy has no CLOSED_AT field; CREATED_AT DESC is the proxy for
     # "newest closed first", which is fine for timeline markers.
     query = """
@@ -1656,63 +1676,19 @@ query($owner: String!, $repo: String!, $cursor: String, $withCounts: Boolean!) {
   }
 }
 """.strip()
-    variables = {"owner": m.group("owner"), "repo": m.group("repo")}
-    cursor = None
-    issues = []
-    counts = None
-    while True:
-        variables["cursor"] = cursor
-        variables["withCounts"] = counts is None
-        try:
-            body = gh_graphql(query, variables, token)
-        except urllib.error.URLError as exc:
-            status_line(f"  warning: issue fetch failed: {exc}")
-            break
-        if "errors" in body:
-            status_line(f"  warning: issue fetch GraphQL error: {body['errors']}")
-            break
-        repo = gh_repository(body)
-        closed = repo.get("issues") or {}
-        if counts is None:
-            open_issues = repo.get("openIssues") or {}
-            counts = {
-                "issueClosedCount": closed.get("totalCount"),
-                "issueOpenCount": open_issues.get("totalCount"),
-                # ponytail: oldest 100 open issues only; paginate if a repo ever has more
-                "openIssues": [
-                    {
-                        "number": node.get("number"),
-                        "title": node.get("title") or "",
-                        "createdAt": node.get("createdAt") or "",
-                        "author": ((node.get("author") or {}).get("login")) or "",
-                    }
-                    for node in open_issues.get("nodes") or []
-                ],
-            }
-        for node in closed.get("nodes") or []:
-            closed_at = node.get("closedAt")
-            if not closed_at:
-                continue
-            issues.append(
-                {
-                    "number": node.get("number"),
-                    "title": node.get("title") or "",
-                    "createdAt": node.get("createdAt") or "",
-                    "closedAt": closed_at,
-                    # author is null for deleted accounts
-                    "author": ((node.get("author") or {}).get("login")) or "",
-                }
-            )
-        page = closed.get("pageInfo") or {}
-        if not page.get("hasNextPage") or len(issues) >= limit:
-            break
-        cursor = page.get("endCursor")
-    if counts is None and not issues:
-        return None, None
-    # Same sub-page-limit trim as fetch_pull_requests.
-    del issues[limit:]
-    issues.sort(key=lambda i: i["closedAt"])
-    return issues, counts or {}
+
+    def build_counts(repo, closed):
+        open_issues = repo.get("openIssues") or {}
+        return {
+            "issueClosedCount": closed.get("totalCount"),
+            "issueOpenCount": open_issues.get("totalCount"),
+            # ponytail: oldest 100 open issues only; paginate if a repo ever has more
+            "openIssues": _gh_open_nodes(open_issues),
+        }
+
+    return _fetch_gh_items(
+        github_base, token, limit, query, "issues", "closedAt", build_counts, "issue"
+    )
 
 
 def gh_rest_get(path, token):

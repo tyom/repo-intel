@@ -113,34 +113,37 @@ export function buildTimeline(
   });
   const prSpanEnd = (i: number) => (prIsOpen(i) ? totalMs : prMsList[i]);
   const hasPrs = prs.length > 0;
-  // Overlapping open→merge spans stack onto separate rows (greedy interval
-  // partitioning by open time, capped — beyond the cap, overflow PRs share the
-  // row that frees up earliest and may overlap again). The collector's --lanes
-  // flag sets the cap.
+  // Overlapping open→end spans stack onto separate rows (greedy interval
+  // partitioning by open time, capped — beyond the cap, overflow items share
+  // the row that frees up earliest and may overlap again). The collector's
+  // --lanes flag sets the cap. Shared by the PR and issue strips.
   const laneCap = D.timelineLanes || 10;
-  const prRowCap = laneCap;
-  const prRowH = 14;
-  const prRow = new Array<number>(prs.length).fill(0);
-  let prRowCount = 1;
-  {
-    const startMs = prs.map((_, i) => prOpenMsList[i] ?? prMsList[i]);
-    const order = prs.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
+  function stackRows(
+    openMsList: (number | null)[],
+    msList: number[],
+    spanEnd: (i: number) => number,
+  ): { row: number[]; rowCount: number } {
+    const row = new Array<number>(msList.length).fill(0);
+    const startMs = msList.map((ms, i) => openMsList[i] ?? ms);
+    const order = msList.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
     const rowEnd: number[] = [];
     for (const i of order) {
       let r = rowEnd.findIndex((end) => end <= startMs[i]);
       if (r === -1) {
-        if (rowEnd.length < prRowCap) {
+        if (rowEnd.length < laneCap) {
           r = rowEnd.length;
           rowEnd.push(0);
         } else {
           r = rowEnd.indexOf(Math.min(...rowEnd));
         }
       }
-      prRow[i] = r;
-      rowEnd[r] = Math.max(rowEnd[r], prSpanEnd(i));
+      row[i] = r;
+      rowEnd[r] = Math.max(rowEnd[r], spanEnd(i));
     }
-    prRowCount = Math.max(1, rowEnd.length);
+    return { row, rowCount: Math.max(1, rowEnd.length) };
   }
+  const prRowH = 14;
+  const { row: prRow, rowCount: prRowCount } = stackRows(prOpenMsList, prMsList, prSpanEnd);
   const prHeight = hasPrs ? prRowCount * prRowH : 0;
   const prColor = `rgba(${accentPr},0.9)`;
   // Same closed + still-open split as the PR strip above.
@@ -159,30 +162,12 @@ export function buildTimeline(
   });
   const issueSpanEnd = (i: number) => (issueIsOpen(i) ? totalMs : issueMsList[i]);
   const hasIssues = issues.length > 0;
-  // Same greedy row stacking as PRs above.
-  const issueRowCap = laneCap;
   const issueRowH = 14;
-  const issueRow = new Array<number>(issues.length).fill(0);
-  let issueRowCount = 1;
-  {
-    const startMs = issues.map((_, i) => issueOpenMsList[i] ?? issueMsList[i]);
-    const order = issues.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
-    const rowEnd: number[] = [];
-    for (const i of order) {
-      let r = rowEnd.findIndex((end) => end <= startMs[i]);
-      if (r === -1) {
-        if (rowEnd.length < issueRowCap) {
-          r = rowEnd.length;
-          rowEnd.push(0);
-        } else {
-          r = rowEnd.indexOf(Math.min(...rowEnd));
-        }
-      }
-      issueRow[i] = r;
-      rowEnd[r] = Math.max(rowEnd[r], issueSpanEnd(i));
-    }
-    issueRowCount = Math.max(1, rowEnd.length);
-  }
+  const { row: issueRow, rowCount: issueRowCount } = stackRows(
+    issueOpenMsList,
+    issueMsList,
+    issueSpanEnd,
+  );
   const issueHeight = hasIssues ? issueRowCount * issueRowH : 0;
   const issueColor = `rgba(${accentIssue},0.9)`;
   const histTagStripH = hasTags ? 6 : 0;
