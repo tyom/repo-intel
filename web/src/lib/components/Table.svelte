@@ -119,8 +119,15 @@
   <th
     class="sortable"
     class:num
+    tabindex="0"
     aria-sort={sortKey === key ? (sortAsc ? "ascending" : "descending") : undefined}
     onclick={() => sortBy(key)}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        sortBy(key);
+      }
+    }}
     >{label}{#if sortKey === key}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}</th
   >
 {/snippet}

@@ -2524,7 +2524,8 @@ def main():
 
     enrich_contributor_profiles(data["contributors"], commits_meta, github_base, token=token)
 
-    gh_token = token or get_github_token()
+    # --remote already resolved the token (possibly to ""); don't re-run gh.
+    gh_token = get_github_token() if token is None else token
     social = fetch_repo_social(github_base, gh_token)
     if social:
         data.update(social)

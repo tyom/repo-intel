@@ -55,11 +55,11 @@
         label: plural(data.prCount, "merged PR"),
       });
     if (data.prOpenCount != null)
-      items.push({ url: link("pulls"), label: `${fmt(data.prOpenCount)} open` });
+      items.push({ url: link("pulls"), label: plural(data.prOpenCount, "open PR") });
     if (data.prClosedCount != null)
       items.push({
         url: link("pulls?q=is%3Apr+is%3Aclosed+is%3Aunmerged"),
-        label: `${fmt(data.prClosedCount)} closed`,
+        label: plural(data.prClosedCount, "closed PR"),
       });
     return items;
   });
