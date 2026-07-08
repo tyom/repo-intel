@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Weekly commits as a stacked area/line chart, one series per contributor.
+  // Weekly commits as a stacked bar chart, one series per contributor.
   // Series are named by the (unique) email so duplicate display names don't
   // collapse in ECharts' legend; the HTML ChartLegend below drives selection via
   // the chart's hidden legend, and a Reset reappears once a series is hidden.
@@ -47,24 +47,23 @@
       grid: { left: 36, right: 14, top: 38, bottom: 34 },
       xAxis: {
         type: "category",
-        boundaryGap: false,
         data: weeks.map(weekLabel),
         axisLabel: { rotate: 35, fontSize: 10 },
       },
       yAxis: { type: "value", min: 0 },
       series: contributors.map((c, i) => ({
         name: c.email,
-        type: "line",
+        type: "bar",
         stack: "total",
-        smooth: true,
-        showSymbol: false,
-        // Line area ignores `cursor`; silent stops the series setting a pointer
-        // cursor on hover. Axis tooltip + legend toggle are unaffected.
+        // Bars scale with the category slot so few weeks get wide bars, capped
+        // so sparse charts don't turn into slabs.
+        barWidth: "60%",
+        barMaxWidth: 56,
+        // Silent stops the series setting a pointer cursor on hover. Axis
+        // tooltip + legend toggle are unaffected.
         silent: true,
         cursor: "default",
-        lineStyle: { width: 1.5, color: clr(i) },
         itemStyle: { color: clr(i) },
-        areaStyle: { color: clr(i), opacity: 0.38 },
         data: weeklyData[c.email],
       })),
     };

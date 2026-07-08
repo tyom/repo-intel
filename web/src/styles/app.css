@@ -25,6 +25,8 @@
   --selection-stroke: rgba(88, 166, 255, 0.95);
   /* weekend tint, raw r,g,b — alpha applied per use */
   --accent-weekend: 240, 170, 90;
+  /* merged-PR purple (GitHub), raw r,g,b — alpha applied per use */
+  --accent-pr: 137, 87, 229;
   /* Chart series palette (read by theme.ts via --c1..--c10). */
   --c1: #818cf8;
   --c2: #fb923c;
@@ -466,6 +468,10 @@ table {
       }
     }
   }
+  /* Must match .timeline-years' margin-bottom to keep lanes aligned. */
+  .years-label {
+    margin-bottom: 1px;
+  }
   .histogram-label {
     display: flex;
     align-items: center;
@@ -551,6 +557,7 @@ table {
 
 .timeline-years {
   position: relative;
+  margin-bottom: 1px;
   font-size: 0.68rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;

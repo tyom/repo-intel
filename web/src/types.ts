@@ -78,6 +78,23 @@ export interface Tag {
   message?: string;
 }
 
+// fetch_pull_requests() — merged PRs, newest 1000, oldest-first like tags.
+export interface PullRequest {
+  number: number;
+  title: string;
+  createdAt: string;
+  mergedAt: string;
+  author: string;
+}
+
+// Still-open PRs (oldest 100, oldest-first) — no mergedAt by definition.
+export interface OpenPullRequest {
+  number: number;
+  title: string;
+  createdAt: string;
+  author: string;
+}
+
 export interface FileSize {
   path: string;
   bytes: number;
@@ -109,6 +126,13 @@ export interface RepoData {
   stars?: number | null;
   watchers?: number | null;
   forks?: number | null;
+  /** Merged PRs (capped at 1000) and PR counts (merged / open / closed-unmerged
+      — GitHub's disjoint states); absent without GitHub + token. */
+  pullRequests?: PullRequest[];
+  openPullRequests?: OpenPullRequest[];
+  prCount?: number | null;
+  prOpenCount?: number | null;
+  prClosedCount?: number | null;
   totals: Totals;
   contributors: Contributor[];
   weeks: string[];

@@ -2,8 +2,9 @@
 
 Generate a self-contained HTML **contributor-stats dashboard** for any git
 repo — top contributors, weekly/daily activity, time-of-day patterns,
-per-author commit feeds, plus a **language** breakdown and **framework**
-detection from dependency manifests.
+per-author commit feeds, **pull-request stats** (for GitHub repos, when a
+token is available), plus a **language** breakdown and **framework** detection
+from dependency manifests.
 
 The shipped tool is a single file (`dist/repo-intel`) with the HTML template
 and detection data embedded, so it depends only on **Python 3 + `git`**
@@ -153,8 +154,11 @@ Run `repo-intel --help` for the full flag reference, or `repo-intel --version`
 
 The [GitHub CLI (`gh`)](https://cli.github.com/) is optional but recommended:
 when authenticated (`gh auth login`), `repo-intel` uses its token to fetch
-remote repos and to enrich author cards with GitHub profile data. Without it,
-the script falls back to `$GITHUB_TOKEN` or a bare clone.
+remote repos, enrich author cards with GitHub profile data, and add
+pull-request stats (merged/open counts, PR timeline markers, per-contributor
+merged PRs) — this works for local repos with a GitHub origin too. Without it,
+the script falls back to `$GITHUB_TOKEN` or a bare clone, and the PR section
+is omitted.
 
 ### Filtering commits
 
@@ -170,8 +174,11 @@ prints `filtered: X/total commits` so you can see what was kept.
 
 When a remote repo has more than 1000 commits and no filter flag was passed,
 `repo-intel` prompts interactively for a subset (Last 500, Last 1000, Past
-year, or All) on the GraphQL path. The prompt is skipped on the bare-clone
-fallback, when stdin/stderr is not a TTY, or when any filter flag is given.
+year, or All) on the GraphQL path. On a re-run with a partial cache (an
+earlier subset choice), it instead asks whether to fetch additional history
+(500/1000/2000 more, All, or keep the cached subset). Both prompts are skipped
+on the bare-clone fallback, when stdin/stderr is not a TTY, or when any filter
+flag is given.
 
 ### Output
 

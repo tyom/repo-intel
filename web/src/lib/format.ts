@@ -4,6 +4,13 @@ import type { Contributor, RepoData } from "$types";
 export const fmt = (n: number): string => n.toLocaleString();
 export const pct = (n: number, t: number): string => (t ? (n / t) * 100 : 0).toFixed(1) + "%";
 
+export function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 export function fmtSize(kb: number): string {
   if (!kb || kb <= 0) return "";
   const units = ["KB", "MB", "GB", "TB"];
@@ -52,6 +59,20 @@ export function relativeTime(iso: string | null | undefined, now: Date = new Dat
   if (days < 30) return ago(Math.floor(days / 7), "week");
   if (days < 365) return ago(Math.floor(days / 30), "month");
   return ago(Math.floor(days / 365), "year");
+}
+
+// Coarse single-unit duration ("42 min" / "18 h" / "12 days" / "4 months"),
+// for PR open-time readouts. "" for negative/NaN input.
+export function fmtDuration(ms: number): string {
+  if (Number.isNaN(ms) || ms < 0) return "";
+  const h = ms / 3600000;
+  if (h < 1) return `${Math.max(1, Math.round(ms / 60000))} min`;
+  if (h < 48) return `${Math.round(h)} h`;
+  const days = Math.round(h / 24);
+  if (days < 90) return `${days} days`;
+  const months = Math.round(days / 30.44);
+  if (months < 24) return `${months} months`;
+  return `${(days / 365.25).toFixed(1).replace(/\.0$/, "")} years`;
 }
 
 // Full timestamp for the hover title behind a relative time. "" when unparseable.
@@ -116,6 +137,17 @@ export function fmtTimelineDuration(start: string, end: string): string {
   if (years < 10)
     return months === 0 ? pl(years, "year") : `${pl(years, "year")} and ${pl(months, "month")}`;
   return pl(years, "year");
+}
+
+// githubBaseUrl without any trailing slash (safe to join paths onto), or null
+// for a local-only repo.
+export const repoBase = (D: RepoData): string | null =>
+  D.githubBaseUrl ? D.githubBaseUrl.replace(/\/$/, "") : null;
+
+// GitHub page for a pull request, or null when there's no GitHub base.
+export function prPageUrl(D: RepoData, n: number): string | null {
+  const base = repoBase(D);
+  return base && n ? `${base}/pull/${n}` : null;
 }
 
 // Link to a contributor's commits on the repo's default branch, or '#' for a

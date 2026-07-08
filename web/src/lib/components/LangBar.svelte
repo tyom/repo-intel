@@ -37,6 +37,7 @@
 <style>
   .langbar {
     display: flex;
+    gap: 1px;
     height: 8px;
     border-radius: 4px;
     overflow: hidden;
