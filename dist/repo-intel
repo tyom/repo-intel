@@ -138,6 +138,10 @@ def load_cache(slug):
         return [], False
     try:
         data = json.loads(p.read_text())
+        # v2 nodes carry parents.totalCount (merge detection); older caches
+        # lack it and would count merges as authored commits — refetch.
+        if data.get("v") != 2:
+            return [], False
         return data.get("nodes", []), bool(data.get("complete", False))
     except (json.JSONDecodeError, OSError):
         return [], False
@@ -145,7 +149,7 @@ def load_cache(slug):
 
 def save_cache(slug, nodes, complete):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path(slug).write_text(json.dumps({"nodes": nodes, "complete": complete}))
+    cache_path(slug).write_text(json.dumps({"v": 2, "nodes": nodes, "complete": complete}))
 
 
 def needs_older_fetch(have_count, cached_oldest_date, prev_complete, commits_filter, since, until):
@@ -1726,6 +1730,7 @@ history(first: $pageSize, after: $cursor) {
     oid messageHeadline
     author { name email date user { avatarUrl(size: 64) login } }
     additions deletions
+    parents { totalCount }
   }
 }""".strip()
 
@@ -1886,7 +1891,14 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
         save_cache(slug, nodes, new_complete)
 
     commits_meta, line_stats, avatars, logins = {}, {}, {}, {}
+    merge_count = 0
     for n in nodes:
+        # GitHub reports a merge commit's additions/deletions as the full diff
+        # vs its first parent — the whole PR again, attributed to the merger.
+        # The local path runs --no-merges; mirror that here.
+        if ((n.get("parents") or {}).get("totalCount") or 1) > 1:
+            merge_count += 1
+            continue
         author = n.get("author") or {}
         email = (author.get("email") or "").lower()
         commits_meta[n["oid"]] = {
@@ -1926,6 +1938,7 @@ query($owner: String!, $repo: String!, $oid: GitObjectID!, $cursor: String, $pag
             "frameworks": frameworks,
             "repo_languages": repo_languages,
             "branch_count": repo_meta["branch_count"],
+            "merge_count": merge_count,
         },
     )
 
