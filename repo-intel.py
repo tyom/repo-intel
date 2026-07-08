@@ -436,8 +436,8 @@ FW_SENTINELS_OTHER = _TECH.get("fw_sentinels_other", [])  # [[path, framework, l
 
 
 def _compile_vendor(patterns):
-    """One matcher from Linguist's vendor.yml regexes; skips Python-incompatible
-    ones (they're Ruby-flavored) so the union still compiles."""
+    """One matcher from Linguist's vendor.yml/documentation.yml regexes; skips
+    Python-incompatible ones (they're Ruby-flavored) so the union still compiles."""
     good = []
     for p in patterns:
         try:
@@ -451,7 +451,9 @@ def _compile_vendor(patterns):
         return None
 
 
-_VENDOR_RE = _compile_vendor(_TECH.get("vendor", []))
+# Linguist excludes both vendored and documentation paths from language stats;
+# match its behavior so the bar agrees with GitHub's (e.g. `docs/`, READMEs).
+_VENDOR_RE = _compile_vendor(_TECH.get("vendor", []) + _TECH.get("documentation", []))
 
 # Lockfiles Linguist classifies as *generated* (handled in code, not vendor.yml)
 # — kept as a small supplement so they don't dominate the language bar.
@@ -544,7 +546,7 @@ def classify_path(field, present=None, shebang=None):
     path = numstat_newpath(field.strip().strip('"')).replace("\\", "/")
     if present is not None and path not in present:
         return None  # file no longer exists at HEAD — count only survivors
-    if _VENDOR_RE and _VENDOR_RE.search(path):  # Linguist vendored paths
+    if _VENDOR_RE and _VENDOR_RE.search(path):  # Linguist vendored/documentation paths
         return None
     base = path.rsplit("/", 1)[-1].lower()
     if base in NOISE_BASENAMES:

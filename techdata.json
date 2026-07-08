@@ -1,8 +1,26 @@
 {
  "_source": {
+  "documentation": "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/documentation.yml",
   "languages": "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/languages.yml",
   "vendor": "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/vendor.yml"
  },
+ "documentation": [
+  "^[Dd]ocs?/",
+  "(^|/)[Dd]ocumentation/",
+  "(^|/)[Gg]roovydoc/",
+  "(^|/)[Jj]avadoc/",
+  "^[Mm]an/",
+  "(^|/)inst/doc/",
+  "(^|/)CITATION(\\.cff|(S)?(\\.(bib|md))?)$",
+  "(^|/)CHANGE(S|LOG)?(\\.|$)",
+  "(^|/)CONTRIBUTING(\\.|$)",
+  "(^|/)COPYING(\\.|$)",
+  "(^|/)INSTALL(\\.|$)",
+  "(^|/)LICEN[CS]E(\\.|$)",
+  "(^|/)[Ll]icen[cs]e(\\.|$)",
+  "(^|/)README(\\.|$)",
+  "(^|/)[Rr]eadme(\\.|$)"
+ ],
  "fw_deps": {
   "Go": {
    "github.com/gin-gonic/gin": "Gin",
@@ -2250,7 +2268,7 @@
    "xzap": "ZAP",
    "y": "Yacc",
    "yacc": "Yacc",
-   "yaml": "MiniYAML",
+   "yaml": "YAML",
    "yaml-tmlanguage": "YAML",
    "yaml.sed": "YAML",
    "yap": "Prolog",

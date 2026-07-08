@@ -13,7 +13,8 @@ build.py embeds into the artifact):
 
   - Languages: Linguist `languages.yml` (extension/filename → language, colors,
     with fine-grained languages folded into their `group`, e.g. TSX→TypeScript)
-    + `vendor.yml` (vendored-path regexes for the noise filter).
+    + `vendor.yml` / `documentation.yml` (path regexes for the noise filter —
+    Linguist excludes both vendored and documentation paths from its stats).
   - Frameworks: curated dependency → framework maps (web + backend) below.
 
 Run via `make repo-intel-techdata` (needs network). Stdlib-only.
@@ -31,6 +32,7 @@ LANGUAGES_YML = (
 VENDOR_YML = (
     "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/vendor.yml"
 )
+DOCUMENTATION_YML = "https://raw.githubusercontent.com/github-linguist/linguist/master/lib/linguist/documentation.yml"
 
 OUT = Path(__file__).resolve().parent / "techdata.json"
 
@@ -58,6 +60,9 @@ EXT_OVERRIDE = {
     "rs": "Rust",
     "cs": "C#",
     "sql": "SQL",
+    # Both YAML and MiniYAML claim `.yaml`; it's MiniYAML's primary extension
+    # but only YAML's secondary (`.yml` is primary), so derivation picks MiniYAML.
+    "yaml": "YAML",
     # Linguist's "Gettext Catalog" (.po/.pot) is type:prose and ships no color,
     # so it'd be dropped and translation catalogs would vanish into "Other".
     # Re-pin them under Linguist's own name with the gold GitHub falls back to
@@ -66,6 +71,12 @@ EXT_OVERRIDE = {
     "po": "Gettext Catalog",
     "pot": "Gettext Catalog",
 }
+
+# documentation.yml patterns we deliberately DON'T adopt: for SDK-style repos,
+# examples/demos/samples are real code users came to see, not documentation —
+# hiding them made the language bar misleading (all of a repo's TypeScript can
+# live under examples/). Docs dirs and README/LICENSE-style files stay excluded.
+DOC_PATTERN_SKIP = {"^[Ee]xamples/", "^[Dd]emos?/", "^[Ss]amples?/"}
 
 # Generic extensions whose canonical Linguist owner is the colorless "Text"
 # language. Because color-less languages are dropped from the tables, a niche
@@ -389,13 +400,24 @@ def main():
     vendor = parse_vendor_yml(fetch(VENDOR_YML))
     print(f"  {len(vendor)} vendor patterns", file=sys.stderr)
 
+    print("fetching Linguist documentation.yml…", file=sys.stderr)
+    documentation = [
+        p for p in parse_vendor_yml(fetch(DOCUMENTATION_YML)) if p not in DOC_PATTERN_SKIP
+    ]
+    print(f"  {len(documentation)} documentation patterns", file=sys.stderr)
+
     fw_deps = {"npm": CURATED_WEB}
     fw_deps.update(CURATED_BACKEND)
 
     data = {
-        "_source": {"languages": LANGUAGES_YML, "vendor": VENDOR_YML},
+        "_source": {
+            "languages": LANGUAGES_YML,
+            "vendor": VENDOR_YML,
+            "documentation": DOCUMENTATION_YML,
+        },
         "lang": {"ext": ext_lang, "filename": filename_lang, "color": name_color},
         "vendor": vendor,
+        "documentation": documentation,
         "fw_deps": fw_deps,
         "fw_sentinels_js": CURATED_SENTINELS_JS,
         "fw_sentinels_other": CURATED_SENTINELS,
