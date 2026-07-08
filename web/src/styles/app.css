@@ -466,6 +466,10 @@ table {
       }
     }
   }
+  /* Must match .timeline-years' margin-bottom to keep lanes aligned. */
+  .years-label {
+    margin-bottom: 1px;
+  }
   .histogram-label {
     display: flex;
     align-items: center;
@@ -551,6 +555,7 @@ table {
 
 .timeline-years {
   position: relative;
+  margin-bottom: 1px;
   font-size: 0.68rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
