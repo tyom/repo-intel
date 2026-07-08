@@ -5,7 +5,8 @@
   // initial `hidden` + reveal dance.
   import type { RepoData } from "$types";
   import type { AuthorPopover } from "$lib/popovers";
-  import { clr, contrastText } from "$lib/theme";
+  import { clr, contrastText, textMuted } from "$lib/theme";
+  import { buildEmailToOrig } from "$lib/chart-helpers";
   import LangBar from "./LangBar.svelte";
 
   let { data, authorPopover }: { data: RepoData; authorPopover: AuthorPopover | undefined } =
@@ -16,7 +17,7 @@
   const langLeaders = $derived((data.langLeaders || []).filter((l) => l.contributors.length));
   // Segment colour + popover both key on the contributor's index in the
   // top-N list; leaders outside it fall back to grey with no popover.
-  const idxByEmail = $derived(new Map(data.contributors.map((c, i) => [c.email, i])));
+  const idxByEmail = $derived(buildEmailToOrig(data.contributors));
   const langLabel = $derived(
     data.repoLanguagesBasis === "size" ? "Languages by code size" : "Languages by lines changed",
   );
@@ -50,7 +51,7 @@
               <div class="leader-bar">
                 {#each l.contributors as c}
                   {@const idx = idxByEmail.get(c.email) ?? -1}
-                  {@const color = idx >= 0 ? clr(idx) : "#8b949e"}
+                  {@const color = idx >= 0 ? clr(idx) : textMuted}
                   <span
                     class="seg"
                     role="img"

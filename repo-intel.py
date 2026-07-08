@@ -825,23 +825,28 @@ def ensure_bare_clone(owner, repo, no_cache):
 
 
 def read_key(default):
-    """One keypress, no Enter needed; Enter/EOF returns `default`. Falls back
-    to a line read when stdin isn't a TTY (pipes, tests) or termios is missing."""
+    """One keypress, no Enter needed; Enter/EOF returns `default`; Ctrl-C
+    aborts the run. Falls back to a line read when stdin isn't a TTY (pipes,
+    tests) or termios is missing."""
     try:
         import termios
         import tty
     except ImportError:
         termios = None
-    if termios is None or not sys.stdin.isatty():
-        line = sys.stdin.readline()
-        return (line.strip() or default) if line else default
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
     try:
-        tty.setcbreak(fd)
-        ch = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        if termios is None or not sys.stdin.isatty():
+            line = sys.stdin.readline()
+            return (line.strip() or default) if line else default
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except KeyboardInterrupt:
+        sys.stderr.write("\nAborted.\n")
+        sys.exit(130)
     # cbreak disables ECHO — echo the keypress ourselves so the choice shows.
     if ch in ("", "\r", "\n"):
         sys.stderr.write("\n")
@@ -867,11 +872,7 @@ def prompt_subset(total):
     while True:
         sys.stderr.write("Choice [4]: ")
         sys.stderr.flush()
-        try:
-            choice = read_key("4")
-        except KeyboardInterrupt:
-            sys.stderr.write("\nAborted.\n")
-            sys.exit(130)
+        choice = read_key("4")
         if choice == "1":
             return ("last", 500), None, None
         if choice == "2":
@@ -899,11 +900,7 @@ def prompt_more(cached_count, total):
     while True:
         sys.stderr.write("Choice [5]: ")
         sys.stderr.flush()
-        try:
-            choice = read_key("5")
-        except KeyboardInterrupt:
-            sys.stderr.write("\nAborted.\n")
-            sys.exit(130)
+        choice = read_key("5")
         more = {"1": 500, "2": 1000, "3": 2000}.get(choice)
         if more:
             return ("last", cached_count + more), None, None
@@ -928,11 +925,7 @@ def prompt_clone(disk_kb):
             f"(per-contributor languages)? [y/N]: "
         )
         sys.stderr.flush()
-        try:
-            choice = read_key("n").lower()
-        except KeyboardInterrupt:
-            sys.stderr.write("\nAborted.\n")
-            sys.exit(130)
+        choice = read_key("n").lower()
         if choice in ("y", "yes"):
             return True
         if choice in ("n", "no"):
@@ -1367,28 +1360,13 @@ def gh_repository(body):
     return (body.get("data") or {}).get("repository") or {}
 
 
-def probe_remote_disk_kb(owner, repo, token):
-    """Repo size in KB via GraphQL diskUsage; None on error."""
-    query = """
-query($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) { diskUsage }
-}
-""".strip()
-    try:
-        body = gh_graphql(query, {"owner": owner, "repo": repo}, token)
-    except urllib.error.URLError:
-        return None
-    if "errors" in body:
-        return None
-    kb = gh_repository(body).get("diskUsage")
-    return kb if isinstance(kb, int) else None
-
-
-def probe_remote_total(owner, repo, token):
-    """Total commits on the default branch via GraphQL; None on error."""
+def probe_remote_meta(owner, repo, token):
+    """Repo size in KB (diskUsage) and total commits on the default branch,
+    in one GraphQL round-trip; (None, None) on error."""
     query = """
 query($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
+    diskUsage
     defaultBranchRef {
       target { ... on Commit { history(first: 1) { totalCount } } }
     }
@@ -1398,15 +1376,19 @@ query($owner: String!, $repo: String!) {
     try:
         body = gh_graphql(query, {"owner": owner, "repo": repo}, token)
     except urllib.error.URLError:
-        return None
+        return None, None
     if "errors" in body:
-        return None
+        return None, None
     repo_node = gh_repository(body)
+    kb = repo_node.get("diskUsage")
     branch = repo_node.get("defaultBranchRef") or {}
     target = branch.get("target") or {}
     history = target.get("history") or {}
     total = history.get("totalCount")
-    return total if isinstance(total, int) else None
+    return (
+        kb if isinstance(kb, int) else None,
+        total if isinstance(total, int) else None,
+    )
 
 
 def fetch_repo_social(github_base, token):
@@ -2780,12 +2762,16 @@ def main():
 
         interactive = sys.stdin.isatty() and sys.stderr.isatty() and not non_interactive
 
+        # One GraphQL round-trip serves both interactive prompts below: repo
+        # size for the clone offer, commit total for the subset choice.
+        disk_kb = total = None
+        if use_graphql and interactive:
+            disk_kb, total = probe_remote_meta(owner, repo, token)
+
         # A clone unlocks per-author language churn the API can't give; if the
         # repo is small enough to clone quickly, offer the upgrade up front.
-        if use_graphql and interactive:
-            disk_kb = probe_remote_disk_kb(owner, repo, token)
-            if disk_kb is not None and disk_kb <= CLONE_SUGGEST_MAX_KB and prompt_clone(disk_kb):
-                clone, use_graphql = True, False
+        if disk_kb is not None and disk_kb <= CLONE_SUGGEST_MAX_KB and prompt_clone(disk_kb):
+            clone, use_graphql = True, False
 
         # Subset prompt only in the GraphQL path: probing total via the API is
         # cheap, and skipping `--commits N` actually saves network. In the
@@ -2799,13 +2785,10 @@ def main():
             if cached_nodes and not cached_complete:
                 # Partial cache (an earlier subset choice): without asking, a
                 # re-run would silently extend it to the full history.
-                total = probe_remote_total(owner, repo, token)
                 if total and total > len(cached_nodes):
                     commits_filter, since, until = prompt_more(len(cached_nodes), total)
-            elif not cached_nodes:
-                total = probe_remote_total(owner, repo, token)
-                if total and total > 1000:
-                    commits_filter, since, until = prompt_subset(total)
+            elif not cached_nodes and total and total > 1000:
+                commits_filter, since, until = prompt_subset(total)
 
         if use_graphql:
             print(f"Fetching {remote} via GitHub GraphQL…", file=sys.stderr)
