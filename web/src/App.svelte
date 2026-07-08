@@ -140,7 +140,7 @@
         </div>
       </div>
       <div class="section" id="tech">
-        <TechGrid {data} />
+        <TechGrid {data} {authorPopover} />
       </div>
       <div class="section" id="summary">
         <Table {data} {authorPopover} />

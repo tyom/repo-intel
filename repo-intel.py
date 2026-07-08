@@ -796,9 +796,17 @@ def ensure_bare_clone(owner, repo, no_cache):
     if clone_dir in _CLONE_REFRESHED:
         return clone_dir
     if not os.path.isdir(clone_dir):
-        subprocess.check_call(
-            ["git", "clone", "--bare", f"https://github.com/{owner}/{repo}.git", clone_dir]
-        )
+        # SSH first: HTTPS interactively prompts for username/password on
+        # private repos, while a failed SSH attempt (no key) fails fast and
+        # falls through to HTTPS.
+        for url in (
+            f"git@github.com:{owner}/{repo}.git",
+            f"https://github.com/{owner}/{repo}.git",
+        ):
+            if subprocess.run(["git", "clone", "--bare", url, clone_dir]).returncode == 0:
+                break
+        else:
+            raise SystemExit(f"git clone failed for {owner}/{repo}")
     elif not no_cache:
         print("  updating cached bare clone…", file=sys.stderr)
         subprocess.run(["git", "fetch", "--quiet", "origin"], cwd=clone_dir, check=False)
@@ -2329,6 +2337,46 @@ def build_data(
             }
         )
 
+    # Top 3 contributors for each of the top 5 languages — the inverse of each
+    # contributor's language mix. Ranks all authors (not just top_n) so shares
+    # sum correctly; empty in API-only runs, where lang_stats is empty.
+    lang_leaders = []
+    lang_totals = sorted(
+        ((lang, a + d) for lang, (a, d, _) in repo_langs.items() if lang != OTHER_LANG),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    for lang, lang_total in lang_totals[:5]:
+        if lang_total <= 0:
+            continue
+        by_author = sorted(
+            (
+                (r["name"], r["email"], sum(r["langs"][lang][:2]))
+                for r in ranked
+                if lang in r["langs"]
+            ),
+            key=lambda x: x[2],
+            reverse=True,
+        )
+        lang_leaders.append(
+            {
+                "name": lang,
+                "color": NAME_COLOR.get(lang, OTHER_COLOR),
+                "contributors": [
+                    # email keys the segment to the contributor's chart colour
+                    # and author popover on the dashboard side.
+                    {
+                        "name": name,
+                        "email": email,
+                        "pct": round(lines * 100 / lang_total, 1),
+                        "avatarUrl": avatar_url(email, override=avatars.get(email)),
+                    }
+                    for name, email, lines in by_author[:3]
+                    if lines > 0
+                ],
+            }
+        )
+
     weeks_sorted = sorted(all_weeks)
     weekly_data = {
         r["email"]: [weekly_by_author[r["email"]].get(w, 0) for w in weeks_sorted] for r in top
@@ -2395,6 +2443,7 @@ def build_data(
         "tags": tags or [],
         "repoLanguages": repo_languages or top_languages(repo_langs),
         "repoLanguagesBasis": "size" if repo_languages else "churn",
+        "langLeaders": lang_leaders,
         "frameworks": frameworks or [],
     }
 
@@ -2680,6 +2729,10 @@ def main():
 
         if use_graphql:
             print(f"Fetching {remote} via GitHub GraphQL…", file=sys.stderr)
+            print(
+                "Note: per-contributor language stats need a clone — pass --clone to get them.",
+                file=sys.stderr,
+            )
         else:
             print(f"Cloning {remote} (bare) for local analysis…", file=sys.stderr)
         (

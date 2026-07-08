@@ -81,6 +81,18 @@
     <span class="add">{fmt(contributor.added)} ++</span>
     <span class="del">{fmt(contributor.deleted)} --</span>
   </div>
+  <!-- Top technologies by churn share; the full breakdown lives in the author
+       popover. Empty in API-only runs (no clone → no per-author lang stats). -->
+  {#if contributor.languages.length}
+    <div class="langs">
+      {#each contributor.languages.slice(0, 3) as l}
+        <span class="lang"
+          ><span class="dot" style="background:{l.color}"></span>{l.name}
+          <span class="pct">{l.pct}%</span></span
+        >
+      {/each}
+    </div>
+  {/if}
   <div class="spark" use:echart={{ option }}></div>
 </div>
 
@@ -122,6 +134,31 @@
       }
       .del {
         color: var(--color-deleted);
+      }
+    }
+    .langs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 8px;
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+      margin: -4px 0 8px;
+
+      .lang {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .pct {
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
       }
     }
     .rank {
