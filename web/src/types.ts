@@ -95,6 +95,23 @@ export interface OpenPullRequest {
   author: string;
 }
 
+// fetch_issues() — closed issues, newest 1000, oldest-first like merged PRs.
+export interface Issue {
+  number: number;
+  title: string;
+  createdAt: string;
+  closedAt: string;
+  author: string;
+}
+
+// Still-open issues (oldest 100, oldest-first) — no closedAt by definition.
+export interface OpenIssue {
+  number: number;
+  title: string;
+  createdAt: string;
+  author: string;
+}
+
 export interface FileSize {
   path: string;
   bytes: number;
@@ -133,6 +150,14 @@ export interface RepoData {
   prCount?: number | null;
   prOpenCount?: number | null;
   prClosedCount?: number | null;
+  /** Closed issues (capped at 1000) and issue counts (open / closed);
+      absent without GitHub + token. */
+  issues?: Issue[];
+  openIssues?: OpenIssue[];
+  issueOpenCount?: number | null;
+  issueClosedCount?: number | null;
+  /** Max stacked rows in the timeline's PR/issue strips (--lanes flag). */
+  timelineLanes?: number;
   totals: Totals;
   contributors: Contributor[];
   weeks: string[];

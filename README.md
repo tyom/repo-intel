@@ -2,9 +2,9 @@
 
 Generate a self-contained HTML **contributor-stats dashboard** for any git
 repo — top contributors, weekly/daily activity, time-of-day patterns,
-per-author commit feeds, **pull-request stats** (for GitHub repos, when a
-token is available), plus a **language** breakdown and **framework** detection
-from dependency manifests.
+per-author commit feeds, **pull-request and issue stats** (for GitHub repos,
+when a token is available), plus a **language** breakdown and **framework**
+detection from dependency manifests.
 
 The shipped tool is a single file (`dist/repo-intel`) with the HTML template
 and detection data embedded, so it depends only on **Python 3 + `git`**
@@ -155,10 +155,10 @@ Run `repo-intel --help` for the full flag reference, or `repo-intel --version`
 The [GitHub CLI (`gh`)](https://cli.github.com/) is optional but recommended:
 when authenticated (`gh auth login`), `repo-intel` uses its token to fetch
 remote repos, enrich author cards with GitHub profile data, and add
-pull-request stats (merged/open counts, PR timeline markers, per-contributor
-merged PRs) — this works for local repos with a GitHub origin too. Without it,
-the script falls back to `$GITHUB_TOKEN` or a bare clone, and the PR section
-is omitted.
+pull-request and issue stats (merged/open counts, timeline markers,
+per-contributor merged PRs, top issue reporters) — this works for local repos
+with a GitHub origin too. Without it, the script falls back to `$GITHUB_TOKEN`
+or a bare clone, and the PR and issue sections are omitted.
 
 ### Filtering commits
 
@@ -179,6 +179,17 @@ earlier subset choice), it instead asks whether to fetch additional history
 (500/1000/2000 more, All, or keep the cached subset). Both prompts are skipped
 on the bare-clone fallback, when stdin/stderr is not a TTY, or when any filter
 flag is given.
+
+### Pull requests & issues
+
+| Flag             | Default | Meaning                                                  |
+| ---------------- | ------- | -------------------------------------------------------- |
+| `--max-prs N`    | `1000`  | Max merged PRs fetched for stats and timeline markers    |
+| `--max-issues N` | `1000`  | Max closed issues fetched for stats and timeline markers |
+| `--lanes N`      | `10`    | Max stacked rows in the timeline's PR and issue strips   |
+
+The stat cards note when they're computed from a window smaller than the
+repo's full history, so lowering the caps keeps the output honest.
 
 ### Output
 

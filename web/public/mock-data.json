@@ -1401,5 +1401,78 @@
       "createdAt": "2026-04-28T08:20:00",
       "author": "grace"
     }
-  ]
+  ],
+  "issues": [
+    {
+      "number": 3,
+      "title": "Timeline squashes on narrow screens",
+      "createdAt": "2025-02-02T10:00:00",
+      "closedAt": "2025-02-20T16:45:00",
+      "author": "jchen"
+    },
+    {
+      "number": 7,
+      "title": "Heatmap tooltip shows wrong week",
+      "createdAt": "2025-03-01T09:15:00",
+      "closedAt": "2025-04-12T11:00:00",
+      "author": "arivera"
+    },
+    {
+      "number": 11,
+      "title": "Crash when repo has a single commit",
+      "createdAt": "2025-04-20T14:30:00",
+      "closedAt": "2025-04-22T08:10:00",
+      "author": "ada"
+    },
+    {
+      "number": 16,
+      "title": "Language colours mismatch GitHub",
+      "createdAt": "2025-05-10T12:00:00",
+      "closedAt": "2025-07-30T17:20:00",
+      "author": "msilva"
+    },
+    {
+      "number": 24,
+      "title": "Minimap drag jitters at high zoom",
+      "createdAt": "2025-08-05T10:45:00",
+      "closedAt": "2025-09-14T13:05:00",
+      "author": "jchen"
+    },
+    {
+      "number": 29,
+      "title": "Contributor merge misses noreply emails",
+      "createdAt": "2025-10-01T08:00:00",
+      "closedAt": "2026-01-18T10:30:00",
+      "author": "arivera"
+    },
+    {
+      "number": 38,
+      "title": "Export ignores selected year filter",
+      "createdAt": "2026-02-11T15:00:00",
+      "closedAt": "2026-03-02T09:40:00",
+      "author": "ada"
+    }
+  ],
+  "openIssues": [
+    {
+      "number": 9,
+      "title": "Support GitLab remotes",
+      "createdAt": "2025-03-15T09:00:00",
+      "author": "msilva"
+    },
+    {
+      "number": 33,
+      "title": "Punch card unreadable with 20+ authors",
+      "createdAt": "2025-11-20T11:15:00",
+      "author": "jchen"
+    },
+    {
+      "number": 41,
+      "title": "Add CSV export of the summary table",
+      "createdAt": "2026-04-05T16:30:00",
+      "author": "ada"
+    }
+  ],
+  "issueOpenCount": 6,
+  "issueClosedCount": 23
 }

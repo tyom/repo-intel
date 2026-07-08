@@ -3,7 +3,16 @@
 // which the AuthorPopover / CommitPopover components render. The show/hide call
 // sites in timeline.ts and charts.ts stay unchanged — they still receive an
 // object with the same shape.
-import type { Commit, Contributor, PullRequest, RepoData, Tag } from "$types";
+import type {
+  Commit,
+  Contributor,
+  Issue,
+  OpenIssue,
+  OpenPullRequest,
+  PullRequest,
+  RepoData,
+  Tag,
+} from "$types";
 import type { TimelineBundle } from "./timeline";
 import {
   setAuthor,
@@ -14,6 +23,7 @@ import {
   setCommitTip,
   setTagTip,
   setPrTip,
+  setIssueTip,
   clearTip,
 } from "./popover-store.svelte";
 
@@ -73,6 +83,10 @@ export function buildPunchPoints(commits: Commit[]): Record<string, PunchPoint[]
 // PR section and table columns can't disagree.
 export const hasPrData = (D: RepoData): boolean =>
   (D.pullRequests?.length ?? 0) > 0 || (D.openPullRequests?.length ?? 0) > 0;
+
+// Same, for issue data — keeps the nav link and issue section in agreement.
+export const hasIssueData = (D: RepoData): boolean =>
+  (D.issues?.length ?? 0) > 0 || (D.openIssues?.length ?? 0) > 0;
 
 // Per-login PR counts (merged from the fetched window, open from the open
 // list), keyed by lowercased GitHub login. Shared by the summary table, the
@@ -139,7 +153,8 @@ export function createCommitPopover(D: RepoData): CommitPopover {
 export interface TimelineTooltip {
   showCommit(c: TimelineBundle, author: Contributor, color: string, x: number, y: number): void;
   showTag(tags: Tag[], x: number, y: number): void;
-  showPr(pr: PullRequest, x: number, y: number): void;
+  showPr(pr: PullRequest | OpenPullRequest, x: number, y: number): void;
+  showIssue(issue: Issue | OpenIssue, x: number, y: number): void;
   hide(): void;
 }
 
@@ -148,6 +163,7 @@ export function createTimelineTooltip(): TimelineTooltip {
     showCommit: setCommitTip,
     showTag: setTagTip,
     showPr: setPrTip,
+    showIssue: setIssueTip,
     hide: clearTip,
   };
 }

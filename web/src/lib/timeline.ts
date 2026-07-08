@@ -2,9 +2,17 @@
 // inertia, wheel/pinch zoom, a draggable histogram minimap, tag markers, and a
 // rich hover tooltip. Ported ~verbatim from template.html (imperative canvas /
 // pointer-event code that is wrapped, not rewritten).
-import type { Commit, RepoData, Tag } from "$types";
-import { clr, gridLine, selectionFill, selectionStroke, accentWeekend, accentPr } from "./theme";
-import { authorUrl, escapeHtml, prPageUrl } from "./format";
+import type { Commit, Issue, OpenIssue, OpenPullRequest, PullRequest, RepoData, Tag } from "$types";
+import {
+  clr,
+  gridLine,
+  selectionFill,
+  selectionStroke,
+  accentWeekend,
+  accentPr,
+  accentIssue,
+} from "./theme";
+import { authorUrl, escapeHtml, prPageUrl, issuePageUrl } from "./format";
 import type { AuthorPopover, TimelineTooltip } from "./popovers";
 
 // A day+author commit bundle (one or more commits collapsed onto one square),
@@ -86,48 +94,86 @@ export function buildTimeline(
   const tagHeight = hasTags ? 16 : 0;
   const tagDotRadius = 3.5;
   const tagHitPad = 4;
-  const prs = D.pullRequests || [];
-  const prMsList = prs.map((p) => {
-    const dt = new Date(p.mergedAt);
+  // Merged + still-open PRs share the strip: merged PRs get a filled dot at
+  // mergedAt with an open→merge span; open PRs get a hollow dot at createdAt
+  // with a dashed span running to the domain edge (still open at generation).
+  const mergedPrs = D.pullRequests || [];
+  const openPrs = D.openPullRequests || [];
+  const prs: (PullRequest | OpenPullRequest)[] = [...mergedPrs, ...openPrs];
+  const prIsOpen = (i: number) => i >= mergedPrs.length;
+  // Marker position: mergedAt for merged, createdAt (the open event) for open.
+  const prMsList = prs.map((p, i) => {
+    const dt = new Date(prIsOpen(i) ? p.createdAt : (p as PullRequest).mergedAt);
     return isNaN(+dt) ? 0 : +dt - +start;
   });
-  // When the PR was opened, for the open→merge span; null when unknown.
+  // Span start (when the PR was opened); null when unknown.
   const prOpenMsList = prs.map((p) => {
     const dt = new Date(p.createdAt);
     return isNaN(+dt) ? null : +dt - +start;
   });
+  const prSpanEnd = (i: number) => (prIsOpen(i) ? totalMs : prMsList[i]);
   const hasPrs = prs.length > 0;
-  // Overlapping open→merge spans stack onto separate rows (greedy interval
-  // partitioning by open time, capped — beyond the cap, overflow PRs share the
-  // row that frees up earliest and may overlap again).
-  const prRowCap = 4;
-  const prRowH = 14;
-  const prRow = new Array<number>(prs.length).fill(0);
-  let prRowCount = 1;
-  {
-    const startMs = prs.map((_, i) => prOpenMsList[i] ?? prMsList[i]);
-    const order = prs.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
+  // Overlapping open→end spans stack onto separate rows (greedy interval
+  // partitioning by open time, capped — beyond the cap, overflow items share
+  // the row that frees up earliest and may overlap again). The collector's
+  // --lanes flag sets the cap. Shared by the PR and issue strips.
+  const laneCap = D.timelineLanes || 10;
+  function stackRows(
+    openMsList: (number | null)[],
+    msList: number[],
+    spanEnd: (i: number) => number,
+  ): { row: number[]; rowCount: number } {
+    const row = new Array<number>(msList.length).fill(0);
+    const startMs = msList.map((ms, i) => openMsList[i] ?? ms);
+    const order = msList.map((_, i) => i).sort((a, b) => startMs[a] - startMs[b]);
     const rowEnd: number[] = [];
     for (const i of order) {
       let r = rowEnd.findIndex((end) => end <= startMs[i]);
       if (r === -1) {
-        if (rowEnd.length < prRowCap) {
+        if (rowEnd.length < laneCap) {
           r = rowEnd.length;
           rowEnd.push(0);
         } else {
           r = rowEnd.indexOf(Math.min(...rowEnd));
         }
       }
-      prRow[i] = r;
-      rowEnd[r] = Math.max(rowEnd[r], prMsList[i]);
+      row[i] = r;
+      rowEnd[r] = Math.max(rowEnd[r], spanEnd(i));
     }
-    prRowCount = Math.max(1, rowEnd.length);
+    return { row, rowCount: Math.max(1, rowEnd.length) };
   }
+  const prRowH = 14;
+  const { row: prRow, rowCount: prRowCount } = stackRows(prOpenMsList, prMsList, prSpanEnd);
   const prHeight = hasPrs ? prRowCount * prRowH : 0;
   const prColor = `rgba(${accentPr},0.9)`;
+  // Same closed + still-open split as the PR strip above.
+  const closedIssues = D.issues || [];
+  const openIssues = D.openIssues || [];
+  const issues: (Issue | OpenIssue)[] = [...closedIssues, ...openIssues];
+  const issueIsOpen = (i: number) => i >= closedIssues.length;
+  const issueMsList = issues.map((p, i) => {
+    const dt = new Date(issueIsOpen(i) ? p.createdAt : (p as Issue).closedAt);
+    return isNaN(+dt) ? 0 : +dt - +start;
+  });
+  // Span start (when the issue was opened); null when unknown.
+  const issueOpenMsList = issues.map((p) => {
+    const dt = new Date(p.createdAt);
+    return isNaN(+dt) ? null : +dt - +start;
+  });
+  const issueSpanEnd = (i: number) => (issueIsOpen(i) ? totalMs : issueMsList[i]);
+  const hasIssues = issues.length > 0;
+  const issueRowH = 14;
+  const { row: issueRow, rowCount: issueRowCount } = stackRows(
+    issueOpenMsList,
+    issueMsList,
+    issueSpanEnd,
+  );
+  const issueHeight = hasIssues ? issueRowCount * issueRowH : 0;
+  const issueColor = `rgba(${accentIssue},0.9)`;
   const histTagStripH = hasTags ? 6 : 0;
   const histPrStripH = hasPrs ? 6 : 0;
-  const histHeight = histBarsHeight + histTagStripH + histPrStripH;
+  const histIssueStripH = hasIssues ? 6 : 0;
+  const histHeight = histBarsHeight + histTagStripH + histPrStripH + histIssueStripH;
   const yearsBarHeight = 18;
   const height = contributors.length * laneHeight;
 
@@ -147,6 +193,9 @@ export function buildTimeline(
   }
   if (hasPrs) {
     labelsHtml += `<div style="height:${prHeight}px;"></div>`;
+  }
+  if (hasIssues) {
+    labelsHtml += `<div style="height:${issueHeight}px;"></div>`;
   }
   labelsHtml += `<div class="histogram-label" style="height:${histHeight}px;"><button class="timeline-reset-btn" id="timelineReset" type="button">Reset zoom</button></div>`;
   labelsDiv.innerHTML = labelsHtml;
@@ -220,6 +269,15 @@ export function buildTimeline(
     innerDiv.appendChild(prCanvas);
   }
 
+  let issueCanvas: HTMLCanvasElement | null = null,
+    issuectx: CanvasRenderingContext2D | null = null;
+  if (hasIssues) {
+    issueCanvas = document.createElement("canvas");
+    issueCanvas.className = "timeline-canvas timeline-tags";
+    issuectx = issueCanvas.getContext("2d");
+    innerDiv.appendChild(issueCanvas);
+  }
+
   // Sits directly under the month axis (the axis itself is inserted at the top
   // of innerDiv by rebuildAxis), grouping the time scales together.
   const yearsBar = document.createElement("div");
@@ -244,6 +302,7 @@ export function buildTimeline(
   let hoveredHash: string | null = null;
   let hoveredTagIdx: number | null = null;
   let hoveredPrIdx: number | null = null;
+  let hoveredIssueIdx: number | null = null;
   let selecting = false,
     selStartX = 0,
     selCurX = 0,
@@ -486,6 +545,13 @@ export function buildTimeline(
       prCanvas.style.height = prHeight + "px";
     }
 
+    if (issueCanvas) {
+      issueCanvas.width = Math.round(canvasViewW * dpr);
+      issueCanvas.height = Math.round(issueHeight * dpr);
+      issueCanvas.style.width = canvasViewW + "px";
+      issueCanvas.style.height = issueHeight + "px";
+    }
+
     histCanvas.width = Math.round(canvasViewW * dpr);
     histCanvas.height = Math.round(histHeight * dpr);
     histCanvas.style.width = canvasViewW + "px";
@@ -684,6 +750,10 @@ export function buildTimeline(
       drawGuide(ctx, markerX(prMsList[hoveredPrIdx]) - sl, height);
     }
 
+    if (hoveredIssueIdx != null && issues[hoveredIssueIdx]) {
+      drawGuide(ctx, markerX(issueMsList[hoveredIssueIdx]) - sl, height);
+    }
+
     const slotMsLo = (sl / currentWidth) * totalMs - 86400000;
     const slotMsHi = ((sl + canvasViewW) / currentWidth) * totalMs + 86400000;
 
@@ -764,6 +834,7 @@ export function buildTimeline(
 
     drawTags();
     drawPrs();
+    drawIssues();
     drawHistogram();
     updateRangeText();
     updateResetBtn();
@@ -795,10 +866,13 @@ export function buildTimeline(
       tagctx.strokeStyle = "rgba(255,255,255,0.55)";
       tagctx.stroke();
     }
-    // Continue the guide line of a hovered PR dot through this strip so the
-    // line runs unbroken from the lanes down to the PR strip.
+    // Continue the guide line of a hovered PR/issue dot through this strip so
+    // the line runs unbroken from the lanes down to its own strip.
     if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
       drawGuide(tagctx, markerX(prMsList[hoveredPrIdx]) - sl, tagHeight);
+    }
+    if (hoveredIssueIdx != null && issues[hoveredIssueIdx]) {
+      drawGuide(tagctx, markerX(issueMsList[hoveredIssueIdx]) - sl, tagHeight);
     }
     if (hoveredX !== null) {
       drawGuide(tagctx, hoveredX, tagHeight);
@@ -817,24 +891,30 @@ export function buildTimeline(
     drawYearLines(prctx, prHeight);
     const sl = scrollDiv.scrollLeft;
     const rowY = (i: number) => prRow[i] * prRowH + prRowH / 2;
-    // Open→merge spans first, so the merge dots draw on top.
+    // Spans first, so the dots draw on top. Open PRs run dashed to the domain
+    // edge (still open); merged PRs run solid open→merge.
     prctx.lineWidth = 2;
     for (let i = 0; i < prs.length; i++) {
       const openMs = prOpenMsList[i];
-      if (openMs == null || openMs >= prMsList[i]) continue;
+      if (openMs == null || openMs >= prSpanEnd(i)) continue;
       const x0 = markerX(openMs) - sl;
-      const x1 = markerX(prMsList[i]) - sl;
+      const x1 = markerX(prSpanEnd(i)) - sl;
       if (x1 < 0 || x0 > canvasViewW) continue;
       prctx.strokeStyle = i === hoveredPrIdx ? `rgba(${accentPr},1)` : `rgba(${accentPr},0.4)`;
+      if (prIsOpen(i)) prctx.setLineDash([2, 3]);
       prctx.beginPath();
       prctx.moveTo(x0, rowY(i));
       prctx.lineTo(x1, rowY(i));
       prctx.stroke();
+      if (prIsOpen(i)) prctx.setLineDash([]);
     }
     prctx.lineWidth = 1;
-    // Continue the guide line of a hovered tag dot through this strip.
+    // Continue the guide line of a hovered tag/issue dot through this strip.
     if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
       drawGuide(prctx, markerX(tagMsList[hoveredTagIdx]) - sl, prHeight);
+    }
+    if (hoveredIssueIdx != null && issues[hoveredIssueIdx]) {
+      drawGuide(prctx, markerX(issueMsList[hoveredIssueIdx]) - sl, prHeight);
     }
     let hoveredX: number | null = null;
     for (let i = 0; i < prs.length; i++) {
@@ -846,9 +926,10 @@ export function buildTimeline(
       }
       prctx.beginPath();
       prctx.arc(xCanvas, rowY(i), tagDotRadius, 0, Math.PI * 2);
-      prctx.fillStyle = prColor;
+      // Open PRs are hollow (dark fill, accent ring); merged are filled.
+      prctx.fillStyle = prIsOpen(i) ? "rgba(13,17,23,0.85)" : prColor;
       prctx.fill();
-      prctx.strokeStyle = "rgba(255,255,255,0.35)";
+      prctx.strokeStyle = prIsOpen(i) ? prColor : "rgba(255,255,255,0.35)";
       prctx.stroke();
     }
     if (hoveredX !== null && hoveredPrIdx != null) {
@@ -857,6 +938,65 @@ export function buildTimeline(
       prctx.arc(hoveredX, rowY(hoveredPrIdx), tagDotRadius + 0.5, 0, Math.PI * 2);
       prctx.fillStyle = "rgba(255,255,255,0.98)";
       prctx.fill();
+    }
+  }
+
+  function drawIssues(): void {
+    if (!issueCanvas || !issuectx) return;
+    issuectx.setTransform(1, 0, 0, 1, 0, 0);
+    issuectx.scale(dpr, dpr);
+    issuectx.clearRect(0, 0, canvasViewW, issueHeight);
+    drawYearLines(issuectx, issueHeight);
+    const sl = scrollDiv.scrollLeft;
+    const rowY = (i: number) => issueRow[i] * issueRowH + issueRowH / 2;
+    // Spans first, so the dots draw on top. Open issues run dashed to the
+    // domain edge (still open); closed issues run solid open→close.
+    issuectx.lineWidth = 2;
+    for (let i = 0; i < issues.length; i++) {
+      const openMs = issueOpenMsList[i];
+      if (openMs == null || openMs >= issueSpanEnd(i)) continue;
+      const x0 = markerX(openMs) - sl;
+      const x1 = markerX(issueSpanEnd(i)) - sl;
+      if (x1 < 0 || x0 > canvasViewW) continue;
+      issuectx.strokeStyle =
+        i === hoveredIssueIdx ? `rgba(${accentIssue},1)` : `rgba(${accentIssue},0.4)`;
+      if (issueIsOpen(i)) issuectx.setLineDash([2, 3]);
+      issuectx.beginPath();
+      issuectx.moveTo(x0, rowY(i));
+      issuectx.lineTo(x1, rowY(i));
+      issuectx.stroke();
+      if (issueIsOpen(i)) issuectx.setLineDash([]);
+    }
+    issuectx.lineWidth = 1;
+    // Continue the guide line of a hovered tag/PR dot through this strip.
+    if (hoveredTagIdx != null && tags[hoveredTagIdx]) {
+      drawGuide(issuectx, markerX(tagMsList[hoveredTagIdx]) - sl, issueHeight);
+    }
+    if (hoveredPrIdx != null && prs[hoveredPrIdx]) {
+      drawGuide(issuectx, markerX(prMsList[hoveredPrIdx]) - sl, issueHeight);
+    }
+    let hoveredX: number | null = null;
+    for (let i = 0; i < issues.length; i++) {
+      const xCanvas = markerX(issueMsList[i]) - sl;
+      if (xCanvas < -tagDotRadius - 2 || xCanvas > canvasViewW + tagDotRadius + 2) continue;
+      if (i === hoveredIssueIdx) {
+        hoveredX = xCanvas;
+        continue;
+      }
+      issuectx.beginPath();
+      issuectx.arc(xCanvas, rowY(i), tagDotRadius, 0, Math.PI * 2);
+      // Open issues are hollow (dark fill, accent ring); closed are filled.
+      issuectx.fillStyle = issueIsOpen(i) ? "rgba(13,17,23,0.85)" : issueColor;
+      issuectx.fill();
+      issuectx.strokeStyle = issueIsOpen(i) ? issueColor : "rgba(255,255,255,0.35)";
+      issuectx.stroke();
+    }
+    if (hoveredX !== null && hoveredIssueIdx != null) {
+      drawGuide(issuectx, hoveredX, issueHeight);
+      issuectx.beginPath();
+      issuectx.arc(hoveredX, rowY(hoveredIssueIdx), tagDotRadius + 0.5, 0, Math.PI * 2);
+      issuectx.fillStyle = "rgba(255,255,255,0.98)";
+      issuectx.fill();
     }
   }
 
@@ -963,6 +1103,12 @@ export function buildTimeline(
         prMsList,
         histBarsHeight + histTagStripH + Math.floor(histPrStripH / 2),
         `rgba(${accentPr},0.95)`,
+      );
+    if (hasIssues)
+      drawHistogramMarkers(
+        issueMsList,
+        histBarsHeight + histTagStripH + histPrStripH + Math.floor(histIssueStripH / 2),
+        `rgba(${accentIssue},0.95)`,
       );
     drawSelectionPreview();
   }
@@ -1305,9 +1451,40 @@ export function buildTimeline(
   }
 
   const findTagHit = (mx: number) => findMarkerHit(tagMsList, mx);
-  // Only dots on the row under the cursor are hit candidates.
-  const findPrHit = (mx: number, my: number) =>
-    findMarkerHit(prMsList, mx, (i) => Math.abs(prRow[i] * prRowH + prRowH / 2 - my) > prRowH / 2);
+  // Dot hit first (nearest wins); otherwise a cursor resting on an item's span
+  // line (same row, between span start and end) hits that item too.
+  function findSpanHit(
+    mx: number,
+    rowAt: (i: number) => number,
+    count: number,
+    spanStart: (number | null)[],
+    spanEnd: (i: number) => number,
+    row: number,
+  ): number | null {
+    const sl = scrollDiv.scrollLeft;
+    for (let i = 0; i < count; i++) {
+      const openMs = spanStart[i];
+      if (rowAt(i) !== row || openMs == null) continue;
+      const x0 = markerX(openMs) - sl;
+      const x1 = markerX(spanEnd(i)) - sl;
+      if (mx >= x0 - 1 && mx <= x1 + 1) return i;
+    }
+    return null;
+  }
+  const findPrHit = (mx: number, my: number) => {
+    const row = Math.floor(my / prRowH);
+    return (
+      findMarkerHit(prMsList, mx, (i) => prRow[i] !== row) ??
+      findSpanHit(mx, (i) => prRow[i], prs.length, prOpenMsList, prSpanEnd, row)
+    );
+  };
+  const findIssueHit = (mx: number, my: number) => {
+    const row = Math.floor(my / issueRowH);
+    return (
+      findMarkerHit(issueMsList, mx, (i) => issueRow[i] !== row) ??
+      findSpanHit(mx, (i) => issueRow[i], issues.length, issueOpenMsList, issueSpanEnd, row)
+    );
+  };
 
   function tagUrl(name: string): string | null {
     if (!D.githubBaseUrl || !name) return null;
@@ -1380,6 +1557,41 @@ export function buildTimeline(
       const hit = findPrHit(mx, e.clientY - rect.top);
       if (hit == null) return;
       const url = prPageUrl(D, prs[hit].number);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    });
+  }
+
+  if (issueCanvas) {
+    issueCanvas.addEventListener("mousedown", (e) => e.stopPropagation());
+    issueCanvas.addEventListener("mousemove", (e) => {
+      const rect = issueCanvas!.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const hit = findIssueHit(mx, e.clientY - rect.top);
+      if (hit !== hoveredIssueIdx) {
+        hoveredIssueIdx = hit;
+        drawCanvas();
+      }
+      if (hit != null) {
+        issueCanvas!.style.cursor = "pointer";
+        tooltip.showIssue(issues[hit], e.clientX, e.clientY);
+      } else {
+        issueCanvas!.style.cursor = "";
+        tooltip.hide();
+      }
+    });
+    issueCanvas.addEventListener("mouseleave", () => {
+      if (hoveredIssueIdx !== null) {
+        hoveredIssueIdx = null;
+        drawCanvas();
+      }
+      tooltip.hide();
+    });
+    issueCanvas.addEventListener("click", (e) => {
+      const rect = issueCanvas!.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const hit = findIssueHit(mx, e.clientY - rect.top);
+      if (hit == null) return;
+      const url = issuePageUrl(D, issues[hit].number);
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     });
   }

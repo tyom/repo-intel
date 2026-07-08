@@ -3,7 +3,15 @@
 // drive these through the thin adapters in popovers.ts; the AuthorPopover /
 // CommitPopover / TimelineTooltip components read the state and render it. Lives
 // in a .svelte.ts module so it can hold $state.
-import type { Commit, Contributor, PullRequest, Tag } from "$types";
+import type {
+  Commit,
+  Contributor,
+  Issue,
+  OpenIssue,
+  OpenPullRequest,
+  PullRequest,
+  Tag,
+} from "$types";
 import type { TimelineBundle } from "./timeline";
 
 export interface AuthorPopoverState {
@@ -92,15 +100,17 @@ export function clearCommit(): void {
 // discriminated by `kind`. Unlike the popovers above it follows the cursor, so
 // it also carries the live {x, y} the position action reads to reposition.
 export interface TimelineTipState {
-  kind: "commit" | "tag" | "pr" | null;
+  kind: "commit" | "tag" | "pr" | "issue" | null;
   // commit
   c: TimelineBundle | null;
   author: Contributor | null;
   color: string;
   // tag — one or more tags sharing the hovered commit (same dot)
   tags: Tag[];
-  // pr — the hovered merged pull request
-  pr: PullRequest | null;
+  // pr — the hovered pull request (merged, or still open — no mergedAt)
+  pr: PullRequest | OpenPullRequest | null;
+  // issue — the hovered issue (closed, or still open — no closedAt)
+  issue: Issue | OpenIssue | null;
   // cursor (viewport coords)
   x: number;
   y: number;
@@ -113,6 +123,7 @@ export const timelineTipState: TimelineTipState = $state({
   color: "",
   tags: [],
   pr: null,
+  issue: null,
   x: 0,
   y: 0,
 });
@@ -156,10 +167,19 @@ export function setTagTip(tags: Tag[], x: number, y: number): void {
   timelineTipState.y = y;
 }
 
-export function setPrTip(pr: PullRequest, x: number, y: number): void {
+export function setPrTip(pr: PullRequest | OpenPullRequest, x: number, y: number): void {
   if (timelineTipState.kind !== "pr" || timelineTipState.pr?.number !== pr.number) {
     timelineTipState.kind = "pr";
     timelineTipState.pr = pr;
+  }
+  timelineTipState.x = x;
+  timelineTipState.y = y;
+}
+
+export function setIssueTip(issue: Issue | OpenIssue, x: number, y: number): void {
+  if (timelineTipState.kind !== "issue" || timelineTipState.issue?.number !== issue.number) {
+    timelineTipState.kind = "issue";
+    timelineTipState.issue = issue;
   }
   timelineTipState.x = x;
   timelineTipState.y = y;

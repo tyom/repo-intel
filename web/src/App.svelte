@@ -12,6 +12,7 @@
     buildPunchPoints,
     buildPrCountsByLogin,
     hasPrData,
+    hasIssueData,
   } from "$lib/popovers";
   import { authorUrl, fmtTimelineDuration, relativeTime, fmtDateTime } from "$lib/format";
   import { setAuthorTotalCommits, setAuthorPrCounts } from "$lib/popover-store.svelte";
@@ -26,6 +27,7 @@
   import ContributorCard from "$components/ContributorCard.svelte";
   import OverallCharts from "$components/OverallCharts.svelte";
   import PrCards from "$components/PrCards.svelte";
+  import IssueCards from "$components/IssueCards.svelte";
   import PatternCard from "$components/PatternCard.svelte";
   import AuthorPopover from "$components/AuthorPopover.svelte";
   import CommitPopover from "$components/CommitPopover.svelte";
@@ -66,8 +68,10 @@
   // Heatmap view mode, chosen by YearToggles and read by the Heatmap component.
   let heatmapMode = $state<Mode>("current");
 
-  // PR section (cards + nav link) only exists when the collector fetched PRs.
+  // PR/issue sections (cards + nav links) only exist when the collector
+  // fetched them.
   const hasPrs = $derived(hasPrData(data));
+  const hasIssues = $derived(hasIssueData(data));
 
   // The timeline is still rendered imperatively into the container elements below
   // (it's a hand-drawn canvas); wire it once the static layout is mounted.
@@ -84,7 +88,7 @@
   <!-- Rendered here for tree placement, but all use:portal to <body>. -->
   <AuthorPopover />
   <CommitPopover />
-  <TimelineTooltip />
+  <TimelineTooltip generatedAt={data.generatedAt} />
   <Header {data} />
   <div class="layout">
     <aside class="sidebar">
@@ -94,6 +98,7 @@
         <a href="#tech">Technologies</a>
         <a href="#summary">Summary</a>
         {#if hasPrs}<a href="#pull-requests">Pull requests</a>{/if}
+        {#if hasIssues}<a href="#issues">Issues</a>{/if}
         <a href="#overall">Overall</a>
         <a href="#commit-frequency">Commit frequency</a>
         <a href="#patterns">Commit patterns</a>
@@ -144,6 +149,12 @@
         <div class="section" id="pull-requests">
           <h2>Pull requests</h2>
           <PrCards {data} {authorPopover} />
+        </div>
+      {/if}
+      {#if hasIssues}
+        <div class="section" id="issues">
+          <h2>Issues</h2>
+          <IssueCards {data} {authorPopover} />
         </div>
       {/if}
       <div class="section" id="overall">
