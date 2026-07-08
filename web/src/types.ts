@@ -7,6 +7,13 @@ export interface LanguageStat {
   color: string;
 }
 
+// Top contributors per top language (clone-mode only; [] via the API path).
+export interface LangLeader {
+  name: string;
+  color: string;
+  contributors: { name: string; email: string; pct: number; avatarUrl: string }[];
+}
+
 // detect_frameworks() / fetch_remote returns groups by language.
 export interface FrameworkGroup {
   language: string;
@@ -167,6 +174,7 @@ export interface RepoData {
   tags: Tag[];
   repoLanguages: LanguageStat[];
   repoLanguagesBasis: "size" | "churn";
+  langLeaders: LangLeader[];
   frameworks: FrameworkGroup[];
 }
 

@@ -13,7 +13,7 @@ HELP = """\
 repo-intel — generate a contributor stats dashboard for a git repo.
 
 Usage:
-  repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone]
+  repo-intel [N] [REPO] [-o PATH] [--format LIST] [--no-open] [--clone] [-n]
   repo-intel -h | --help
   repo-intel -v | --version
 
@@ -47,6 +47,9 @@ Options:
   --max-issues N      Max closed issues to fetch for stats/timeline (default: 1000).
   --lanes N           Max stacked rows in the timeline's PR and issue strips
                       (default: 10).
+  -n, --non-interactive
+                      Skip interactive prompts (clone suggestion, commit-subset
+                      choice) and take the defaults.
   -h, --help          Show this help message and exit.
   -v, --version       Show the version and exit.
 
@@ -246,7 +249,7 @@ def parse_args(argv):
         sys.stdout.write(f"repo-intel {resolve_version()}\n")
         sys.exit(0)
     top_n, remote, output, no_open, no_cache = 10, None, None, False, False
-    clone = False
+    clone, non_interactive = False, False
     commits_filter, since, until = None, None, None
     max_prs, max_issues, lanes = MAX_PULL_REQUESTS, MAX_ISSUES, DEFAULT_LANES
     formats = []
@@ -283,6 +286,10 @@ def parse_args(argv):
                 continue
             if tok in ("--clone", "--bare"):
                 clone = True
+                i += 1
+                continue
+            if tok in ("-n", "--non-interactive"):
+                non_interactive = True
                 i += 1
                 continue
             if tok == "-o":
@@ -376,6 +383,7 @@ def parse_args(argv):
         max_prs,
         max_issues,
         lanes,
+        non_interactive,
     )
 
 
@@ -436,8 +444,8 @@ FW_SENTINELS_OTHER = _TECH.get("fw_sentinels_other", [])  # [[path, framework, l
 
 
 def _compile_vendor(patterns):
-    """One matcher from Linguist's vendor.yml regexes; skips Python-incompatible
-    ones (they're Ruby-flavored) so the union still compiles."""
+    """One matcher from Linguist's vendor.yml/documentation.yml regexes; skips
+    Python-incompatible ones (they're Ruby-flavored) so the union still compiles."""
     good = []
     for p in patterns:
         try:
@@ -451,7 +459,9 @@ def _compile_vendor(patterns):
         return None
 
 
-_VENDOR_RE = _compile_vendor(_TECH.get("vendor", []))
+# Linguist excludes both vendored and documentation paths from language stats;
+# match its behavior so the bar agrees with GitHub's (e.g. `docs/`, READMEs).
+_VENDOR_RE = _compile_vendor(_TECH.get("vendor", []) + _TECH.get("documentation", []))
 
 # Lockfiles Linguist classifies as *generated* (handled in code, not vendor.yml)
 # — kept as a small supplement so they don't dominate the language bar.
@@ -544,7 +554,7 @@ def classify_path(field, present=None, shebang=None):
     path = numstat_newpath(field.strip().strip('"')).replace("\\", "/")
     if present is not None and path not in present:
         return None  # file no longer exists at HEAD — count only survivors
-    if _VENDOR_RE and _VENDOR_RE.search(path):  # Linguist vendored paths
+    if _VENDOR_RE and _VENDOR_RE.search(path):  # Linguist vendored/documentation paths
         return None
     base = path.rsplit("/", 1)[-1].lower()
     if base in NOISE_BASENAMES:
@@ -796,14 +806,53 @@ def ensure_bare_clone(owner, repo, no_cache):
     if clone_dir in _CLONE_REFRESHED:
         return clone_dir
     if not os.path.isdir(clone_dir):
-        subprocess.check_call(
-            ["git", "clone", "--bare", f"https://github.com/{owner}/{repo}.git", clone_dir]
-        )
+        # SSH first: HTTPS interactively prompts for username/password on
+        # private repos, while a failed SSH attempt (no key) fails fast and
+        # falls through to HTTPS.
+        for url in (
+            f"git@github.com:{owner}/{repo}.git",
+            f"https://github.com/{owner}/{repo}.git",
+        ):
+            if subprocess.run(["git", "clone", "--bare", url, clone_dir]).returncode == 0:
+                break
+        else:
+            raise SystemExit(f"git clone failed for {owner}/{repo}")
     elif not no_cache:
         print("  updating cached bare clone…", file=sys.stderr)
         subprocess.run(["git", "fetch", "--quiet", "origin"], cwd=clone_dir, check=False)
     _CLONE_REFRESHED.add(clone_dir)
     return clone_dir
+
+
+def read_key(default):
+    """One keypress, no Enter needed; Enter/EOF returns `default`; Ctrl-C
+    aborts the run. Falls back to a line read when stdin isn't a TTY (pipes,
+    tests) or termios is missing."""
+    try:
+        import termios
+        import tty
+    except ImportError:
+        termios = None
+    try:
+        if termios is None or not sys.stdin.isatty():
+            line = sys.stdin.readline()
+            return (line.strip() or default) if line else default
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except KeyboardInterrupt:
+        sys.stderr.write("\nAborted.\n")
+        sys.exit(130)
+    # cbreak disables ECHO — echo the keypress ourselves so the choice shows.
+    if ch in ("", "\r", "\n"):
+        sys.stderr.write("\n")
+        return default
+    sys.stderr.write(f"{ch}\n")
+    return ch
 
 
 def prompt_subset(total):
@@ -823,14 +872,7 @@ def prompt_subset(total):
     while True:
         sys.stderr.write("Choice [4]: ")
         sys.stderr.flush()
-        try:
-            line = sys.stdin.readline()
-        except KeyboardInterrupt:
-            sys.stderr.write("\nAborted.\n")
-            sys.exit(130)
-        if not line:
-            return None, None, None
-        choice = line.strip() or "4"
+        choice = read_key("4")
         if choice == "1":
             return ("last", 500), None, None
         if choice == "2":
@@ -858,12 +900,7 @@ def prompt_more(cached_count, total):
     while True:
         sys.stderr.write("Choice [5]: ")
         sys.stderr.flush()
-        try:
-            line = sys.stdin.readline()
-        except KeyboardInterrupt:
-            sys.stderr.write("\nAborted.\n")
-            sys.exit(130)
-        choice = (line.strip() or "5") if line else "5"
+        choice = read_key("5")
         more = {"1": 500, "2": 1000, "3": 2000}.get(choice)
         if more:
             return ("last", cached_count + more), None, None
@@ -871,6 +908,28 @@ def prompt_more(cached_count, total):
             return None, None, None
         if choice == "5":
             return ("last", cached_count), None, None
+        sys.stderr.write(f"  invalid choice {choice!r}\n")
+
+
+# ponytail: "not huge" cutoff for offering a clone; tune if 200 MB feels wrong
+CLONE_SUGGEST_MAX_KB = 200 * 1024
+
+
+def prompt_clone(disk_kb):
+    """Offer the bare-clone path for richer stats. Default: no."""
+    mb = disk_kb / 1024
+    size = f"{mb:,.0f} MB" if mb >= 1 else f"{disk_kb} KB"
+    while True:
+        sys.stderr.write(
+            f"\nRepository is ~{size}. Clone it for richer stats "
+            f"(per-contributor languages)? [y/N]: "
+        )
+        sys.stderr.flush()
+        choice = read_key("n").lower()
+        if choice in ("y", "yes"):
+            return True
+        if choice in ("n", "no"):
+            return False
         sys.stderr.write(f"  invalid choice {choice!r}\n")
 
 
@@ -1301,11 +1360,13 @@ def gh_repository(body):
     return (body.get("data") or {}).get("repository") or {}
 
 
-def probe_remote_total(owner, repo, token):
-    """Total commits on the default branch via GraphQL; None on error."""
+def probe_remote_meta(owner, repo, token):
+    """Repo size in KB (diskUsage) and total commits on the default branch,
+    in one GraphQL round-trip; (None, None) on error."""
     query = """
 query($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
+    diskUsage
     defaultBranchRef {
       target { ... on Commit { history(first: 1) { totalCount } } }
     }
@@ -1315,15 +1376,19 @@ query($owner: String!, $repo: String!) {
     try:
         body = gh_graphql(query, {"owner": owner, "repo": repo}, token)
     except urllib.error.URLError:
-        return None
+        return None, None
     if "errors" in body:
-        return None
+        return None, None
     repo_node = gh_repository(body)
+    kb = repo_node.get("diskUsage")
     branch = repo_node.get("defaultBranchRef") or {}
     target = branch.get("target") or {}
     history = target.get("history") or {}
     total = history.get("totalCount")
-    return total if isinstance(total, int) else None
+    return (
+        kb if isinstance(kb, int) else None,
+        total if isinstance(total, int) else None,
+    )
 
 
 def fetch_repo_social(github_base, token):
@@ -2329,6 +2394,46 @@ def build_data(
             }
         )
 
+    # Top 3 contributors for each of the top 5 languages — the inverse of each
+    # contributor's language mix. Ranks all authors (not just top_n) so shares
+    # sum correctly; empty in API-only runs, where lang_stats is empty.
+    lang_leaders = []
+    lang_totals = sorted(
+        ((lang, a + d) for lang, (a, d, _) in repo_langs.items() if lang != OTHER_LANG),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    for lang, lang_total in lang_totals[:5]:
+        if lang_total <= 0:
+            continue
+        by_author = sorted(
+            (
+                (r["name"], r["email"], sum(r["langs"][lang][:2]))
+                for r in ranked
+                if lang in r["langs"]
+            ),
+            key=lambda x: x[2],
+            reverse=True,
+        )
+        lang_leaders.append(
+            {
+                "name": lang,
+                "color": NAME_COLOR.get(lang, OTHER_COLOR),
+                "contributors": [
+                    # email keys the segment to the contributor's chart colour
+                    # and author popover on the dashboard side.
+                    {
+                        "name": name,
+                        "email": email,
+                        "pct": round(lines * 100 / lang_total, 1),
+                        "avatarUrl": avatar_url(email, override=avatars.get(email)),
+                    }
+                    for name, email, lines in by_author[:3]
+                    if lines > 0
+                ],
+            }
+        )
+
     weeks_sorted = sorted(all_weeks)
     weekly_data = {
         r["email"]: [weekly_by_author[r["email"]].get(w, 0) for w in weeks_sorted] for r in top
@@ -2395,6 +2500,7 @@ def build_data(
         "tags": tags or [],
         "repoLanguages": repo_languages or top_languages(repo_langs),
         "repoLanguagesBasis": "size" if repo_languages else "churn",
+        "langLeaders": lang_leaders,
         "frameworks": frameworks or [],
     }
 
@@ -2638,6 +2744,7 @@ def main():
         max_prs,
         max_issues,
         lanes,
+        non_interactive,
     ) = parse_args(sys.argv[1:])
 
     token = None
@@ -2653,16 +2760,24 @@ def main():
         if not use_graphql and not clone:
             print("No GitHub token — falling back to bare clone.", file=sys.stderr)
 
+        interactive = sys.stdin.isatty() and sys.stderr.isatty() and not non_interactive
+
+        # One GraphQL round-trip serves both interactive prompts below: repo
+        # size for the clone offer, commit total for the subset choice.
+        disk_kb = total = None
+        if use_graphql and interactive:
+            disk_kb, total = probe_remote_meta(owner, repo, token)
+
+        # A clone unlocks per-author language churn the API can't give; if the
+        # repo is small enough to clone quickly, offer the upgrade up front.
+        if disk_kb is not None and disk_kb <= CLONE_SUGGEST_MAX_KB and prompt_clone(disk_kb):
+            clone, use_graphql = True, False
+
         # Subset prompt only in the GraphQL path: probing total via the API is
         # cheap, and skipping `--commits N` actually saves network. In the
         # bare-clone path the full clone runs regardless, so the prompt would
         # only trim local display — pass `--commits` / `--since` for that.
-        if (
-            use_graphql
-            and not (commits_filter or since or until)
-            and sys.stdin.isatty()
-            and sys.stderr.isatty()
-        ):
+        if use_graphql and interactive and not (commits_filter or since or until):
             # Gate on what load_cache accepts, not bare file existence — a
             # stale-version or corrupt cache file would otherwise suppress the
             # prompt while contributing zero commits to the fetch.
@@ -2670,16 +2785,17 @@ def main():
             if cached_nodes and not cached_complete:
                 # Partial cache (an earlier subset choice): without asking, a
                 # re-run would silently extend it to the full history.
-                total = probe_remote_total(owner, repo, token)
                 if total and total > len(cached_nodes):
                     commits_filter, since, until = prompt_more(len(cached_nodes), total)
-            elif not cached_nodes:
-                total = probe_remote_total(owner, repo, token)
-                if total and total > 1000:
-                    commits_filter, since, until = prompt_subset(total)
+            elif not cached_nodes and total and total > 1000:
+                commits_filter, since, until = prompt_subset(total)
 
         if use_graphql:
             print(f"Fetching {remote} via GitHub GraphQL…", file=sys.stderr)
+            print(
+                "Note: per-contributor language stats need a clone — pass --clone to get them.",
+                file=sys.stderr,
+            )
         else:
             print(f"Cloning {remote} (bare) for local analysis…", file=sys.stderr)
         (

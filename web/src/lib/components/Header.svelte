@@ -38,32 +38,31 @@
   );
 
   // GitHub social counts (top-right line); present only for reachable GitHub
-  // repos, so each entry is included only when its count is. Built as a list so
+  // repos; zero counts are noise, so each entry needs a nonzero count. Built as a list so
   // the "·" separators land between whatever subset is present.
   const plural = (n: number, w: string) => `${fmt(n)} ${w}${n === 1 ? "" : "s"}`;
   const socialItems = $derived.by(() => {
     const link = (path: string) => (base ? `${base}/${path}` : null);
     const items: { url: string | null; label: string }[] = [];
-    if (data.stars != null)
-      items.push({ url: link("stargazers"), label: plural(data.stars, "star") });
-    if (data.watchers != null)
+    if (data.stars) items.push({ url: link("stargazers"), label: plural(data.stars, "star") });
+    if (data.watchers)
       items.push({ url: link("watchers"), label: plural(data.watchers, "watcher") });
-    if (data.forks != null) items.push({ url: link("forks"), label: plural(data.forks, "fork") });
-    if (data.prCount != null)
+    if (data.forks) items.push({ url: link("forks"), label: plural(data.forks, "fork") });
+    if (data.prCount)
       items.push({
         url: link("pulls?q=is%3Apr+is%3Amerged"),
         label: plural(data.prCount, "merged PR"),
       });
-    if (data.prOpenCount != null)
+    if (data.prOpenCount)
       items.push({ url: link("pulls"), label: plural(data.prOpenCount, "open PR") });
-    if (data.prClosedCount != null)
+    if (data.prClosedCount)
       items.push({
         url: link("pulls?q=is%3Apr+is%3Aclosed+is%3Aunmerged"),
         label: plural(data.prClosedCount, "closed PR"),
       });
-    if (data.issueOpenCount != null)
+    if (data.issueOpenCount)
       items.push({ url: link("issues"), label: plural(data.issueOpenCount, "open issue") });
-    if (data.issueClosedCount != null)
+    if (data.issueClosedCount)
       items.push({
         url: link("issues?q=is%3Aissue+is%3Aclosed"),
         label: plural(data.issueClosedCount, "closed issue"),
