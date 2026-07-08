@@ -401,9 +401,13 @@ def main():
     print(f"  {len(vendor)} vendor patterns", file=sys.stderr)
 
     print("fetching Linguist documentation.yml…", file=sys.stderr)
-    documentation = [
-        p for p in parse_vendor_yml(fetch(DOCUMENTATION_YML)) if p not in DOC_PATTERN_SKIP
-    ]
+    doc_patterns = parse_vendor_yml(fetch(DOCUMENTATION_YML))
+    missing = DOC_PATTERN_SKIP - set(doc_patterns)
+    if missing:
+        sys.exit(
+            f"DOC_PATTERN_SKIP patterns not in documentation.yml (upstream drift): {sorted(missing)}"
+        )
+    documentation = [p for p in doc_patterns if p not in DOC_PATTERN_SKIP]
     print(f"  {len(documentation)} documentation patterns", file=sys.stderr)
 
     fw_deps = {"npm": CURATED_WEB}
